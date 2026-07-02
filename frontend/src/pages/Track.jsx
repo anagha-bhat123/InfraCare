@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { MapPin, Printer, Mail } from "lucide-react";
+import { MapPin, Printer, Mail, ArrowLeft } from "lucide-react";
 import MapPanel from "../components/MapPanel";
 import { reportsSeed } from "../data/seedData";
 
-export default function Track({ reports }) {
+export default function Track({ reports, setPage }) {
   const [activeId, setActiveId] = useState(reports[0]?.id || "");
   const [tab, setTab] = useState("Active");
   
@@ -12,6 +12,14 @@ export default function Track({ reports }) {
   return (
     <main className="track-layout">
       <aside className="complaint-list">
+        <button
+          type="button"
+          className="text-link"
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 12, fontWeight: 600 }}
+          onClick={() => setPage("home")}
+        >
+          <ArrowLeft size={16} /> Back to Home
+        </button>
         <h1>My Complaints</h1>
         <div className="tabs">
           <button className={tab === "Active" ? "active" : ""} onClick={() => setTab("Active")}>

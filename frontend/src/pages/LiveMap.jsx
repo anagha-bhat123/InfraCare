@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { CheckCircle2, ArrowRight, Search, LocateFixed, X } from "lucide-react";
+import { CheckCircle2, ArrowRight, ArrowLeft, Search, LocateFixed, X } from "lucide-react";
 import MapPanel from "../components/MapPanel";
 import { reportsSeed } from "../data/seedData";
 
-export default function LiveMap() {
+export default function LiveMap({ setPage }) {
   const [coords, setCoords] = useState([40.7128, -74.006]);
   const [popup, setPopup] = useState(true);
   const [heat, setHeat] = useState(true);
@@ -11,6 +11,14 @@ export default function LiveMap() {
   return (
     <main className="map-screen">
       <aside className="map-controls">
+        <button
+          type="button"
+          className="text-link"
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 12, fontWeight: 600 }}
+          onClick={() => setPage("home")}
+        >
+          <ArrowLeft size={16} /> Back to Home
+        </button>
         <h2>Map Controls</h2>
         <p>Filter infrastructure data by region and type.</p>
         <label>

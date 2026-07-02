@@ -3,7 +3,8 @@ import {
   Camera, 
   Upload, 
   LocateFixed, 
-  ArrowRight, 
+  ArrowRight,
+  ArrowLeft,
   Search, 
   Shield, 
   CheckCircle2, 
@@ -87,6 +88,14 @@ export default function Report({ addReport, setPage }) {
 
   return (
     <main className="page report-page">
+      <button
+        type="button"
+        className="text-link"
+        style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 18, fontWeight: 600 }}
+        onClick={() => setPage("track")}
+      >
+        <ArrowLeft size={16} /> Back to My Complaints
+      </button>
       <h1>Report Road Damage</h1>
       <p className="lead">Use this official portal to submit detailed information about infrastructure defects. Your report will be analyzed and prioritized by municipal engineering teams.</p>
       <form className="report-grid" onSubmit={submit}>

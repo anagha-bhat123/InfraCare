@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import { supabase } from "./services/supabase";
 
 // Pages
 import Home from "./pages/Home";
@@ -21,21 +22,52 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [reports, setReports] = useState(reportsSeed);
 
-  // Load session from localStorage on initial mount
+  // Load session on initial mount — check Supabase session first, then localStorage
   useEffect(() => {
-    const savedUser = localStorage.getItem("infracare_user");
-    if (savedUser) {
-      try {
-        const parsed = JSON.parse(savedUser);
-        setUser(parsed);
-        // Direct them to their role home page on initial mount
-        if (parsed.role === "citizen") setPage("track");
-        else if (parsed.role === "engineer") setPage("tasks");
-        else if (parsed.role === "admin") setPage("map");
-      } catch (err) {
-        localStorage.removeItem("infracare_user");
+    const restoreFromParsed = (parsed) => {
+      setUser(parsed);
+      if (parsed.role === "citizen") setPage("track");
+      else if (parsed.role === "engineer") setPage("tasks");
+      else if (parsed.role === "admin") setPage("map");
+    };
+
+    const init = async () => {
+      // 1️⃣ Try Supabase active session (for real registered users)
+      if (supabase) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          // Fetch profile for role info
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role, full_name")
+            .eq("id", session.user.id)
+            .single();
+          // Priority: profiles table → user_metadata (set at signup) → email
+          const meta = session.user.user_metadata || {};
+          const userData = {
+            id: session.user.id,
+            role: profile?.role || meta.role || "citizen",
+            name: profile?.full_name || meta.full_name || session.user.email,
+            email: session.user.email,
+          };
+          restoreFromParsed(userData);
+          return;
+        }
+
       }
-    }
+
+      // 2️⃣ Fall back to localStorage (demo users with "Remember Me")
+      const savedUser = localStorage.getItem("infracare_user");
+      if (savedUser) {
+        try {
+          restoreFromParsed(JSON.parse(savedUser));
+        } catch {
+          localStorage.removeItem("infracare_user");
+        }
+      }
+    };
+
+    init();
   }, []);
 
   useEffect(() => {
@@ -70,22 +102,35 @@ export default function App() {
   }, [page, user]);
 
   const handleSetUser = (u) => {
-    setUser(u);
     if (!u) {
+      // Logout
+      setUser(null);
       localStorage.removeItem("infracare_user");
+      if (supabase) supabase.auth.signOut().catch(() => {});
       setPage("home");
+    } else {
+      // Merge update — profile edits pass partial objects like { ...user, name: "New Name" }
+      setUser((prev) => ({ ...prev, ...u }));
+      // Keep localStorage in sync for demo/remembered users
+      const saved = localStorage.getItem("infracare_user");
+      if (saved) {
+        try {
+          localStorage.setItem("infracare_user", JSON.stringify({ ...JSON.parse(saved), ...u }));
+        } catch { /* ignore */ }
+      }
     }
   };
+
 
   const view = useMemo(() => {
     if (page === "login") return <Login setUser={handleSetUser} setPage={setPage} />;
     if (page === "register") return <Register setPage={setPage} />;
     if (page === "report") return <Report addReport={(r) => setReports([r, ...reports])} setPage={setPage} />;
-    if (page === "track") return <Track reports={reports} />;
-    if (page === "map") return <LiveMap />;
-    if (page === "analysis") return <AdminAnalysis />;
-    if (page === "tasks") return <Tasks />;
-    if (page === "profile") return <Profile user={user} />;
+    if (page === "track") return <Track reports={reports} setPage={setPage} />;
+    if (page === "map") return <LiveMap setPage={setPage} />;
+    if (page === "analysis") return <AdminAnalysis setPage={setPage} />;
+    if (page === "tasks") return <Tasks setPage={setPage} />;
+    if (page === "profile") return <Profile user={user} setPage={setPage} setUser={handleSetUser} />;
     return <Home setPage={setPage} />;
   }, [page, user, reports]);
 

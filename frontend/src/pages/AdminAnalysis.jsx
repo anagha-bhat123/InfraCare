@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { 
-  ArrowRight, 
+  ArrowRight,
+  ArrowLeft,
   Camera, 
   Gauge, 
   SquarePen, 
@@ -11,12 +12,19 @@ import {
 } from "lucide-react";
 import { reportsSeed } from "../data/seedData";
 
-export default function AdminAnalysis() {
+export default function AdminAnalysis({ setPage }) {
   const [severity, setSeverity] = useState("Medium");
   
   return (
     <main className="page analysis">
-      <p className="crumb">Reports › Case #RD-92841</p>
+      <button
+        type="button"
+        className="text-link"
+        style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 12, fontWeight: 600 }}
+        onClick={() => setPage("map")}
+      >
+        <ArrowLeft size={16} /> Back to Live Map
+      </button>
       <div className="analysis-head">
         <div>
           <h1>AI Verification Analysis</h1>

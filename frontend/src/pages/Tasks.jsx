@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { MapPin, Navigation } from "lucide-react";
+import { MapPin, Navigation, ArrowLeft } from "lucide-react";
 import MapPanel from "../components/MapPanel";
 import { reportsSeed, assignments } from "../data/seedData";
 
-export default function Tasks() {
+export default function Tasks({ setPage }) {
   const [activeId, setActiveId] = useState(assignments[0]?.id || "");
   const [logs, setLogs] = useState(["Crew assigned. Awaiting first field update."]);
   
@@ -12,6 +12,14 @@ export default function Tasks() {
   return (
     <main className="task-layout">
       <aside className="assignment-list">
+        <button
+          type="button"
+          className="text-link"
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 12, fontWeight: 600 }}
+          onClick={() => setPage("home")}
+        >
+          <ArrowLeft size={16} /> Back to Home
+        </button>
         <h2>Active Assignments</h2>
         <p>3 Tasks Currently Dispatched</p>
         {assignments.map((a) => (
