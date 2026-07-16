@@ -52,7 +52,6 @@ export default function Register({ setPage }) {
   const [ward, setWard] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [engineerId, setEngineerId] = useState("");
 
   // Validation errors
   const [errors, setErrors] = useState({});
@@ -64,10 +63,6 @@ export default function Register({ setPage }) {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = "Enter a valid email address.";
     if (!mobile.trim()) errs.mobile = "Mobile number is required.";
     else if (!/^[6-9]\d{9}$/.test(mobile.trim())) errs.mobile = "Enter a valid 10-digit Indian mobile number.";
-    if (type === "Municipal Worker") {
-      if (!engineerId.trim()) errs.engineerId = "Employee ID is required.";
-      else if (!/^M-\d{3}-[A-Z0-9]{4}$/i.test(engineerId.trim())) errs.engineerId = "Format: M-001-AB12";
-    }
     if (!password) errs.password = "Password is required.";
     else if (password.length < 6) errs.password = "Password must be at least 6 characters.";
     if (!confirmPassword) errs.confirmPassword = "Please confirm your password.";
@@ -86,56 +81,31 @@ export default function Register({ setPage }) {
     }
     setErrors({});
 
-    if (!supabase) {
-      setServerError("Registration service is not configured. Please contact the administrator.");
-      return;
-    }
-
     setLoading(true);
     try {
       const role = type === "Municipal Worker" ? "engineer" : "citizen";
 
-      // Sign up with Supabase Auth — sends a confirmation email automatically
-      const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: {
-          data: {
-            full_name: fullName.trim(),
-            role,
-            phone: mobile.trim(),
-            ward_zone: ward || null,
-            employee_id: type === "Municipal Worker" ? engineerId.trim().toUpperCase() : null,
-          },
-          emailRedirectTo: `${window.location.origin}`,
-        },
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      // Insert into profiles table if user was created
-      if (data.user) {
-        const { error: profileError } = await supabase.from("profiles").upsert({
-          id: data.user.id,
+      const res = await fetch(`http://127.0.0.1:8000/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
           full_name: fullName.trim(),
           role,
           phone: mobile.trim(),
-          ward_zone: ward || null,
-        });
-        if (profileError) {
-          console.warn("Profile upsert warning:", profileError.message);
-        }
+          ward_zone: ward || null
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Registration failed. Please try again.");
       }
 
       setSuccess(true);
     } catch (err) {
-      let msg = err.message || "Registration failed. Please try again.";
-      if (msg.toLowerCase().includes("already registered") || msg.toLowerCase().includes("user already exists")) {
-        msg = "This email is already registered. Please login instead.";
-      }
-      setServerError(msg);
+      setServerError(err.message);
     } finally {
       setLoading(false);
     }
@@ -156,25 +126,9 @@ export default function Register({ setPage }) {
           <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
             <CheckCircle2 size={40} color="#16a34a" />
           </div>
-          <h1 style={{ fontSize: "1.6rem", marginBottom: 4 }}>Check Your Email!</h1>
+          <h1 style={{ fontSize: "1.6rem", marginBottom: 4 }}>Registration Successful!</h1>
           <p style={{ color: "#555", maxWidth: 340, lineHeight: 1.6 }}>
-            We've sent a <strong>confirmation link</strong> to <strong>{email}</strong>.
-            Please click the link in the email to verify your account and activate your login.
-          </p>
-          <p style={{ color: "#888", fontSize: ".85rem" }}>
-            Didn't receive it? Check your spam folder or{" "}
-            <button
-              type="button"
-              className="text-link"
-              onClick={async () => {
-                if (!supabase) return;
-                await supabase.auth.resend({ type: "signup", email: email.trim() });
-                alert(`Confirmation email resent to ${email}`);
-              }}
-            >
-              resend email
-            </button>
-            .
+            Your account has been created successfully. You can now log in using your email and password.
           </p>
           <button
             className="black wide"
@@ -304,23 +258,7 @@ export default function Register({ setPage }) {
           <FieldError msg={errors.mobile} />
         </label>
 
-        {/* Employee ID (only for Municipal Worker) */}
-        {type === "Municipal Worker" && (
-          <label>
-            Employee ID
-            <span className="input-icon">
-              <ShieldCheck />
-              <input
-                required
-                placeholder="e.g. M-001-AB12"
-                value={engineerId}
-                onChange={(e) => { setEngineerId(e.target.value.toUpperCase()); setErrors((p) => ({ ...p, engineerId: "" })); }}
-                style={errors.engineerId ? { borderColor: "#c0152a" } : {}}
-              />
-            </span>
-            <FieldError msg={errors.engineerId} />
-          </label>
-        )}
+
 
         {/* Ward / Zone */}
         <label>

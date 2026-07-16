@@ -88,3 +88,26 @@ export const assignments = [
     crew: "Crew #08-C (Patel)"
   }
 ];
+
+export const inspections = [
+  {
+    id: "INSP-1001",
+    status: "Scheduled",
+    title: "Verify Pothole Severity",
+    location: "Main St & 4th",
+    coords: [40.7128, -74.006],
+    dueDate: "Oct 25, 2023",
+    notes: "Check if base layer is compromised.",
+    originalReportEvidence: "https://images.unsplash.com/photo-1694643148030-5250b2f16543?auto=format&fit=crop&w=900&q=80"
+  },
+  {
+    id: "INSP-1002",
+    status: "Completed",
+    title: "Post-Repair Sign-off",
+    location: "Bridge Way, East Side",
+    coords: [40.7282, -73.9942],
+    dueDate: "Oct 22, 2023",
+    notes: "Verify drainage cover replacement meets protocol.",
+    originalReportEvidence: "https://images.unsplash.com/photo-1604357209793-fca5dca89f97?auto=format&fit=crop&w=900&q=80"
+  }
+];

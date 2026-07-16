@@ -1,91 +1,235 @@
-import React, { useState } from "react";
+import React from "react";
 import { 
-  ArrowRight,
-  ArrowLeft,
-  Camera, 
-  Gauge, 
-  SquarePen, 
-  Trash2, 
-  MapPin, 
-  Clock3, 
-  ShieldCheck 
+  LayoutDashboard, BarChart3, AlertTriangle, 
+  Wrench, Users, FileText, Search, Bell, 
+  ArrowRight, CheckCircle2, ChevronLeft, ChevronRight,
+  Download, FileSpreadsheet, Edit3
 } from "lucide-react";
-import { reportsSeed } from "../data/seedData";
 
 export default function AdminAnalysis({ setPage }) {
-  const [severity, setSeverity] = useState("Medium");
-  
   return (
-    <main className="page analysis">
-      <button
-        type="button"
-        className="text-link"
-        style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 12, fontWeight: 600 }}
-        onClick={() => setPage("map")}
-      >
-        <ArrowLeft size={16} /> Back to Live Map
-      </button>
-      <div className="analysis-head">
-        <div>
-          <h1>AI Verification Analysis</h1>
-          <p className="lead">Confirm automated detection results for pothole reporting on 5th Avenue. Ensure bounding boxes and classification align with municipal standards.</p>
+    <div className="admin-dashboard-container">
+      {/* SIDEBAR */}
+      <aside className="admin-sidebar">
+        <div className="admin-brand">
+          <h1>InfraCare</h1>
+          <span>MUNICIPAL ADMIN</span>
         </div>
-        <div>
-          <button className="outline" onClick={() => alert("Flagged for manual review")}>Flag for Review</button>
-          <button className="black" onClick={() => alert("Report confirmed")}>Confirm Report <ArrowRight /></button>
+
+        <nav className="admin-nav-links">
+          <a href="#" onClick={(e) => { e.preventDefault(); setPage("dashboard"); }}>
+            <LayoutDashboard size={18} /> Dashboard
+          </a>
+          <a href="#" className="active" onClick={(e) => { e.preventDefault(); setPage("analysis"); }}>
+            <BarChart3 size={18} /> Analytics
+          </a>
+          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-reports"); }}>
+            <AlertTriangle size={18} /> Complaints
+          </a>
+          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-maintenance"); }}>
+            <Wrench size={18} /> Maintenance
+          </a>
+          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-users"); }}>
+            <Users size={18} /> User Management
+          </a>
+          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-logs"); }}>
+            <FileText size={18} /> System Logs
+          </a>
+        </nav>
+
+        <div className="admin-sidebar-bottom">
+          <div className="admin-user-profile" onClick={(e) => { e.preventDefault(); setPage("admin-profile"); }} style={{cursor: "pointer"}}>
+            <div className="admin-avatar-small-wrap text-avatar">JD</div>
+            <div className="admin-user-info">
+              <strong>Admin Panel</strong>
+              <span>ID: 882-910</span>
+            </div>
+          </div>
         </div>
-      </div>
-      <section className="analysis-grid">
-        <article className="panel">
-          <h2>Uploaded Evidence <Camera /></h2>
-          <img src={reportsSeed[0].evidence} alt="Uploaded site evidence" />
-        </article>
-        <article className="panel ai-view">
-          <h2>AI Analysis View <Gauge /></h2>
-          <img src={reportsSeed[0].evidence} alt="AI analysis view" />
-          <div className="box-label">POTHOLE: 98%</div>
-          <div className="bbox" />
-        </article>
-        <aside className="panel">
-          <h2>Detection Metadata</h2>
-          <label>
-            AI Classification
-            <div className="meta-input"><b>Pothole</b><span>98% Confidence</span></div>
-          </label>
-          <label>
-            Suggested Severity
-            <div className="segmented">
-              {["Low", "Medium", "High"].map((v) => (
-                <button className={severity === v ? "selected" : ""} onClick={() => setSeverity(v)} key={v}>{v}</button>
+      </aside>
+
+      {/* MAIN CONTENT */}
+      <main className="admin-main-area">
+        {/* TOPBAR */}
+        <header className="admin-top-nav">
+          <div className="admin-top-left align-baseline">
+            <h2 className="topbar-page-title">Reporting Hub</h2>
+            <a href="#" className="admin-top-link active ml-4">Dashboard</a>
+          </div>
+          <div className="admin-top-right">
+            <div className="admin-search-box">
+              <Search size={16} className="search-icon" />
+              <input type="text" placeholder="Search reports..." />
+            </div>
+            <button className="admin-icon-btn"><Bell size={18} /></button>
+            <div className="admin-avatar-top text-avatar square">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+          </div>
+        </header>
+
+        {/* PAGE CONTENT */}
+        <div className="admin-scroll-content">
+          <div className="admin-page-header">
+            <div className="admin-header-text">
+              <h2 className="serif-title large">Documentation Engine</h2>
+              <p>High-fidelity municipal reporting for fiscal oversight and infrastructural assessment. All<br/>data is synchronized with real-time field reporting units.</p>
+            </div>
+            <div className="admin-header-actions">
+              <button className="admin-btn-black">GENERATE NEW<br/>REPORT <ArrowRight size={16} className="ml-2" /></button>
+            </div>
+          </div>
+
+          <div className="analytics-top-widgets">
+            <div className="widget-card white-bg">
+              <div className="widget-header">
+                <div>
+                  <h3 className="serif-title">Maintenance Velocity</h3>
+                  <span className="sub-label">AVERAGE COMPLETION TIME BY DISTRICT (DAYS)</span>
+                </div>
+                <div className="badge-light-green">LIVE SYNC</div>
+              </div>
+              <div className="chart-placeholder">
+                <div className="x-axis-labels">
+                  <span>DIST-01</span><span>DIST-02</span><span>DIST-03</span><span>DIST-04</span><span>DIST-05</span><span>DIST-06</span><span>DIST-07</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="widget-card dark-bg">
+              <div className="widget-header">
+                <h3 className="serif-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mr-2 inline"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Distribution Automation</h3>
+              </div>
+              <p className="dark-desc">Schedule recurring automated reporting<br/>to designated municipal committee<br/>stakeholders.</p>
+              
+              <div className="schedule-list">
+                <div className="schedule-item">
+                  <div>
+                    <strong>Planning Committee</strong>
+                    <span>WEEKLY • MONDAY 08:00 AM</span>
+                  </div>
+                  <CheckCircle2 size={20} className="text-green" />
+                </div>
+                <div className="schedule-item">
+                  <div>
+                    <strong>Fiscal Oversight Board</strong>
+                    <span>MONTHLY • 1ST DAY</span>
+                  </div>
+                  <div className="toggle-switch active"></div>
+                </div>
+              </div>
+
+              <button className="admin-btn-outline dark-mode full-width">CONFIGURE NEW TRIGGER</button>
+            </div>
+          </div>
+
+          <div className="road-conditions-panel">
+            <div className="panel-header">
+              <h3 className="serif-title">Area-Wise Road Conditions</h3>
+              <div className="legend">
+                <span className="legend-item"><span className="dot red"></span> CRITICAL</span>
+                <span className="legend-item"><span className="dot orange"></span> WARNING</span>
+                <span className="legend-item"><span className="dot green"></span> OPTIMAL</span>
+              </div>
+            </div>
+            <div className="conditions-grid">
+              {[
+                { name: "North Gate", value: 81, color: "black" },
+                { name: "Riverside", value: 89, color: "black" },
+                { name: "Old Town", value: 66, color: "black" },
+                { name: "Financial", value: 95, color: "black" },
+                { name: "Market St", value: 68, color: "black" },
+                { name: "East Quay", value: 89, color: "black" },
+                { name: "Industrial", value: 88, color: "black" },
+                { name: "Park View", value: 75, color: "black" },
+              ].map((area, i) => (
+                <div className="condition-card" key={i}>
+                  <span className="area-name">{area.name}</span>
+                  <div className="area-value">{area.value}%</div>
+                  <div className="progress-bar"><div className="fill black" style={{width: `${area.value}%`}}></div></div>
+                </div>
               ))}
             </div>
-          </label>
-          <em>Calculated based on estimated depth of 4.2cm and area of 0.85m²</em>
-          <label>
-            Detection Model
-            <input value="rddr_v4.2_resnet50_optimized" readOnly />
-          </label>
-          <div className="black-panel">
-            <h2>Admin Override</h2>
-            <p>Manually adjust classification if the AI model has misidentified the damage type or severity.</p>
-            <button onClick={() => alert("Classification editor opened")}><SquarePen />Change Classification</button>
-            <button onClick={() => alert("Report discarded for demo")}><Trash2 />Discard Report</button>
+            <div className="floating-chart-btn">
+              <BarChart3 size={20} />
+            </div>
           </div>
-        </aside>
-      </section>
-      <div className="card-grid three">
-        {[
-          [MapPin, "Location Data", "38.8951° N, 77.0364° W\n5th Avenue, Sector 4C"], 
-          [Clock3, "Report Timeline", "Submitted: 14:22 Oct 24\nProcessed: 14:24 Oct 24"], 
-          [ShieldCheck, "Citizen Reporter", "UID: 8219-X\nTrust Rating: 4.8/5.0"]
-        ].map(([Icon, h, t]) => (
-          <article className="thin-card" key={h}>
-            <Icon />
-            <h3>{h}</h3>
-            <p>{t}</p>
-          </article>
-        ))}
-      </div>
-    </main>
+
+          <div className="reports-archive-panel">
+            <div className="archive-header">
+              <h3 className="serif-title">Generated Reports Archive</h3>
+              <div className="archive-actions">
+                <button className="admin-btn-outline small"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mr-2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg> FILTER</button>
+                <button className="admin-btn-outline small"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mr-2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> DATE RANGE</button>
+              </div>
+            </div>
+            
+            <table className="reports-table">
+              <thead>
+                <tr>
+                  <th>REPORT ID</th>
+                  <th>DOCUMENT TITLE</th>
+                  <th>GENERATION DATE</th>
+                  <th>STATUS</th>
+                  <th>ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="id-col">#REP-2023-<br/>001</td>
+                  <td className="title-col serif-title">Q3 Infrastructure Durability Audit</td>
+                  <td className="date-col">Oct 12, 2023 •<br/>14:30</td>
+                  <td><span className="badge-light-green">VERIFIED</span></td>
+                  <td className="actions-col">
+                    <button><FileText size={14} /> PDF</button>
+                    <button><FileSpreadsheet size={14} /> EXCEL</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td className="id-col">#REP-2023-<br/>002</td>
+                  <td className="title-col serif-title">Annual Maintenance Velocity<br/>Metrics</td>
+                  <td className="date-col">Oct 05, 2023 •<br/>09:15</td>
+                  <td><span className="badge-light-orange">DRAFT</span></td>
+                  <td className="actions-col">
+                    <button><Edit3 size={14} /> EDIT</button>
+                    <button><FileText size={14} /> PDF</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td className="id-col">#REP-2023-<br/>003</td>
+                  <td className="title-col serif-title">Flood Prevention Readiness<br/>Assessment</td>
+                  <td className="date-col">Sep 28, 2023 •<br/>16:45</td>
+                  <td><span className="badge-light-green">VERIFIED</span></td>
+                  <td className="actions-col">
+                    <button><FileText size={14} /> PDF</button>
+                    <button><FileSpreadsheet size={14} /> EXCEL</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div className="archive-footer">
+              <span>Showing 3 of 142 records</span>
+              <div className="pagination">
+                <button><ChevronLeft size={16} /></button>
+                <button><ChevronRight size={16} /></button>
+              </div>
+            </div>
+          </div>
+
+          <div className="admin-page-footer">
+            <div className="footer-brand">
+              <h4 className="serif-title text-gray">INFRACARE MUNICIPAL SYSTEMS</h4>
+              <span>DATA INTEGRITY SECURED VIA AES-256 PROTOCOL</span>
+            </div>
+            <div className="footer-stats">
+              <span>SYSTEM LOAD: NOMINAL</span>
+              <span>LATENCY: 42MS</span>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
   );
 }
