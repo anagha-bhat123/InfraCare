@@ -1,22 +1,6 @@
 import React, { useState } from "react";
-import {
-  ArrowLeft, LogOut, Mail, ShieldCheck,
-  Pencil, Check, X, Phone, MapPin, User, IdCard,
-} from "lucide-react";
+import { User, Bell, History, ShieldCheck, ArrowRight } from "lucide-react";
 import { supabase } from "../services/supabase";
-
-const ROLE_COLOR = { citizen: "#2563eb", engineer: "#d97706", admin: "#16a34a" };
-const ROLE_BG    = { citizen: "#dbeafe", engineer: "#fef3c7", admin: "#dcfce7" };
-const ROLE_LABEL = { citizen: "Citizen", engineer: "Engineer", admin: "Admin" };
-
-/* ── Helpers ────────────────────────────────────────────────────── */
-function getAvatarText(user) {
-  const n = (user?.name || "").trim();
-  if (!n || n.includes("@")) return (user?.email || "U").slice(0, 2).toUpperCase();
-  const parts = n.split(" ").filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return parts[0].slice(0, 2).toUpperCase();
-}
 
 function getDisplayName(user) {
   const n = (user?.name || "").trim();
@@ -24,338 +8,285 @@ function getDisplayName(user) {
   return n;
 }
 
-/* ── Sub-components ─────────────────────────────────────────────── */
-function InfoRow({ icon: Icon, label, value }) {
+function InputField({ label, value, onChange, readOnly, placeholder }) {
   return (
-    <div style={{
-      display: "flex", alignItems: "flex-start", gap: 14,
-      padding: "14px 0", borderBottom: "1px solid #f0f2f4",
-    }}>
-      <Icon size={16} style={{ color: "#9ca3af", marginTop: 3, flexShrink: 0 }} />
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: ".72rem", color: "#9ca3af", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 2 }}>
-          {label}
-        </div>
-        <div style={{ fontWeight: 600, fontSize: ".97rem", color: "#111", wordBreak: "break-all" }}>
-          {value || <span style={{ color: "#c4c4c4", fontWeight: 400 }}>Not set</span>}
-        </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "#333", letterSpacing: 0.5 }}>{label}</label>
+      <input
+        value={value}
+        onChange={onChange}
+        readOnly={readOnly}
+        placeholder={placeholder}
+        style={{
+          padding: "14px 16px", borderRadius: 2, border: "1px solid #e0e0e0",
+          background: readOnly ? "#f5f5f5" : "#f9f9f9",
+          fontSize: "0.95rem", color: "#333", outline: "none",
+          width: "100%", boxSizing: "border-box"
+        }}
+      />
+    </div>
+  );
+}
+
+function SelectField({ label, value, onChange, options, placeholder }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "#333", letterSpacing: 0.5 }}>{label}</label>
+      <select
+        value={value}
+        onChange={onChange}
+        style={{
+          padding: "14px 16px", borderRadius: 2, border: "1px solid #e0e0e0",
+          background: "#f9f9f9", fontSize: "0.95rem", color: "#333", outline: "none",
+          width: "100%", boxSizing: "border-box"
+        }}
+      >
+        {placeholder && <option value="" disabled>{placeholder}</option>}
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function InfoBox({ icon, label, value, isBadge }) {
+  return (
+    <div style={{ background: "#f5f5f5", padding: "20px", borderRadius: 4, display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ color: "#333" }}>{icon}</div>
+      <div>
+        <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#111", marginBottom: 6, letterSpacing: 0.5 }}>{label}</div>
+        {isBadge ? (
+          <div style={{ display: "inline-block", background: "#000", color: "#fff", padding: "4px 8px", fontSize: "0.7rem", fontWeight: 700, letterSpacing: 1, borderRadius: 2 }}>
+            {value}
+          </div>
+        ) : (
+          <div style={{ fontSize: "0.95rem", color: "#444" }}>{value}</div>
+        )}
       </div>
     </div>
   );
 }
 
-function FieldInput({ label, icon: Icon, value, onChange, type = "text", as: As, children, placeholder }) {
+function Toggle({ checked, onChange }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <label style={{ fontSize: ".78rem", fontWeight: 600, color: "#374151", textTransform: "uppercase", letterSpacing: ".07em", display: "flex", alignItems: "center", gap: 6 }}>
-        <Icon size={13} /> {label}
-      </label>
-      {As === "select" ? (
-        <select
-          value={value}
-          onChange={onChange}
-          style={{
-            border: "1.5px solid #d1d5db", borderRadius: 8,
-            padding: "10px 14px", fontSize: ".95rem",
-            background: "#fff", outline: "none", width: "100%",
-            transition: "border-color .2s",
-          }}
-          onFocus={e => e.target.style.borderColor = "#000"}
-          onBlur={e => e.target.style.borderColor = "#d1d5db"}
-        >
-          {children}
-        </select>
-      ) : (
-        <input
-          type={type}
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          style={{
-            border: "1.5px solid #d1d5db", borderRadius: 8,
-            padding: "10px 14px", fontSize: ".95rem",
-            background: "#fff", outline: "none", width: "100%",
-            transition: "border-color .2s",
-          }}
-          onFocus={e => e.target.style.borderColor = "#000"}
-          onBlur={e => e.target.style.borderColor = "#d1d5db"}
-        />
-      )}
+    <div
+      onClick={() => onChange(!checked)}
+      style={{
+        width: 46, height: 24, borderRadius: 12,
+        background: checked ? "#000" : "#d1d5db",
+        position: "relative", cursor: "pointer", transition: "all 0.2s",
+        flexShrink: 0
+      }}
+    >
+      <div style={{
+        width: 20, height: 20, borderRadius: "50%", background: "#fff",
+        position: "absolute", top: 2, left: checked ? 24 : 2,
+        transition: "all 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)"
+      }} />
     </div>
   );
 }
 
-/* ── Main component ─────────────────────────────────────────────── */
+function ToggleRow({ title, desc, checked, onChange }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+      <div>
+        <div style={{ fontSize: "0.95rem", fontWeight: 600, color: "#111", marginBottom: 4 }}>{title}</div>
+        <div style={{ fontSize: "0.85rem", color: "#666" }}>{desc}</div>
+      </div>
+      <Toggle checked={checked} onChange={onChange} />
+    </div>
+  );
+}
+
 export default function Profile({ user, setPage, setUser }) {
-  const [editing, setEditing]     = useState(false);
-  const [saving, setSaving]       = useState(false);
-  const [saveError, setSaveError] = useState("");
-  const [saveOk, setSaveOk]       = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [fullName, setFullName] = useState(user?.name || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [phone, setPhone] = useState(user?.phone || "");
+  const [ward, setWard] = useState(user?.ward || "");
+  const [zone, setZone] = useState(user?.zone || "");
 
-  const [fullName, setFullName] = useState(getDisplayName(user));
-  const [phone, setPhone]       = useState(user?.phone || "");
-  const [ward, setWard]         = useState(user?.ward  || "");
+  const [emailAlerts, setEmailAlerts] = useState(user?.emailAlerts ?? true);
+  const [smsNotifs, setSmsNotifs] = useState(user?.smsNotifs ?? false);
+  const [hazardAlerts, setHazardAlerts] = useState(user?.hazardAlerts ?? true);
+  const [repairCompletion, setRepairCompletion] = useState(user?.repairCompletion ?? true);
 
-  const roleColor = ROLE_COLOR[user?.role] || "#555";
-  const roleBg    = ROLE_BG[user?.role]    || "#f3f4f6";
+  const roleName = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "Citizen";
+  const avatarUrl = user?.avatar || "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80";
 
-  const cancelEdit = () => {
-    setFullName(getDisplayName(user));
-    setPhone(user?.phone || "");
-    setWard(user?.ward  || "");
-    setSaveError("");
-    setSaveOk(false);
-    setEditing(false);
+  const discardChanges = () => {
+    setFullName("");
+    setEmail("");
+    setPhone("");
+    setWard(user?.ward || "");
+    setZone(user?.zone || "");
+    setEmailAlerts(user?.emailAlerts ?? true);
+    setSmsNotifs(user?.smsNotifs ?? false);
+    setHazardAlerts(user?.hazardAlerts ?? true);
+    setRepairCompletion(user?.repairCompletion ?? true);
   };
 
   const saveProfile = async () => {
-    if (!fullName.trim()) { setSaveError("Full name cannot be empty."); return; }
     setSaving(true);
-    setSaveError("");
-    setSaveOk(false);
     try {
       if (supabase) {
-        const { error } = await supabase.auth.updateUser({
+        await supabase.auth.updateUser({
           data: { full_name: fullName.trim(), phone: phone.trim(), ward_zone: ward },
         });
-        if (error) throw new Error(error.message);
-        // Also try profiles table (silent if RLS blocks)
         await supabase.from("profiles").upsert({
           id: user.id, full_name: fullName.trim(),
           phone: phone.trim() || null, ward_zone: ward || null, role: user.role,
         });
       }
-      setUser({ ...user, name: fullName.trim(), phone: phone.trim(), ward });
-      setSaveOk(true);
-      setEditing(false);
+      setUser({ 
+        ...user, 
+        name: fullName.trim(), 
+        email: email.trim(),
+        phone: phone.trim(), 
+        ward,
+        zone,
+        emailAlerts,
+        smsNotifs,
+        hazardAlerts,
+        repairCompletion
+      });
+      alert("Changes saved successfully!");
     } catch (err) {
-      setSaveError(err.message || "Save failed. Please try again.");
+      alert(err.message || "Save failed.");
     } finally {
       setSaving(false);
     }
   };
 
-  const backPage = user?.role === "engineer" ? "tasks" : user?.role === "admin" ? "map" : "track";
-
   return (
-    <div style={{ background: "#f4f5f7", minHeight: "calc(100vh - 78px)", padding: "40px 24px" }}>
-      <div style={{ maxWidth: 780, margin: "0 auto" }}>
+    <div style={{ backgroundColor: "#fafafa", minHeight: "100vh", padding: "40px 20px" }}>
+      <div style={{ width: "100%" }}>
 
-        {/* ── Back link ── */}
-        <button
-          type="button"
-          onClick={() => setPage(backPage)}
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 7,
-            color: "#555", fontSize: ".9rem", fontWeight: 600,
-            background: "none", border: "none", cursor: "pointer",
-            marginBottom: 28, padding: 0,
-            transition: "color .15s",
-          }}
-          onMouseEnter={e => e.currentTarget.style.color = "#000"}
-          onMouseLeave={e => e.currentTarget.style.color = "#555"}
-        >
-          <ArrowLeft size={17} /> Back
-        </button>
-
-        <h1 style={{ fontSize: "2rem", marginBottom: 28, fontFamily: "Georgia, serif" }}>My Profile</h1>
-
-        {/* ── Card ── */}
+        {/* Banner */}
         <div style={{
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 16,
-          boxShadow: "0 2px 16px rgba(0,0,0,.06)",
-          overflow: "hidden",
+          background: "#000", color: "#fff", borderRadius: 4,
+          padding: "48px 40px", display: "flex", justifyContent: "space-between",
+          alignItems: "center", marginBottom: 32, flexWrap: "wrap", gap: 24
         }}>
-
-          {/* ── Top hero banner ── */}
-          <div style={{
-            background: "linear-gradient(135deg, #0f0f0f 0%, #2d2d2d 100%)",
-            padding: "36px 36px 28px",
-          }}>
-            <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-                {/* Avatar */}
-                <div style={{
-                  width: 72, height: 72, borderRadius: "50%",
-                  background: roleBg, color: roleColor,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: "1.5rem", fontWeight: 800, flexShrink: 0,
-                  boxShadow: "0 0 0 4px rgba(255,255,255,.15)",
-                }}>
-                  {getAvatarText(user)}
-                </div>
-                {/* Name + email */}
-                <div>
-                  <div style={{ color: "#fff", fontSize: "1.4rem", fontWeight: 700, marginBottom: 4 }}>
-                    {getDisplayName(user)}
-                  </div>
-                  <div style={{ color: "#a1a1aa", fontSize: ".88rem", display: "flex", alignItems: "center", gap: 6 }}>
-                    <Mail size={13} /> {user?.email}
-                  </div>
-                  {/* Role badge */}
-                  <span style={{
-                    display: "inline-flex", alignItems: "center", gap: 5,
-                    marginTop: 10, background: roleBg, color: roleColor,
-                    borderRadius: 20, padding: "3px 12px",
-                    fontSize: ".75rem", fontWeight: 700,
-                  }}>
-                    <ShieldCheck size={12} /> {ROLE_LABEL[user?.role] || "Citizen"} Account
-                  </span>
-                </div>
-              </div>
-
-              {/* Edit / Save / Cancel buttons — always top-right */}
-              <div>
-                {!editing ? (
-                  <button
-                    onClick={() => { setSaveOk(false); setSaveError(""); setEditing(true); }}
-                    style={{
-                      display: "inline-flex", alignItems: "center", gap: 8,
-                      background: "rgba(255,255,255,.12)", color: "#fff",
-                      border: "1.5px solid rgba(255,255,255,.3)", borderRadius: 8,
-                      padding: "9px 18px", fontWeight: 600, fontSize: ".9rem",
-                      cursor: "pointer", transition: "background .15s",
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,.22)"}
-                    onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,.12)"}
-                  >
-                    <Pencil size={15} /> Edit Profile
-                  </button>
-                ) : (
-                  <div style={{ display: "flex", gap: 10 }}>
-                    <button
-                      onClick={saveProfile}
-                      disabled={saving}
-                      style={{
-                        display: "inline-flex", alignItems: "center", gap: 7,
-                        background: "#fff", color: "#000",
-                        border: "none", borderRadius: 8,
-                        padding: "9px 20px", fontWeight: 700, fontSize: ".9rem",
-                        cursor: saving ? "not-allowed" : "pointer",
-                        opacity: saving ? .7 : 1,
-                      }}
-                    >
-                      <Check size={15} /> {saving ? "Saving…" : "Save"}
-                    </button>
-                    <button
-                      onClick={cancelEdit}
-                      disabled={saving}
-                      style={{
-                        display: "inline-flex", alignItems: "center", gap: 7,
-                        background: "transparent", color: "#d4d4d8",
-                        border: "1.5px solid rgba(255,255,255,.25)", borderRadius: 8,
-                        padding: "9px 16px", fontWeight: 600, fontSize: ".9rem",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <X size={15} /> Cancel
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
+          <div>
+            <h1 style={{ fontFamily: "serif", fontSize: "2.4rem", marginBottom: 12 }}>{roleName} Profile</h1>
+            <p style={{ color: "#aaa", fontSize: "0.95rem" }}>Manage your municipal identity and alert preferences.</p>
           </div>
-
-          {/* ── Body ── */}
-          <div style={{ padding: "28px 36px" }}>
-
-            {/* Feedback banners */}
-            {saveOk && (
-              <div style={{
-                display: "flex", alignItems: "center", gap: 10,
-                background: "#f0fdf4", border: "1px solid #bbf7d0",
-                color: "#15803d", borderRadius: 10,
-                padding: "12px 18px", marginBottom: 24, fontSize: ".9rem", fontWeight: 500,
-              }}>
-                <Check size={16} /> Profile saved successfully!
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <img src={avatarUrl} alt="Avatar" style={{ width: 64, height: 64, borderRadius: 8, objectFit: "cover" }} />
+            <div>
+              <div style={{ fontSize: "0.75rem", color: "#aaa", fontWeight: 700, letterSpacing: 0.5, marginBottom: 4 }}>
+                Verified {roleName}
               </div>
-            )}
-            {saveError && (
-              <div style={{
-                background: "#fff0f2", border: "1px solid #fecdd3",
-                color: "#be123c", borderRadius: 10,
-                padding: "12px 18px", marginBottom: 24, fontSize: ".9rem",
-              }}>
-                {saveError}
+              <div style={{ fontSize: "1.3rem", fontWeight: 700, fontFamily: "serif" }}>
+                {getDisplayName(user)}
               </div>
-            )}
-
-            {!editing ? (
-              /* ── VIEW MODE ── */
-              <div>
-                <InfoRow icon={User}    label="Full Name" value={getDisplayName(user)} />
-                <InfoRow icon={Mail}    label="Email"     value={user?.email} />
-                <InfoRow icon={Phone}   label="Mobile"    value={user?.phone || phone} />
-                <InfoRow icon={MapPin}  label="Ward / Zone" value={user?.ward || ward} />
-                <InfoRow icon={IdCard}  label="Account ID"  value={user?.id ? `${user.id}`.slice(0, 24) + "…" : "—"} />
-                <div style={{ paddingTop: 6 }}>
-                  <InfoRow icon={ShieldCheck} label="Role" value={ROLE_LABEL[user?.role] || "Citizen"} />
-                </div>
-              </div>
-            ) : (
-              /* ── EDIT MODE ── */
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <FieldInput
-                    label="Full Name" icon={User}
-                    value={fullName} onChange={e => setFullName(e.target.value)}
-                    placeholder="Your full legal name"
-                  />
-                </div>
-                <FieldInput
-                  label="Mobile Number" icon={Phone}
-                  value={phone}
-                  onChange={e => setPhone(e.target.value.replace(/\D/g, ""))}
-                  placeholder="10-digit mobile"
-                  type="tel"
-                />
-                <FieldInput label="Ward / Zone" icon={MapPin} value={ward} onChange={e => setWard(e.target.value)} as="select">
-                  <option value="">Select your Ward/Zone</option>
-                  <option>North District</option>
-                  <option>East Side</option>
-                  <option>South Zone</option>
-                  <option>West Ward</option>
-                  <option>Central District</option>
-                </FieldInput>
-
-                {/* Read-only fields shown for context */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <label style={{ fontSize: ".78rem", fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: ".07em" }}>Email (cannot change)</label>
-                  <div style={{ border: "1.5px solid #f0f0f0", borderRadius: 8, padding: "10px 14px", background: "#fafafa", color: "#6b7280", fontSize: ".95rem" }}>
-                    {user?.email}
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <label style={{ fontSize: ".78rem", fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: ".07em" }}>Role (cannot change)</label>
-                  <div style={{ border: "1.5px solid #f0f0f0", borderRadius: 8, padding: "10px 14px", background: "#fafafa", color: "#6b7280", fontSize: ".95rem", textTransform: "capitalize" }}>
-                    {ROLE_LABEL[user?.role] || "Citizen"}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ── Sign out ── */}
-            <div style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid #f0f2f4" }}>
-              <button
-                onClick={() => window.confirm("Are you sure you want to sign out?") && setUser(null)}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 9,
-                  background: "#fff5f5", color: "#c0152a",
-                  border: "1.5px solid #fecaca", borderRadius: 8,
-                  padding: "10px 20px", fontWeight: 600, fontSize: ".9rem",
-                  cursor: "pointer", transition: "background .15s",
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = "#ffe4e6"}
-                onMouseLeave={e => e.currentTarget.style.background = "#fff5f5"}
-              >
-                <LogOut size={16} /> Sign Out
-              </button>
             </div>
           </div>
         </div>
+
+        {/* Form Container */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, marginBottom: 32 }}>
+
+          {/* Column 1: Personal Information */}
+          <div style={{ border: "1px solid #e0e0e0", borderRadius: 4, padding: "32px", background: "#fff" }}>
+            <h2 style={{ fontSize: "1.4rem", fontWeight: 600, fontFamily: "serif", display: "flex", alignItems: "center", gap: 12, marginBottom: 32, color: "#111" }}>
+              <User size={22} /> Personal Information
+            </h2>
+
+            <div style={{ display: "grid", gap: 24 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <InputField label="Full Name" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Enter your name" />
+                <InputField label="Phone Number" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Enter your phone number" />
+              </div>
+
+              <InputField label="Email Address" value={email} onChange={e => setEmail(e.target.value)} placeholder="Enter your email" />
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <SelectField
+                  label="Ward / District"
+                  value={ward}
+                  onChange={e => setWard(e.target.value)}
+                  options={["Ward 04 - Central Business", "Ward 05 - North District", "Ward 02 - East Side"]}
+                  placeholder="Select Ward / District"
+                />
+                <InputField label="Zone Designation" value={zone} onChange={e => setZone(e.target.value)} placeholder="e.g. Zone B-R2" />
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 32 }}>
+              <InfoBox icon={<History size={20} />} label="Last Update" value="October 24, 2024" />
+              <InfoBox icon={<ShieldCheck size={20} />} label="Identity Status" value="VERIFIED" isBadge />
+            </div>
+          </div>
+
+          {/* Column 2: Notifications */}
+          <div style={{ border: "1px solid #e0e0e0", borderRadius: 4, padding: "32px", background: "#fff" }}>
+            <h2 style={{ fontSize: "1.4rem", fontWeight: 600, fontFamily: "serif", display: "flex", alignItems: "center", gap: 12, marginBottom: 16, color: "#111" }}>
+              <Bell size={22} /> Notification Settings
+            </h2>
+            <p style={{ color: "#555", fontSize: "0.95rem", marginBottom: 40, lineHeight: 1.6 }}>
+              Manage how and when you receive updates regarding municipal services and infrastructure status.
+            </p>
+
+            <div style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: 1, color: "#555", marginBottom: 16 }}>STATUS UPDATES</div>
+            <ToggleRow
+              title="Email Alerts"
+              desc="Receive deep-dive report progress"
+              checked={emailAlerts} onChange={setEmailAlerts}
+            />
+            <ToggleRow
+              title="SMS Notifications"
+              desc="Instant updates on your mobile"
+              checked={smsNotifs} onChange={setSmsNotifs}
+            />
+
+            <hr style={{ border: "none", borderTop: "1px solid #eee", margin: "32px 0" }} />
+
+            <div style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: 1, color: "#555", marginBottom: 16 }}>EMERGENCY & REPAIRS</div>
+            <ToggleRow
+              title="Hazard Alerts"
+              desc="Immediate notice for public risks"
+              checked={hazardAlerts} onChange={setHazardAlerts}
+            />
+            <ToggleRow
+              title="Repair Completion"
+              desc="Notified when work in your zone is finished"
+              checked={repairCompletion} onChange={setRepairCompletion}
+            />
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: 32, display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 40 }}>
+          <button
+            onClick={() => window.confirm("Are you sure you want to sign out?") && setUser(null)}
+            style={{ color: "#d32f2f", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: "0.95rem" }}
+          >
+            Sign Out
+          </button>
+
+          <div style={{ display: "flex", gap: 24, alignItems: "center" }}>
+            <button 
+              onClick={discardChanges}
+              style={{ background: "none", border: "none", fontWeight: 600, color: "#555", cursor: "pointer", fontSize: "0.95rem" }}
+            >
+              Discard Changes
+            </button>
+            <button
+              onClick={saveProfile}
+              disabled={saving}
+              style={{
+                background: "#000", color: "#fff", padding: "12px 24px", borderRadius: 4,
+                fontWeight: 600, display: "flex", gap: 10, alignItems: "center", cursor: "pointer",
+                border: "none", fontSize: "0.95rem"
+              }}
+            >
+              {saving ? "Saving..." : "Save Changes"} <ArrowRight size={18} />
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   );

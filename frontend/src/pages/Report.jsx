@@ -47,17 +47,14 @@ export default function Report({ addReport, setPage }) {
   const submit = async (e) => {
     e.preventDefault();
     const newReport = {
-      id: `RD-${Math.floor(90000 + Math.random() * 9999)}`,
       title: category || "Road Surface Damage",
-      detailTitle: category || "Road Surface Damage",
-      area: "GPS Captured Location",
-      date: new Date().toLocaleDateString(),
-      status: "Pending",
-      urgency,
       category,
-      coords,
+      urgency,
+      description: desc,
+      latitude: coords[0],
+      longitude: coords[1],
+      status: "Pending",
       evidence: photo?.url,
-      history: [["Report Received", "Citizen report filed with photo and GPS metadata.", new Date().toLocaleString()]]
     };
     
     addReport(newReport);
@@ -73,13 +70,14 @@ export default function Report({ addReport, setPage }) {
       evidence: photo?.url 
     };
     
-    if (supabase) {
-      await supabase.from("damage_reports").insert(apiReport);
-    }
+    const token = localStorage.getItem("infracare_token");
     
     fetch(`${apiUrl}/reports`, { 
       method: "POST", 
-      headers: { "Content-Type": "application/json" }, 
+      headers: { 
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {})
+      }, 
       body: JSON.stringify(apiReport) 
     }).catch(() => { });
     
@@ -88,14 +86,6 @@ export default function Report({ addReport, setPage }) {
 
   return (
     <main className="page report-page">
-      <button
-        type="button"
-        className="text-link"
-        style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 18, fontWeight: 600 }}
-        onClick={() => setPage("track")}
-      >
-        <ArrowLeft size={16} /> Back to My Complaints
-      </button>
       <h1>Report Road Damage</h1>
       <p className="lead">Use this official portal to submit detailed information about infrastructure defects. Your report will be analyzed and prioritized by municipal engineering teams.</p>
       <form className="report-grid" onSubmit={submit}>
@@ -119,10 +109,7 @@ export default function Report({ addReport, setPage }) {
             {photo && <span className="geo-stamp">GPS {photo.lat}, {photo.lng} · {photo.capturedAt}</span>}
           </div>
           <input ref={fileRef} hidden type="file" accept="image/*" capture="environment" onChange={(e) => onFile(e.target.files[0])} />
-          <div className="button-row">
-            <button type="button" className="outline" onClick={() => fileRef.current.click()}><Camera size={18} /> Click Picture</button>
-            <button type="button" className="outline" onClick={locate}><LocateFixed size={18} /> Attach GPS</button>
-          </div>
+
           <div className="form-row">
             <label>
               Damage Type
@@ -155,9 +142,9 @@ export default function Report({ addReport, setPage }) {
           <aside className="notice">
             <Shield />
             <b>Notice of Responsibility</b>
-            <p>By submitting this report, you confirm that the information provided is accurate to the best of your knowledge. Intentional false reporting may result in administrative penalties.</p>
+            <p>By submitting this report, you confirm that the information provided is accurate to the best of your knowledge. Intentional false reporting of infrastructure hazards may result in administrative penalties as per Section 42-C of the Civic Infrastructure Protocol.</p>
           </aside>
-          <button className="black submit">Submit Complaint <ArrowRight /></button>
+          <button className="black submit">SUBMIT COMPLAINT <ArrowRight /></button>
           {submitted && <strong className="success">Report submitted with photo and GPS metadata.</strong>}
         </section>
         

@@ -1,101 +1,206 @@
 import React, { useState } from "react";
-import { MapPin, Printer, Mail, ArrowLeft } from "lucide-react";
-import MapPanel from "../components/MapPanel";
+import { Search, ChevronDown, Check } from "lucide-react";
 import { reportsSeed } from "../data/seedData";
 
+const STEPS = ["Submitted", "Verified", "Crew Assigned", "In Progress", "Resolved"];
+
+function getStepIndex(status) {
+  const s = status.toLowerCase();
+  if (s.includes("resolved") || s.includes("completed")) return 4;
+  if (s.includes("progress")) return 3;
+  if (s.includes("crew") || s.includes("assigned")) return 2;
+  if (s.includes("verified")) return 1;
+  return 0; // pending or submitted
+}
+
+function getUrgencyStyle(urgency, status) {
+  const s = status.toLowerCase();
+  if (s.includes("resolved") || s.includes("completed")) {
+    return { bg: "#e6f4ea", color: "#137333", text: "RESOLVED" };
+  }
+  const u = urgency.toUpperCase();
+  if (u.includes("HIGH") || u.includes("URGENT")) {
+    return { bg: "#fef0d9", color: "#b06000", text: "URGENT" };
+  }
+  return { bg: "#f1f3f4", color: "#5f6368", text: "NORMAL" };
+}
+
 export default function Track({ reports, setPage }) {
-  const [activeId, setActiveId] = useState(reports[0]?.id || "");
-  const [tab, setTab] = useState("Active");
-  
-  const report = reports.find((r) => r.id === activeId) || reports[0];
+  const [tab, setTab] = useState("All Reports");
+  const [search, setSearch] = useState("");
+
+  const filteredReports = reports.filter(r => {
+    if (tab === "In Progress" && getStepIndex(r.status) === 4) return false;
+    if (tab === "Resolved" && getStepIndex(r.status) !== 4) return false;
+    
+    if (search) {
+      const q = search.toLowerCase();
+      return r.id.toLowerCase().includes(q) || r.category.toLowerCase().includes(q) || r.title.toLowerCase().includes(q);
+    }
+    return true;
+  });
 
   return (
-    <main className="track-layout">
-      <aside className="complaint-list">
-        <button
-          type="button"
-          className="text-link"
-          style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 12, fontWeight: 600 }}
-          onClick={() => setPage("home")}
-        >
-          <ArrowLeft size={16} /> Back to Home
-        </button>
-        <h1>My Complaints</h1>
-        <div className="tabs">
-          <button className={tab === "Active" ? "active" : ""} onClick={() => setTab("Active")}>
-            Active ({reports.length})
-          </button>
-          <button className={tab === "Archived" ? "active" : ""} onClick={() => setTab("Archived")}>
-            Archived (12)
-          </button>
+    <div style={{ backgroundColor: "#fafafa", minHeight: "100vh", padding: "40px 20px" }}>
+      <div style={{ width: "100%" }}>
+        
+        {/* Header */}
+        <div style={{ marginBottom: 40 }}>
+          <h1 style={{ fontSize: "2.4rem", fontFamily: "serif", marginBottom: 12, color: "#111" }}>My Submissions</h1>
+          <p style={{ color: "#555", fontSize: "1rem" }}>
+            Track the status of your reported infrastructure issues and communicate with city officials.
+          </p>
         </div>
-        {reports.map((r) => (
-          <button 
-            key={r.id} 
-            className={r.id === activeId ? "complaint selected" : "complaint"} 
-            onClick={() => setActiveId(r.id)}
-          >
-            <span>#{r.id}</span>
-            <em>{r.status}</em>
-            <b>{r.title}</b>
-            <small><MapPin size={14} />{r.area}</small>
-            <small>Reported: {r.date}</small>
-          </button>
-        ))}
-      </aside>
-      
-      {report && (
-        <section className="complaint-detail">
-          <div className="detail-head">
-            <div>
-              <p>Complaint ID: {report.id} <b className="pill">{report.urgency}</b></p>
-              <h1>{report.detailTitle}</h1>
-            </div>
-            <div>
-              <button className="outline" onClick={() => window.print()}><Printer />Print PDF</button>
-              <button className="black" onClick={() => alert("Office contacted. A response note was added.")}>
-                <Mail />Contact Office
+
+        {/* Filters and Search */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 30, flexWrap: "wrap", gap: 16 }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            {["All Reports", "In Progress", "Resolved"].map(t => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                style={{
+                  background: tab === t ? "#000" : "#fff",
+                  color: tab === t ? "#fff" : "#333",
+                  border: tab === t ? "1px solid #000" : "1px solid #ddd",
+                  padding: "8px 16px",
+                  borderRadius: 4,
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.2s"
+                }}
+              >
+                {t}
               </button>
-            </div>
+            ))}
           </div>
-          <div className="evidence-grid">
-            <article>
-              <h3>Reported Evidence</h3>
-              <img src={report.evidence || reportsSeed[0].evidence} alt="Reported damage" />
-            </article>
-            <article>
-              <h3>Exact Location <a href={`https://www.google.com/maps?q=${report.coords[0]},${report.coords[1]}`} target="_blank" rel="noreferrer">Google Maps</a></h3>
-              <MapPanel compact coords={report.coords} />
-            </article>
+
+          <div style={{ position: "relative", width: "100%", maxWidth: 320 }}>
+            <Search size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#888" }} />
+            <input 
+              type="text" 
+              placeholder="Search by ID or Type" 
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ 
+                width: "100%", padding: "10px 10px 10px 36px", 
+                border: "1px solid #ddd", borderRadius: 4,
+                fontSize: "0.9rem", outline: "none"
+              }} 
+            />
           </div>
-          <h3>Tracking History</h3>
-          <div className="timeline">
-            {report.history.map(([title, text, time], i) => (
-              <article key={title} className={i === 0 ? "current" : ""}>
-                <i />
-                <div>
-                  <b>{title}</b>
-                  <p>{text}</p>
+        </div>
+
+        {/* List */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          {filteredReports.map((report) => {
+            const stepIndex = getStepIndex(report.status);
+            const badge = getUrgencyStyle(report.urgency, report.status);
+
+            return (
+              <div key={report.id} style={{ 
+                display: "flex", 
+                border: "1px solid #e0e0e0", 
+                borderRadius: 4, 
+                overflow: "hidden", 
+                background: "#fff",
+                flexDirection: "row"
+              }}>
+                <img 
+                  src={report.evidence} 
+                  alt={report.title} 
+                  style={{ width: 280, objectFit: "cover", flexShrink: 0 }} 
+                />
+                
+                <div style={{ padding: "32px", flex: 1, display: "flex", flexDirection: "column" }}>
+                  
+                  {/* Top Meta */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <span style={{ background: "#f0f0f0", color: "#333", padding: "4px 8px", borderRadius: 4, fontSize: "0.75rem", fontWeight: 600 }}>
+                        #{report.id}
+                      </span>
+                      <span style={{ background: badge.bg, color: badge.color, padding: "4px 8px", borderRadius: 4, fontSize: "0.75rem", fontWeight: 600 }}>
+                        {badge.text}
+                      </span>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: "0.65rem", color: "#666", fontWeight: 700, letterSpacing: 0.5 }}>SUBMITTED ON</div>
+                      <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "#111", marginTop: 2 }}>{report.date}</div>
+                    </div>
+                  </div>
+
+                  {/* Title */}
+                  <h3 style={{ fontSize: "1.5rem", marginBottom: 40, fontFamily: "serif", color: "#111", fontWeight: 600 }}>
+                    {report.title}
+                  </h3>
+                  
+                  {/* Stepper */}
+                  <div style={{ display: "flex", alignItems: "flex-start", width: "100%", marginBottom: 48, padding: "0 10px" }}>
+                    {STEPS.map((step, i) => {
+                      const isCompleted = i < stepIndex;
+                      const isCurrent = i === stepIndex;
+
+                      return (
+                        <React.Fragment key={step}>
+                          {/* Node */}
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
+                            <div style={{ 
+                              width: 20, height: 20, borderRadius: "50%", 
+                              background: isCompleted ? "#000" : (isCurrent ? "#fff" : "#fff"), 
+                              border: isCompleted ? "none" : (isCurrent ? "5px solid #000" : "1px solid #ccc"),
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              zIndex: 2,
+                              boxSizing: "border-box"
+                            }}>
+                              {isCompleted && <Check size={12} color="#fff" strokeWidth={3} />}
+                            </div>
+                            <div style={{ 
+                              position: "absolute", top: 30, width: 80, textAlign: "center", 
+                              fontSize: "0.75rem", fontWeight: 500, 
+                              color: (isCompleted || isCurrent) ? "#111" : "#aaa",
+                              lineHeight: 1.3,
+                              whiteSpace: "pre-line"
+                            }}>
+                              {step.replace(" ", "\n")}
+                            </div>
+                          </div>
+                          
+                          {/* Line */}
+                          {i < STEPS.length - 1 && (
+                            <div style={{ 
+                              flex: 1, height: 1.5, 
+                              background: (i < stepIndex) ? "#000" : "#e0e0e0",
+                              marginTop: 9, 
+                              zIndex: 1,
+                              marginLeft: 8, marginRight: 8
+                            }} />
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+
+                  {/* Action Button */}
+                  <div style={{ alignSelf: "flex-end", marginTop: "auto" }}>
+                    <button style={{ 
+                      background: "none", border: "none", 
+                      display: "flex", alignItems: "center", gap: 6, 
+                      fontWeight: 700, fontSize: "0.75rem", 
+                      letterSpacing: 0.5, cursor: "pointer", color: "#111" 
+                    }}>
+                      {stepIndex === 4 ? "VIEW RESOLUTION SUMMARY" : "VIEW OFFICIAL UPDATES"}
+                      <ChevronDown size={16} />
+                    </button>
+                  </div>
+
                 </div>
-                <time>{time}</time>
-              </article>
-            ))}
-          </div>
-          <div className="detail-meta">
-            {[
-              ["Category", report.category], 
-              ["Urgency", report.urgency], 
-              ["Department", report.department || "Pending Assignment"], 
-              ["Assigned Officer", report.officer || "Unassigned"]
-            ].map(([k, v]) => (
-              <div key={k}>
-                <small>{k}</small>
-                <b>{v}</b>
               </div>
-            ))}
-          </div>
-        </section>
-      )}
-    </main>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }

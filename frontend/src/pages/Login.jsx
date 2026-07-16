@@ -6,6 +6,7 @@ import {
 import Brand from "../components/Brand";
 import { apiUrl } from "../services/api";
 import { supabase } from "../services/supabase";
+import Swal from "sweetalert2";
 
 /* ─── Role detection from identifier ─────────────────────────────── */
 const ENG_ID_RE = /^M-\d{3}-[A-Z0-9]{4}$/i;
@@ -111,46 +112,9 @@ export default function Login({ setUser, setPage }) {
     return "";
   })();
 
-  /* ─── Login via Supabase (for registered users) ───────────────── */
-  const loginWithSupabase = async (email, pwd) => {
-    if (!supabase) throw new Error("Auth service not available.");
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password: pwd,
-    });
-
-    if (error) {
-      if (error.message.toLowerCase().includes("email not confirmed")) {
-        throw new Error(
-          "Your email is not confirmed yet. Please check your inbox and click the confirmation link."
-        );
-      }
-      throw new Error(error.message);
-    }
-
-    // Fetch profile to get role
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role, full_name")
-      .eq("id", data.user.id)
-      .single();
-
-    // Priority: profiles table → user_metadata (set during signup) → email
-    const meta = data.user.user_metadata || {};
-    const role = profile?.role || meta.role || "citizen";
-    const name = profile?.full_name || meta.full_name || data.user.email;
-
-    const roleHome = { citizen: "track", engineer: "tasks", admin: "map" };
-    return {
-      user: { id: data.user.id, role, name, email: data.user.email },
-      redirect: roleHome[role] || "track",
-    };
-  };
-
-  /* ─── Login via demo backend ──────────────────────────────────── */
-  const loginWithDemo = async (id, pwd, role) => {
-    const res = await fetch(`${apiUrl}/auth/demo-login`, {
+  /* ─── Login via Backend API ─────────────────────────────────────── */
+  const login = async (id, pwd, role) => {
+    const res = await fetch(`${apiUrl}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ identifier: id, password: pwd, role }),
@@ -178,23 +142,15 @@ export default function Login({ setUser, setPage }) {
 
     setLoading(true);
     try {
-      let result;
-      const isEmail = EMAIL_RE.test(identifier.trim());
-      const isDemo  = isDemoCredential(identifier);
-
-      if (isEmail && !isDemo && supabase) {
-        // Real registered user → Supabase auth
-        result = await loginWithSupabase(identifier, password);
-      } else {
-        // Demo credential or employee ID → backend demo-login
-        result = await loginWithDemo(identifier, password, detectedRole);
-      }
+      const result = await login(identifier, password, detectedRole);
 
       if (remember) {
         localStorage.setItem("infracare_user", JSON.stringify(result.user));
       }
+      localStorage.setItem("infracare_token", result.access_token);
+      
       setUser(result.user);
-      setPage(result.redirect);
+      setPage(result.redirect || "home");
     } catch (err) {
       let msg;
       if (err instanceof Error) {
@@ -216,33 +172,48 @@ export default function Login({ setUser, setPage }) {
   const handleForgotPassword = async () => {
     const email = identifier.trim();
     if (!EMAIL_RE.test(email)) {
-      alert("Please enter your email address in the field above first.");
+      Swal.fire({
+        icon: "warning",
+        title: "Invalid Email",
+        text: "Please enter your email address in the field above first."
+      });
       idRef.current?.focus();
       return;
     }
     if (!supabase) {
-      alert("Password reset is not available in demo mode.");
+      Swal.fire({
+        icon: "info",
+        title: "Demo Mode",
+        text: "Password reset is not available in demo mode."
+      });
       return;
     }
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}`,
     });
     if (error) {
-      alert(`Could not send reset email: ${error.message}`);
+      Swal.fire({
+        icon: "error",
+        title: "Oops...",
+        text: `Could not send reset email: ${error.message}`
+      });
     } else {
-      alert(`Password reset link sent to ${email}. Please check your inbox.`);
+      Swal.fire({
+        icon: "success",
+        title: "Email Sent!",
+        text: `Password reset link sent to ${email}. Please check your inbox.`
+      });
     }
   };
 
   const placeholder =
-    detectedRole === "engineer" ? "Employee ID (e.g. M-001-AB12)"
-    : detectedRole === "admin"  ? "Government email (e.g. admin@infracare.gov.in)"
-    : "Email, 10-digit mobile, or Employee ID";
+    detectedRole === "admin"  ? "Government email (e.g. admin@infracare.gov.in)"
+    : "Email or 10-digit mobile";
 
   return (
     <main className="split-auth login-split">
       {/* ── Left visual panel ── */}
-      <section className="auth-visual night">
+      <section className="auth-visual night" style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
         <Brand compact />
         <h2>Road Damage Detection &amp; Reporting System</h2>
         <p>
