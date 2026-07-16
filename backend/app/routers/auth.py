@@ -10,8 +10,8 @@ DEMO_USERS = {
     "admin":    {"identifiers": ["admin@infracare.gov.in"],         "password": "12345678"},
 }
 
-@router.post("/demo-login")
-def demo_login(payload: LoginRequest):
+@router.post("/login")
+def login(payload: LoginRequest):
     """Validate demo credentials and return user session data."""
     store = DEMO_USERS.get(payload.role, {})
     valid_identifiers = [i.lower() for i in store.get("identifiers", [])]
@@ -31,7 +31,7 @@ def demo_login(payload: LoginRequest):
             detail="Incorrect password. Please try again.",
         )
 
-    role_home = {"citizen": "track", "engineer": "tasks", "admin": "map"}
+    role_home = {"citizen": "track", "engineer": "maintenance", "admin": "map"}
     return {
         "user": {
             "id":   f"demo-{payload.role}",
