@@ -85,23 +85,20 @@ export default function Register({ setPage }) {
     try {
       const role = type === "Municipal Worker" ? "engineer" : "citizen";
 
-      const res = await fetch(`http://127.0.0.1:8000/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim(),
-          password,
-          full_name: fullName.trim(),
-          role,
-          phone: mobile.trim(),
-          ward_zone: ward || null
-        })
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: {
+            full_name: fullName.trim(),
+            role,
+            phone: mobile.trim(),
+            ward_zone: ward || null
+          }
+        }
       });
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || "Registration failed. Please try again.");
-      }
+      if (error) throw error;
 
       setSuccess(true);
     } catch (err) {

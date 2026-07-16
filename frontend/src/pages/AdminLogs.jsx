@@ -8,69 +8,10 @@ import {
 
 export default function AdminLogs({ setPage }) {
   return (
-    <div className="admin-dashboard-container">
-      {/* SIDEBAR */}
-      <aside className="admin-sidebar">
-        <div className="admin-brand">
-          <h1>InfraCare</h1>
-          <span>MUNICIPAL ADMIN</span>
-        </div>
-
-        <nav className="admin-nav-links" style={{flex: 1}}>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("dashboard"); }}>
-            <LayoutDashboard size={18} /> Dashboard
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("analysis"); }}>
-            <BarChart3 size={18} /> Analytics
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-reports"); }}>
-            <AlertTriangle size={18} /> Complaints
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-maintenance"); }}>
-            <Wrench size={18} /> Maintenance
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-users"); }}>
-            <Users size={18} /> User Management
-          </a>
-          <a href="#" className="active" onClick={(e) => { e.preventDefault(); setPage("admin-logs"); }}>
-            <FileText size={18} /> System Logs
-          </a>
-        </nav>
-
-        <div className="admin-sidebar-bottom">
-          <div className="admin-user-profile bg-gray-50 p-4" onClick={(e) => { e.preventDefault(); setPage("admin-profile"); }} style={{cursor: "pointer"}}>
-            <div className="admin-avatar-small-wrap text-avatar bg-black text-white border-none">
-              AD
-            </div>
-            <div className="admin-user-info">
-              <strong>Admin Root</strong>
-              <span className="text-gray-500">ID: 458293</span>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* MAIN CONTENT */}
-      <main className="admin-main-area bg-gray-50">
-        
-        {/* TOPBAR */}
-        <header className="admin-top-nav bg-white border-bottom no-border px-8">
-          <div className="admin-top-left flex items-center">
-            <h2 className="serif-title mb-0 mr-6 font-bold" style={{fontSize: '1.25rem'}}>System Logs</h2>
-            <button className="text-gray-500 border-b-2 border-black pb-4 -mb-[18px] text-sm hover:text-black">Dashboard</button>
-          </div>
-          <div className="admin-top-right flex gap-6 items-center">
-            <div className="admin-search-box bg-gray-50 border-all" style={{width: 300}}>
-              <Search size={16} className="search-icon text-gray-400" />
-              <input type="text" placeholder="Search parameters..." className="bg-transparent" />
-            </div>
-            <button className="admin-icon-btn border-none"><Bell size={18} /><span className="notification-dot border-white"></span></button>
-            <div className="admin-avatar-top-wrap" onClick={(e) => { e.preventDefault(); setPage("admin-profile"); }} style={{cursor: "pointer"}}><img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=32&h=32&q=80" alt="Admin" className="admin-avatar-small rounded-full border-2 border-white" style={{width: 32, height: 32}} /></div>
-          </div>
-        </header>
-
+    <div style={{ backgroundColor: "#fafafa", minHeight: "100vh", padding: "20px 40px" }}>
+      <div style={{ width: "100%" }}>
         {/* PAGE CONTENT */}
-        <div className="admin-scroll-content p-8 max-w-6xl mx-auto">
+        <div className="admin-scroll-content p-8">
           
           {/* HEADER BANNER */}
           <div className="logs-banner bg-black text-white relative overflow-hidden mb-8">
@@ -323,7 +264,7 @@ export default function AdminLogs({ setPage }) {
           </footer>
 
         </div>
-      </main>
+            </div>
     </div>
   );
 }

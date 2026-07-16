@@ -2,11 +2,13 @@ import React, { useState, useEffect, useMemo } from "react";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import { supabase } from "./services/supabase";
+import Swal from "sweetalert2";
 
 // Pages
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ResetPassword from "./pages/ResetPassword";
 import Report from "./pages/Report";
 import Track from "./pages/Track";
 import LiveMap from "./pages/LiveMap";
@@ -34,11 +36,53 @@ export default function App() {
   const [page, setPage] = useState("home");
   const [user, setUser] = useState(null);
   const [reports, setReports] = useState([]);
+  const [isRecovering, setIsRecovering] = useState(false);
+  const isRecoveringRef = React.useRef(false);
+
+  useEffect(() => {
+    const handler = () => {
+      setIsRecovering(false);
+      isRecoveringRef.current = false;
+    };
+    window.addEventListener("passwordResetDone", handler);
+    return () => window.removeEventListener("passwordResetDone", handler);
+  }, []);
+
+  // Handle expired/invalid links
+  useEffect(() => {
+    if (window.location.hash.includes("error_code=otp_expired") || window.location.hash.includes("error_description=Email+link+is+invalid+or+has+expired")) {
+      Swal.fire({
+        icon: "error",
+        title: "Link Expired",
+        text: "This password reset link is invalid, has expired, or has already been used. Please request a new link from the Login page."
+      });
+      window.location.hash = "";
+      setPage("login");
+    }
+  }, []);
+
+  // Supabase Auth State Listener for Password Recovery
+  useEffect(() => {
+    if (supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === "PASSWORD_RECOVERY") {
+          setIsRecovering(true);
+          isRecoveringRef.current = true;
+          setPage("reset-password");
+        }
+      });
+      return () => subscription.unsubscribe();
+    }
+  }, []);
 
   // Load session on initial mount — check Supabase session first, then localStorage
   useEffect(() => {
     const restoreFromParsed = (parsed) => {
       setUser(parsed);
+      // Supabase clears the hash instantly on success, so we must check our synchronous ref
+      if (isRecoveringRef.current || window.location.hash.includes("type=recovery")) {
+        return;
+      }
       if (parsed.role === "citizen") setPage("home");
       else if (parsed.role === "engineer") setPage("maintenance");
       else if (parsed.role === "inspector") setPage("inspections");
@@ -93,6 +137,8 @@ export default function App() {
   // Enforce role-based access control (route guards)
   useEffect(() => {
     if (page === "privacy-policy" || page === "terms-of-service" || page === "help-center") return;
+
+    if (page === "reset-password") return;
 
     if (!user) {
       // Unauthenticated users can only access public pages
@@ -196,6 +242,7 @@ export default function App() {
   };
 
   const view = useMemo(() => {
+    if (page === "reset-password") return <ResetPassword setPage={setPage} />;
     if (page === "login") return <Login setUser={handleSetUser} setPage={setPage} />;
     if (page === "register") return <Register setPage={setPage} />;
     if (page === "report") return <Report addReport={addReport} setPage={setPage} />;
@@ -220,7 +267,7 @@ export default function App() {
     return <Home setPage={setPage} />;
   }, [page, user, reports]);
 
-  const hideChrome = ["login", "register", "dashboard", "analysis", "admin-reports", "admin-maintenance", "admin-users", "admin-logs", "admin-profile"].includes(page);
+  const hideChrome = ["login", "register", "reset-password"].includes(page);
   return (
     <>
       {!hideChrome && <Header page={page} setPage={setPage} user={user} setUser={handleSetUser} />}

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from app.schemas.user import LoginRequest
+from app.schemas.user import LoginRequest, ResetPasswordRequest
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -40,3 +40,16 @@ def login(payload: LoginRequest):
         },
         "redirect": role_home[payload.role],
     }
+
+@router.post("/reset-password")
+def reset_password(payload: ResetPasswordRequest):
+    identifier = payload.identifier.lower().strip()
+    for role, data in DEMO_USERS.items():
+        if identifier in [i.lower() for i in data["identifiers"]]:
+            data["password"] = payload.new_password
+            return {"message": "Password reset successfully"}
+    
+    raise HTTPException(
+        status_code=404,
+        detail="User not found with this identifier."
+    )

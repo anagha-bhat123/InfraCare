@@ -8,66 +8,8 @@ import {
 
 export default function AdminMaintenance({ setPage }) {
   return (
-    <div className="admin-dashboard-container">
-      {/* SIDEBAR */}
-      <aside className="admin-sidebar">
-        <div className="admin-brand">
-          <h1>InfraCare</h1>
-          <span>MUNICIPAL ADMIN</span>
-        </div>
-
-        <nav className="admin-nav-links">
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("dashboard"); }}>
-            <LayoutDashboard size={18} /> Dashboard
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("analysis"); }}>
-            <BarChart3 size={18} /> Analytics
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-reports"); }}>
-            <AlertTriangle size={18} /> Complaints
-          </a>
-          <a href="#" className="active" onClick={(e) => { e.preventDefault(); setPage("admin-maintenance"); }}>
-            <Wrench size={18} /> Maintenance
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-users"); }}>
-            <Users size={18} /> User Management
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-logs"); }}>
-            <FileText size={18} /> System Logs
-          </a>
-        </nav>
-
-        <div className="admin-sidebar-bottom">
-          <div className="admin-user-profile bg-gray-50 p-4" onClick={(e) => { e.preventDefault(); setPage("admin-profile"); }} style={{cursor: "pointer"}}>
-            <div className="admin-avatar-small-wrap text-avatar">
-              <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=32&h=32&q=80" alt="Admin" className="admin-avatar-small" />
-            </div>
-            <div className="admin-user-info">
-              <strong>Admin Panel</strong>
-              <span>ID: 882-910</span>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* MAIN CONTENT */}
-      <main className="admin-main-area bg-white">
-        {/* TOPBAR */}
-        <header className="admin-top-nav no-border">
-          <div className="admin-top-left align-baseline">
-            <h2 className="serif-title mb-0 mr-4" style={{fontSize: '1.25rem'}}>Maintenance Operations</h2>
-            <span className="badge-live-tactical"><span className="dot solid white mr-2" style={{width: 6, height: 6, display: 'inline-block', borderRadius: '50%', background: '#fff', marginRight: 6}}></span> LIVE TACTICAL VIEW</span>
-          </div>
-          <div className="admin-top-right">
-            <div className="admin-search-box">
-              <Search size={16} className="search-icon" />
-              <input type="text" placeholder="Search work orders..." />
-            </div>
-            <button className="admin-icon-btn"><Bell size={18} /><span className="notification-dot"></span></button>
-            <button className="admin-btn-black">New Work Order <span>+</span></button>
-          </div>
-        </header>
-
+    <div style={{ backgroundColor: "#fafafa", minHeight: "100vh", padding: "40px 20px" }}>
+      <div style={{ width: "100%" }}>
         {/* PAGE CONTENT */}
         <div className="admin-scroll-content pt-4 bg-gray-50">
           
@@ -316,7 +258,7 @@ export default function AdminMaintenance({ setPage }) {
           </div>
 
         </div>
-      </main>
+            </div>
     </div>
   );
 }

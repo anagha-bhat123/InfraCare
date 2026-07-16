@@ -9,62 +9,12 @@ import MapPanel from "../components/MapPanel";
 
 export default function AdminDashboard({ setPage }) {
   return (
-    <div className="admin-dashboard-container">
-      {/* SIDEBAR */}
-      <aside className="admin-sidebar">
-        <div className="admin-brand">
-          <h1>InfraCare</h1>
-          <span>MUNICIPAL ADMIN</span>
-        </div>
-
-        <nav className="admin-nav-links">
-          <a href="#" className="active" onClick={(e) => { e.preventDefault(); setPage("dashboard"); }}>
-            <LayoutDashboard size={18} /> Dashboard
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("analysis"); }}>
-            <BarChart3 size={18} /> Analytics
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-reports"); }}>
-            <AlertTriangle size={18} /> Complaints
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-maintenance"); }}>
-            <Wrench size={18} /> Maintenance
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-users"); }}>
-            <Users size={18} /> User Management
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-logs"); }}>
-            <FileText size={18} /> System Logs
-          </a>
-        </nav>
-
-        <div className="admin-sidebar-bottom">
-          <div className="admin-user-profile" onClick={(e) => { e.preventDefault(); setPage("admin-profile"); }} style={{cursor: "pointer"}}>
-            <div className="admin-avatar-small-wrap"><img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=32&h=32&q=80" alt="User" className="admin-avatar-small" /></div>
-            <div className="admin-user-info">
-              <strong>Admin Panel</strong>
-              <span>ID: 882-910</span>
-            </div>
-          </div>
-        </div>
-      </aside>
+    <div style={{ backgroundColor: "#fafafa", minHeight: "100vh", padding: "20px 40px" }}>
+      <div style={{ width: "100%" }}>
 
       {/* MAIN CONTENT */}
-      <main className="admin-main-area">
-        {/* TOPBAR */}
-        <header className="admin-top-nav">
-          <div className="admin-top-left">
-            <a href="#" className="admin-top-link active">Dashboard</a>
-          </div>
-          <div className="admin-top-right">
-            <div className="admin-search-box">
-              <Search size={16} className="search-icon" />
-              <input type="text" placeholder="Global search..." />
-            </div>
-            <button className="admin-icon-btn"><Bell size={18} /></button>
-            <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=48&h=48&q=80" alt="User" className="admin-avatar-top" onClick={(e) => { e.preventDefault(); setPage("admin-profile"); }} style={{cursor: "pointer"}} />
-          </div>
-        </header>
+      
+        
 
         {/* PAGE CONTENT */}
         <div className="admin-scroll-content">
@@ -75,7 +25,7 @@ export default function AdminDashboard({ setPage }) {
             </div>
             <div className="admin-header-actions">
               <button className="admin-btn-outline"><Download size={16} /> Export<br/>PDF</button>
-              <button className="admin-btn-black">Deploy<br/>Crew <ArrowRight size={16} /></button>
+              <button className="admin-btn-black" onClick={() => setPage("admin-maintenance")}>Deploy<br/>Crew <ArrowRight size={16} /></button>
             </div>
           </div>
 
@@ -167,7 +117,7 @@ export default function AdminDashboard({ setPage }) {
                   <div className="team-progress"><div className="fill red" style={{width: '45%'}}></div></div>
                 </div>
               </div>
-              <button className="admin-btn-outline full-width">VIEW CREW LOGS</button>
+              <button className="admin-btn-outline full-width" onClick={() => setPage("admin-logs")}>VIEW CREW LOGS</button>
             </div>
           </div>
 
@@ -213,7 +163,7 @@ export default function AdminDashboard({ setPage }) {
           </div>
 
         </div>
-      </main>
+      </div>
     </div>
   );
 }

@@ -8,65 +8,12 @@ import {
 
 export default function AdminAnalysis({ setPage }) {
   return (
-    <div className="admin-dashboard-container">
-      {/* SIDEBAR */}
-      <aside className="admin-sidebar">
-        <div className="admin-brand">
-          <h1>InfraCare</h1>
-          <span>MUNICIPAL ADMIN</span>
-        </div>
-
-        <nav className="admin-nav-links">
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("dashboard"); }}>
-            <LayoutDashboard size={18} /> Dashboard
-          </a>
-          <a href="#" className="active" onClick={(e) => { e.preventDefault(); setPage("analysis"); }}>
-            <BarChart3 size={18} /> Analytics
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-reports"); }}>
-            <AlertTriangle size={18} /> Complaints
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-maintenance"); }}>
-            <Wrench size={18} /> Maintenance
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-users"); }}>
-            <Users size={18} /> User Management
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-logs"); }}>
-            <FileText size={18} /> System Logs
-          </a>
-        </nav>
-
-        <div className="admin-sidebar-bottom">
-          <div className="admin-user-profile" onClick={(e) => { e.preventDefault(); setPage("admin-profile"); }} style={{cursor: "pointer"}}>
-            <div className="admin-avatar-small-wrap text-avatar">JD</div>
-            <div className="admin-user-info">
-              <strong>Admin Panel</strong>
-              <span>ID: 882-910</span>
-            </div>
-          </div>
-        </div>
-      </aside>
+    <div style={{ backgroundColor: "#fafafa", minHeight: "100vh", padding: "20px 40px" }}>
+      <div style={{ width: "100%" }}>
 
       {/* MAIN CONTENT */}
-      <main className="admin-main-area">
-        {/* TOPBAR */}
-        <header className="admin-top-nav">
-          <div className="admin-top-left align-baseline">
-            <h2 className="topbar-page-title">Reporting Hub</h2>
-            <a href="#" className="admin-top-link active ml-4">Dashboard</a>
-          </div>
-          <div className="admin-top-right">
-            <div className="admin-search-box">
-              <Search size={16} className="search-icon" />
-              <input type="text" placeholder="Search reports..." />
-            </div>
-            <button className="admin-icon-btn"><Bell size={18} /></button>
-            <div className="admin-avatar-top text-avatar square">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            </div>
-          </div>
-        </header>
+      
+        
 
         {/* PAGE CONTENT */}
         <div className="admin-scroll-content">
@@ -76,7 +23,7 @@ export default function AdminAnalysis({ setPage }) {
               <p>High-fidelity municipal reporting for fiscal oversight and infrastructural assessment. All<br/>data is synchronized with real-time field reporting units.</p>
             </div>
             <div className="admin-header-actions">
-              <button className="admin-btn-black">GENERATE NEW<br/>REPORT <ArrowRight size={16} className="ml-2" /></button>
+              <button className="admin-btn-black" onClick={() => setPage("admin-reports")}>GENERATE NEW<br/>REPORT <ArrowRight size={16} className="ml-2" /></button>
             </div>
           </div>
 
@@ -229,7 +176,7 @@ export default function AdminAnalysis({ setPage }) {
           </div>
 
         </div>
-      </main>
+      </div>
     </div>
   );
 }

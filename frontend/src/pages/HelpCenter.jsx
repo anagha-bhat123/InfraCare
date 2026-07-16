@@ -125,7 +125,10 @@ export default function HelpCenter() {
               <h3 style={{ margin: "0 0 8px", fontSize: "1.4rem", color: "#111", fontFamily: "Georgia, serif" }}>Need further assistance?</h3>
               <p style={{ margin: 0, fontSize: "0.9rem", color: "#52525b" }}>Email us directly at support@infracare.gov.</p>
             </div>
-            <button style={{ backgroundColor: "#000", color: "#fff", border: "none", padding: "12px 24px", fontSize: "0.85rem", fontWeight: 700, display: "flex", alignItems: "center", gap: 12, cursor: "pointer", borderRadius: 4 }}>
+            <button 
+              onClick={() => window.location.href="mailto:support@infracare.gov"}
+              style={{ backgroundColor: "#000", color: "#fff", border: "none", padding: "12px 24px", fontSize: "0.85rem", fontWeight: 700, display: "flex", alignItems: "center", gap: 12, cursor: "pointer", borderRadius: 4 }}
+            >
               Contact Support <ArrowRight size={16} />
             </button>
           </section>

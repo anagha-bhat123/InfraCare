@@ -1180,3 +1180,43 @@ textarea { min-height: 160px; padding: 22px !important; resize: vertical; }
 .progress-bar-thin { overflow: hidden; border-radius: 9999px; }
 .focus\:outline-none:focus { outline: 2px solid transparent; outline-offset: 2px; }
 .focus\:border-black:focus { border-color: #000; }
+
+/* Responsive Admin Module Layouts */
+@media (max-width: 1024px) {
+  .admin-kpi-row { grid-template-columns: repeat(2, 1fr) !important; }
+  .admin-middle-row { flex-direction: column !important; }
+  .complaints-layout { flex-direction: column !important; }
+  .analysis-top-row { flex-direction: column !important; }
+  .analysis-bottom-row { grid-template-columns: 1fr !important; }
+  .analysis-grid { grid-template-columns: 1fr !important; }
+  .users-grid { grid-template-columns: 1fr !important; }
+  
+  /* AdminLogs specific */
+  .logs-banner .flex { flex-direction: column !important; gap: 16px !important; }
+  .logs-banner button { margin: 0 !important; }
+  .flex.gap-8 { flex-direction: column !important; }
+  .flex.gap-6 { flex-direction: column !important; }
+}
+
+@media (max-width: 768px) {
+  .admin-kpi-row { grid-template-columns: 1fr !important; }
+  .admin-page-header { flex-direction: column !important; align-items: flex-start !important; gap: 16px !important; }
+  .admin-header-actions { width: 100% !important; justify-content: flex-start !important; }
+  .table-filters { flex-direction: column !important; align-items: flex-start !important; }
+  .filter-group { width: 100% !important; margin-bottom: 12px !important; }
+  
+  /* Make tables horizontally scrollable */
+  .reports-data-table, .admin-table { display: block !important; overflow-x: auto !important; white-space: nowrap !important; }
+  table.w-full { display: block !important; overflow-x: auto !important; white-space: nowrap !important; }
+  
+  /* Search box scaling */
+  .admin-search-box { width: 100% !important; }
+  
+  /* Flex items */
+  .complaints-left { flex: none !important; width: 100% !important; }
+  .complaints-main { flex: none !important; width: 100% !important; }
+  
+  /* Padding on mobile */
+  div[style*="padding: 20px 40px"] { padding: 16px !important; }
+  .admin-scroll-content { padding: 16px !important; }
+}

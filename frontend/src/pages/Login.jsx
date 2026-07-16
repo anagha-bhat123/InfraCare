@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Eye, EyeOff, ArrowRight, AlertCircle,
   UserCircle, ShieldCheck, HardHat, ArrowLeft,
@@ -180,29 +180,22 @@ export default function Login({ setUser, setPage }) {
       idRef.current?.focus();
       return;
     }
-    if (!supabase) {
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/`,
+      });
+      if (error) throw error;
       Swal.fire({
         icon: "info",
-        title: "Demo Mode",
-        text: "Password reset is not available in demo mode."
+        title: "Check your email",
+        text: "If an account exists, a password reset link has been sent to your email."
       });
-      return;
-    }
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}`,
-    });
-    if (error) {
-      Swal.fire({
-        icon: "error",
-        title: "Oops...",
-        text: `Could not send reset email: ${error.message}`
-      });
-    } else {
-      Swal.fire({
-        icon: "success",
-        title: "Email Sent!",
-        text: `Password reset link sent to ${email}. Please check your inbox.`
-      });
+    } catch (err) {
+      Swal.fire({ icon: "error", title: "Error", text: err.message || JSON.stringify(err) });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -225,7 +218,6 @@ export default function Login({ setUser, setPage }) {
 
       {/* ── Right form panel ── */}
       <form className="auth-panel" onSubmit={submit} noValidate>
-
         {/* Back to Home */}
         <button
           type="button"
@@ -239,111 +231,111 @@ export default function Login({ setUser, setPage }) {
         <h1>Welcome Back</h1>
         <p>Enter your credentials — we'll detect your role automatically.</p>
 
-        {/* Server-level error */}
-        {serverError && (
-          <div
-            id="server-error-banner"
-            style={{
-              display: "flex", alignItems: "center", gap: 10,
-              background: "#fff0f2", border: "1px solid #f5c2c7",
-              color: "#c0152a", padding: "14px 18px",
-              fontSize: ".9rem", fontWeight: 500, borderRadius: 8,
-            }}
-          >
-            <AlertCircle size={18} />
-            {serverError}
-          </div>
-        )}
+            {/* Server-level error */}
+            {serverError && (
+              <div
+                id="server-error-banner"
+                style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  background: "#fff0f2", border: "1px solid #f5c2c7",
+                  color: "#c0152a", padding: "14px 18px",
+                  fontSize: ".9rem", fontWeight: 500, borderRadius: 8,
+                }}
+              >
+                <AlertCircle size={18} />
+                {serverError}
+              </div>
+            )}
 
-        {/* Identifier field */}
-        <label id="label-identifier" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <span>Email / Mobile / Employee ID</span>
-          <input
-            id="input-identifier"
-            ref={idRef}
-            type="text"
-            placeholder={placeholder}
-            value={identifier}
-            autoComplete="username"
-            autoFocus
-            onChange={(e) => { setIdentifier(e.target.value); setServerError(""); }}
-            onBlur={() => setIdTouched(true)}
-            style={idError ? { borderColor: "#c0152a" } : {}}
-          />
-          <RoleBadge role={detectedRole} />
-          <FieldError msg={idError} />
-        </label>
+            {/* Identifier field */}
+            <label id="label-identifier" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <span>Email / Mobile / Employee ID</span>
+              <input
+                id="input-identifier"
+                ref={idRef}
+                type="text"
+                placeholder={placeholder}
+                value={identifier}
+                autoComplete="username"
+                autoFocus
+                onChange={(e) => { setIdentifier(e.target.value); setServerError(""); }}
+                onBlur={() => setIdTouched(true)}
+                style={idError ? { borderColor: "#c0152a" } : {}}
+              />
+              <RoleBadge role={detectedRole} />
+              <FieldError msg={idError} />
+            </label>
 
-        {/* Password field */}
-        <label id="label-password" style={{ position: "relative" }}>
-          <span>Password</span>
-          <button
-            type="button"
-            className="text-link"
-            style={{ position: "absolute", right: 0, top: 0 }}
-            onClick={handleForgotPassword}
-          >
-            Forgot Password?
-          </button>
-          <span
-            className="input-icon"
-            style={pwdError ? { borderColor: "#c0152a" } : {}}
-          >
-            <input
-              id="input-password"
-              ref={pwdRef}
-              type={show ? "text" : "password"}
-              placeholder="Enter your password"
-              value={password}
-              autoComplete="current-password"
-              onChange={(e) => { setPassword(e.target.value); setServerError(""); }}
-              onBlur={() => setPwdTouched(true)}
-            />
+            {/* Password field */}
+            <label id="label-password" style={{ position: "relative" }}>
+              <span>Password</span>
+              <button
+                type="button"
+                className="text-link"
+                style={{ position: "absolute", right: 0, top: 0 }}
+                onClick={handleForgotPassword}
+              >
+                Forgot Password?
+              </button>
+              <span
+                className="input-icon"
+                style={pwdError ? { borderColor: "#c0152a" } : {}}
+              >
+                <input
+                  id="input-password"
+                  ref={pwdRef}
+                  type={show ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  autoComplete="current-password"
+                  onChange={(e) => { setPassword(e.target.value); setServerError(""); }}
+                  onBlur={() => setPwdTouched(true)}
+                />
+                <button
+                  type="button"
+                  id="toggle-password-visibility"
+                  aria-label={show ? "Hide password" : "Show password"}
+                  onClick={() => setShow((s) => !s)}
+                  style={{ flexShrink: 0 }}
+                >
+                  {show ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </span>
+              <FieldError msg={pwdError} />
+            </label>
+
+            {/* Remember me */}
+            <label className="checkline" id="label-remember-me">
+              <input
+                id="checkbox-remember-me"
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+              />
+              Remember Me
+            </label>
+
+            {/* Submit */}
             <button
-              type="button"
-              id="toggle-password-visibility"
-              aria-label={show ? "Hide password" : "Show password"}
-              onClick={() => setShow((s) => !s)}
-              style={{ flexShrink: 0 }}
+              id="btn-login"
+              className="black wide"
+              disabled={loading}
+              style={loading ? { opacity: 0.7, cursor: "not-allowed" } : {}}
             >
-              {show ? <EyeOff size={20} /> : <Eye size={20} />}
+              {loading ? "Logging in…" : <>Login <ArrowRight /></>}
             </button>
-          </span>
-          <FieldError msg={pwdError} />
-        </label>
-
-        {/* Remember me */}
-        <label className="checkline" id="label-remember-me">
-          <input
-            id="checkbox-remember-me"
-            type="checkbox"
-            checked={remember}
-            onChange={(e) => setRemember(e.target.checked)}
-          />
-          Remember Me
-        </label>
-
-        {/* Submit */}
-        <button
-          id="btn-login"
-          className="black wide"
-          disabled={loading}
-          style={loading ? { opacity: 0.7, cursor: "not-allowed" } : {}}
-        >
-          {loading ? "Logging in…" : <>Login <ArrowRight /></>}
-        </button>
-        
-        <p className="center">
-          Don&apos;t have an account?{" "}
-          <button
-            id="btn-register-link"
-            type="button"
-            className="text-link strong"
-            onClick={() => setPage("register")}
-          >
-            Register here
-          </button>
-        </p>
+            
+            <p className="center">
+              Don&apos;t have an account?{" "}
+              <button
+                id="btn-register-link"
+                type="button"
+                className="text-link strong"
+                onClick={() => setPage("register")}
+              >
+                Register here
+              </button>
+            </p>
       </form>
     </main>
   );

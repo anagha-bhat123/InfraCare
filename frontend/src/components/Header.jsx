@@ -13,7 +13,7 @@ export default function Header({ page, setPage, user, setUser, simple = false })
   } else if (user?.role === "inspector") {
     nav = ["inspections", "profile"];
   } else if (user?.role === "admin") {
-    nav = ["dashboard", "admin-reports", "tasks"];
+    nav = ["dashboard", "analysis", "admin-reports", "admin-maintenance", "admin-users", "admin-logs"];
   }
 
   // Close dropdown when clicking outside
@@ -41,6 +41,9 @@ export default function Header({ page, setPage, user, setUser, simple = false })
     "admin-reports": "Reports",
     map: "Reports",
     analysis: "Analytics",
+    "admin-maintenance": "Maintenance",
+    "admin-users": "Users",
+    "admin-logs": "Logs",
   };
   return (
     <header className="topbar">

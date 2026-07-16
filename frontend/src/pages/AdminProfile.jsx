@@ -163,66 +163,8 @@ export default function AdminProfile({ user, setPage, setUser }) {
   };
 
   return (
-    <div className="admin-dashboard-container">
-      {/* SIDEBAR */}
-      <aside className="admin-sidebar">
-        <div className="admin-brand">
-          <h1>InfraCare</h1>
-          <span>MUNICIPAL ADMIN</span>
-        </div>
-
-        <nav className="admin-nav-links">
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("dashboard"); }}>
-            <LayoutDashboard size={18} /> Dashboard
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("analysis"); }}>
-            <BarChart3 size={18} /> Analytics
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-reports"); }}>
-            <AlertTriangle size={18} /> Complaints
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-maintenance"); }}>
-            <Wrench size={18} /> Maintenance
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-users"); }}>
-            <Users size={18} /> User Management
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setPage("admin-logs"); }}>
-            <FileText size={18} /> System Logs
-          </a>
-        </nav>
-
-        <div className="admin-sidebar-bottom">
-          <div className="admin-user-profile bg-gray-50 p-4">
-            <div className="admin-avatar-small-wrap text-avatar">
-              <img src={avatarUrl} alt="Admin" className="admin-avatar-small" />
-            </div>
-            <div className="admin-user-info">
-              <strong>Admin Profile</strong>
-              <span>ID: {user?.id?.substring(0,6) || "882-910"}</span>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* MAIN CONTENT */}
-      <main className="admin-main-area bg-gray-50">
-        
-        {/* TOPBAR */}
-        <header className="admin-top-nav bg-white border-bottom no-border px-8">
-          <div className="admin-top-left flex items-center">
-            <h2 className="serif-title mb-0 mr-6 font-bold" style={{fontSize: '1.25rem'}}>Admin Profile</h2>
-          </div>
-          <div className="admin-top-right flex gap-6 items-center">
-            <div className="admin-search-box bg-gray-50 border-all" style={{width: 300}}>
-              <Search size={16} className="search-icon text-gray-400" />
-              <input type="text" placeholder="Search..." className="bg-transparent" />
-            </div>
-            <button className="admin-icon-btn border-none"><Bell size={18} /><span className="notification-dot border-white"></span></button>
-            <div className="admin-avatar-top-wrap" onClick={(e) => { e.preventDefault(); setPage("admin-profile"); }} style={{cursor: "pointer"}}><img src={avatarUrl} alt="Admin" className="admin-avatar-small rounded-full border-2 border-white" style={{width: 32, height: 32}} /></div>
-          </div>
-        </header>
-
+    <div style={{ backgroundColor: "#fafafa", minHeight: "100vh", padding: "40px 20px" }}>
+      <div style={{ width: "100%" }}>
         {/* PAGE CONTENT */}
         <div className="admin-scroll-content p-8 max-w-6xl mx-auto">
           
@@ -356,7 +298,7 @@ export default function AdminProfile({ user, setPage, setUser }) {
           </div>
 
         </div>
-      </main>
+            </div>
     </div>
   );
 }

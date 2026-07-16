@@ -29,7 +29,10 @@ export default function Track({ reports, setPage }) {
   const [tab, setTab] = useState("All Reports");
   const [search, setSearch] = useState("");
 
-  const filteredReports = reports.filter(r => {
+  const [expandedReportId, setExpandedReportId] = useState(null);
+
+  const actualReports = reports && reports.length > 0 ? reports : reportsSeed;
+  const filteredReports = actualReports.filter(r => {
     if (tab === "In Progress" && getStepIndex(r.status) === 4) return false;
     if (tab === "Resolved" && getStepIndex(r.status) !== 4) return false;
     
@@ -184,16 +187,36 @@ export default function Track({ reports, setPage }) {
 
                   {/* Action Button */}
                   <div style={{ alignSelf: "flex-end", marginTop: "auto" }}>
-                    <button style={{ 
+                    <button 
+                      onClick={() => setExpandedReportId(expandedReportId === report.id ? null : report.id)}
+                      style={{ 
                       background: "none", border: "none", 
                       display: "flex", alignItems: "center", gap: 6, 
                       fontWeight: 700, fontSize: "0.75rem", 
                       letterSpacing: 0.5, cursor: "pointer", color: "#111" 
                     }}>
                       {stepIndex === 4 ? "VIEW RESOLUTION SUMMARY" : "VIEW OFFICIAL UPDATES"}
-                      <ChevronDown size={16} />
+                      <ChevronDown size={16} style={{ transform: expandedReportId === report.id ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
                     </button>
                   </div>
+                  
+                  {expandedReportId === report.id && report.history && (
+                    <div style={{ marginTop: 24, padding: "20px", background: "#f9f9f9", borderRadius: 8, border: "1px solid #eee" }}>
+                      <h4 style={{ fontSize: "0.85rem", fontWeight: 700, marginBottom: 16, letterSpacing: 0.5 }}>OFFICIAL UPDATES</h4>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        {report.history.map((h, idx) => (
+                          <div key={idx} style={{ display: "flex", gap: 16 }}>
+                            <div style={{ width: 10, height: 10, borderRadius: "50%", background: idx === 0 ? "#111" : "#ccc", marginTop: 4, flexShrink: 0 }} />
+                            <div>
+                              <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "#111", marginBottom: 4 }}>{h[0]}</div>
+                              <div style={{ fontSize: "0.85rem", color: "#555", lineHeight: 1.5, marginBottom: 4 }}>{h[1]}</div>
+                              <div style={{ fontSize: "0.75rem", color: "#888", fontWeight: 500 }}>{h[2]}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                 </div>
               </div>
