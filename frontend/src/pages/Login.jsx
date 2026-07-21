@@ -112,20 +112,54 @@ export default function Login({ setUser, setPage }) {
     return "";
   })();
 
-  /* ─── Login via Backend API ─────────────────────────────────────── */
+  /* ─── Login via Backend API & Supabase ─────────────────────────────────────── */
   const login = async (id, pwd, role) => {
-    const res = await fetch(`${apiUrl}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifier: id, password: pwd, role }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || "Invalid credentials. Please try again.");
+    if (isDemoCredential(id) || !EMAIL_RE.test(id)) {
+      const res = await fetch(`${apiUrl}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: id, password: pwd, role }),
+      });
+  
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Invalid credentials. Please try again.");
+      }
+  
+      return res.json();
     }
 
-    return res.json();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: id,
+      password: pwd,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (data?.session) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, full_name")
+        .eq("id", data.session.user.id)
+        .single();
+        
+      const meta = data.session.user.user_metadata || {};
+      const userRole = profile?.role || meta.role || "citizen";
+      const role_home = { citizen: "home", engineer: "maintenance", inspector: "inspections", admin: "dashboard" };
+      
+      return {
+        user: {
+          id: data.session.user.id,
+          role: userRole,
+          name: profile?.full_name || meta.full_name || data.session.user.email,
+          email: data.session.user.email,
+        },
+        access_token: data.session.access_token,
+        redirect: role_home[userRole] || "home"
+      };
+    }
   };
 
   /* ─── Submit ──────────────────────────────────────────────────── */

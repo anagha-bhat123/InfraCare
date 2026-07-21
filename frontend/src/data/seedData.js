@@ -11,7 +11,7 @@ export const reportsSeed = [
     department: "Public Works (Div 4)",
     officer: "Sgt. Marcus Thorne",
     coords: [40.7128, -74.006],
-    evidence: "https://images.unsplash.com/photo-1694643148030-5250b2f16543?auto=format&fit=crop&w=900&q=80",
+    evidence: "https://images.unsplash.com/photo-1584447098522-875fdfab944b?auto=format&fit=crop&w=900&q=80",
     history: [
       ["Repair Crew Dispatched", "Team Alpha has been assigned to the location. Estimated completion: 48 hours.", "Today, 09:15 AM"],
       ["Damage Verified", "On-site inspector confirmed the severity. Escalated to High Priority status.", "Oct 25, 14:30 PM"],
@@ -30,7 +30,7 @@ export const reportsSeed = [
     department: "Stormwater Division",
     officer: "Eng. Kavya Rao",
     coords: [40.7282, -73.9942],
-    evidence: "https://images.unsplash.com/photo-1604357209793-fca5dca89f97?auto=format&fit=crop&w=900&q=80",
+    evidence: "https://images.unsplash.com/photo-1621252179027-94459d278660?auto=format&fit=crop&w=900&q=80",
     history: [
       ["Damage Verified", "Inspection accepted and forwarded to drainage unit.", "Oct 22, 10:20 AM"],
       ["Report Received", "Citizen report filed with GPS metadata.", "Oct 21, 16:10 PM"]
@@ -48,7 +48,7 @@ export const reportsSeed = [
     department: "Road Safety Cell",
     officer: "Unassigned",
     coords: [40.705, -73.982],
-    evidence: "https://images.unsplash.com/photo-1605027990121-cbae9d9d397f?auto=format&fit=crop&w=900&q=80",
+    evidence: "https://images.unsplash.com/photo-1605027628030-9bb6f83535e6?auto=format&fit=crop&w=900&q=80",
     history: [["Report Received", "Initial digital report filed by user.", "Oct 19, 09:00 AM"]]
   }
 ];
@@ -98,7 +98,7 @@ export const inspections = [
     coords: [40.7128, -74.006],
     dueDate: "Oct 25, 2023",
     notes: "Check if base layer is compromised.",
-    originalReportEvidence: "https://images.unsplash.com/photo-1694643148030-5250b2f16543?auto=format&fit=crop&w=900&q=80"
+    originalReportEvidence: "https://images.unsplash.com/photo-1584447098522-875fdfab944b?auto=format&fit=crop&w=900&q=80"
   },
   {
     id: "INSP-1002",
@@ -108,6 +108,6 @@ export const inspections = [
     coords: [40.7282, -73.9942],
     dueDate: "Oct 22, 2023",
     notes: "Verify drainage cover replacement meets protocol.",
-    originalReportEvidence: "https://images.unsplash.com/photo-1604357209793-fca5dca89f97?auto=format&fit=crop&w=900&q=80"
+    originalReportEvidence: "https://images.unsplash.com/photo-1621252179027-94459d278660?auto=format&fit=crop&w=900&q=80"
   }
 ];

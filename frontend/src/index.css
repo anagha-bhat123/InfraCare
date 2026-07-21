@@ -1220,3 +1220,65 @@ textarea { min-height: 160px; padding: 22px !important; resize: vertical; }
   div[style*="padding: 20px 40px"] { padding: 16px !important; }
   .admin-scroll-content { padding: 16px !important; }
 }
+
+
+/* Report Page Responsive Styles */
+@media screen and (max-width: 980px) {
+  .report-page .report-grid {
+    grid-template-columns: 1fr !important;
+    gap: 20px;
+    margin-top: 30px;
+  }
+  .report-page .form-row {
+    grid-template-columns: 1fr !important;
+    gap: 16px;
+    margin: 16px 0;
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .report-page {
+    padding: 24px 16px !important;
+  }
+  .report-page h1 {
+    font-size: 2rem;
+  }
+  .report-page .lead {
+    font-size: 1rem;
+  }
+  .urgency {
+    grid-template-columns: 1fr !important;
+  }
+  .urgency button {
+    border-right: none !important;
+    border-bottom: 1px solid #bfc2c4;
+  }
+  .urgency button:last-child {
+    border-bottom: none;
+  }
+  .map-panel .map {
+    min-height: 300px !important;
+  }
+  .coordbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+  }
+  .coordbar button {
+    width: 100%;
+    margin-top: 8px;
+  }
+}
+
+
+
+/* Remove underline in all links globally */
+a {
+  text-decoration: none !important;
+}
+
+.text-link {
+  text-decoration: none !important;
+}
+

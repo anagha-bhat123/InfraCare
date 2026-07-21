@@ -148,7 +148,7 @@ export default function App() {
     } else {
       // Authenticated users are restricted to their role's pages
       if (user.role === "citizen") {
-        if (!["home", "report", "track", "profile"].includes(page)) {
+        if (!["home", "report", "track", "profile", "map"].includes(page)) {
           setPage("home");
         }
       } else if (user.role === "engineer") {
@@ -218,6 +218,22 @@ export default function App() {
         body: JSON.stringify(reportData)
       });
       if (res.ok) {
+        const data = await res.json();
+        
+        if (reportData.evidenceFile && data.report?.id) {
+          const formData = new FormData();
+          formData.append("photo", reportData.evidenceFile);
+          formData.append("latitude", reportData.latitude);
+          formData.append("longitude", reportData.longitude);
+          formData.append("captured_at", reportData.capturedAt || new Date().toLocaleString());
+          
+          await fetch(`${apiUrl}/reports/${data.report.id}/photo`, {
+            method: "POST",
+            body: formData,
+            ...(token ? { headers: { "Authorization": `Bearer ${token}` } } : {})
+          });
+        }
+        
         fetchReports();
       }
     } catch (e) {

@@ -111,9 +111,9 @@ export default function Track({ reports, setPage }) {
                 flexDirection: "row"
               }}>
                 <img 
-                  src={report.evidence} 
+                  src={report.evidence || report.report_photos?.[0]?.photo_url || "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=900&q=80"} 
                   alt={report.title} 
-                  style={{ width: 280, objectFit: "cover", flexShrink: 0 }} 
+                  style={{ width: 280, minHeight: 250, objectFit: "cover", flexShrink: 0, alignSelf: "stretch" }} 
                 />
                 
                 <div style={{ padding: "32px", flex: 1, display: "flex", flexDirection: "column" }}>
@@ -134,10 +134,17 @@ export default function Track({ reports, setPage }) {
                     </div>
                   </div>
 
-                  {/* Title */}
-                  <h3 style={{ fontSize: "1.5rem", marginBottom: 40, fontFamily: "serif", color: "#111", fontWeight: 600 }}>
-                    {report.title}
-                  </h3>
+                  {/* Title & Description */}
+                  <div style={{ marginBottom: 40 }}>
+                    <h3 style={{ fontSize: "1.5rem", marginBottom: 8, fontFamily: "serif", color: "#111", fontWeight: 600 }}>
+                      {report.title}
+                    </h3>
+                    {report.description && (
+                      <p style={{ fontSize: "0.95rem", color: "#555", lineHeight: 1.5, margin: 0 }}>
+                        {report.description}
+                      </p>
+                    )}
+                  </div>
                   
                   {/* Stepper */}
                   <div style={{ display: "flex", alignItems: "flex-start", width: "100%", marginBottom: 48, padding: "0 10px" }}>

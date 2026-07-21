@@ -31,7 +31,7 @@ def login(payload: LoginRequest):
             detail="Incorrect password. Please try again.",
         )
 
-    role_home = {"citizen": "track", "engineer": "maintenance", "admin": "map"}
+    role_home = {"citizen": "home", "engineer": "maintenance", "admin": "map"}
     return {
         "user": {
             "id":   f"demo-{payload.role}",
