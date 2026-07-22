@@ -28,6 +28,8 @@ function getUrgencyStyle(urgency, status) {
 export default function Track({ reports, setPage }) {
   const [tab, setTab] = useState("All Reports");
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const [expandedReportId, setExpandedReportId] = useState(null);
 
@@ -61,7 +63,7 @@ export default function Track({ reports, setPage }) {
             {["All Reports", "In Progress", "Resolved"].map(t => (
               <button
                 key={t}
-                onClick={() => setTab(t)}
+                onClick={() => { setTab(t); setCurrentPage(1); }}
                 style={{
                   background: tab === t ? "#000" : "#fff",
                   color: tab === t ? "#fff" : "#333",
@@ -85,7 +87,7 @@ export default function Track({ reports, setPage }) {
               type="text" 
               placeholder="Search by ID or Type" 
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
               style={{ 
                 width: "100%", padding: "10px 10px 10px 36px", 
                 border: "1px solid #ddd", borderRadius: 4,
@@ -97,7 +99,7 @@ export default function Track({ reports, setPage }) {
 
         {/* List */}
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          {filteredReports.map((report) => {
+          {filteredReports.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((report) => {
             const stepIndex = getStepIndex(report.status);
             const badge = getUrgencyStyle(report.urgency, report.status);
 
@@ -230,6 +232,37 @@ export default function Track({ reports, setPage }) {
             );
           })}
         </div>
+        
+        {/* Pagination */}
+        {Math.ceil(filteredReports.length / itemsPerPage) > 1 && (
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 40, gap: 8 }}>
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              style={{
+                padding: "8px 16px", background: currentPage === 1 ? "#f0f0f0" : "#000",
+                color: currentPage === 1 ? "#aaa" : "#fff", border: "none", borderRadius: 4,
+                cursor: currentPage === 1 ? "not-allowed" : "pointer", fontWeight: 600
+              }}
+            >
+              Previous
+            </button>
+            <div style={{ display: "flex", alignItems: "center", padding: "0 16px", fontWeight: 600, color: "#111" }}>
+              Page {currentPage} of {Math.ceil(filteredReports.length / itemsPerPage)}
+            </div>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredReports.length / itemsPerPage), p + 1))}
+              disabled={currentPage === Math.ceil(filteredReports.length / itemsPerPage)}
+              style={{
+                padding: "8px 16px", background: currentPage === Math.ceil(filteredReports.length / itemsPerPage) ? "#f0f0f0" : "#000",
+                color: currentPage === Math.ceil(filteredReports.length / itemsPerPage) ? "#aaa" : "#fff", border: "none", borderRadius: 4,
+                cursor: currentPage === Math.ceil(filteredReports.length / itemsPerPage) ? "not-allowed" : "pointer", fontWeight: 600
+              }}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

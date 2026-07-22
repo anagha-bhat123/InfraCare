@@ -99,7 +99,7 @@ export default function Report({ addReport, setPage }) {
     
     addReport(newReport);
     
-    setSubmitted(true);
+    clearForm();
     Swal.fire('Submitted!', 'Your complaint has been successfully submitted.', 'success');
   };
 
@@ -165,32 +165,34 @@ export default function Report({ addReport, setPage }) {
           </aside>
           <div style={{ display: "flex", justifyContent: "center", marginTop: "1rem", flexDirection: "column", alignItems: "center", gap: "12px" }}>
             <button className="black submit" >SUBMIT COMPLAINT <ArrowRight /></button>
-            <button 
-              type="button" 
-              onClick={clearForm} 
-              style={{
-                background: "#f8fafc",
-                border: "1px solid #cbd5e1",
-                color: "#475569",
-                padding: "10px 24px",
-                borderRadius: "8px",
-                cursor: "pointer",
-                fontSize: "0.95rem",
-                fontWeight: "600",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                transition: "all 0.2s ease",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                width: "100%",
-                justifyContent: "center",
-                maxWidth: "320px"
-              }}
-              onMouseOver={(e) => { e.currentTarget.style.background = "#f1f5f9"; e.currentTarget.style.borderColor = "#94a3b8"; e.currentTarget.style.color = "#1e293b"; }}
-              onMouseOut={(e) => { e.currentTarget.style.background = "#f8fafc"; e.currentTarget.style.borderColor = "#cbd5e1"; e.currentTarget.style.color = "#475569"; }}
-            >
-              <RefreshCw size={16} /> Clear Form Fields
-            </button>
+            {submitted && (
+              <button 
+                type="button" 
+                onClick={clearForm} 
+                style={{
+                  background: "#f8fafc",
+                  border: "1px solid #cbd5e1",
+                  color: "#475569",
+                  padding: "10px 24px",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  fontSize: "0.95rem",
+                  fontWeight: "600",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  transition: "all 0.2s ease",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                  width: "100%",
+                  justifyContent: "center",
+                  maxWidth: "320px"
+                }}
+                onMouseOver={(e) => { e.currentTarget.style.background = "#f1f5f9"; e.currentTarget.style.borderColor = "#94a3b8"; e.currentTarget.style.color = "#1e293b"; }}
+                onMouseOut={(e) => { e.currentTarget.style.background = "#f8fafc"; e.currentTarget.style.borderColor = "#cbd5e1"; e.currentTarget.style.color = "#475569"; }}
+              >
+                <RefreshCw size={16} /> Clear Form Fields
+              </button>
+            )}
           </div>
         </section>
         
