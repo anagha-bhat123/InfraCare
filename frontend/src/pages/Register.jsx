@@ -15,6 +15,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { supabase } from "../services/supabase";
+import { apiUrl } from "../services/api";
 
 function FieldError({ msg }) {
   if (!msg) return null;
@@ -44,6 +45,7 @@ export default function Register({ setPage }) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [serverError, setServerError] = useState("");
+  const [generatedEngineerId, setGeneratedEngineerId] = useState("");
 
   // Form fields
   const [fullName, setFullName] = useState("");
@@ -85,20 +87,42 @@ export default function Register({ setPage }) {
     try {
       const role = type === "Municipal Worker" ? "engineer" : "citizen";
 
-      const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: {
-          data: {
+      if (role === "engineer") {
+        const res = await fetch(`${apiUrl}/auth/register-engineer`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
             full_name: fullName.trim(),
-            role,
-            phone: mobile.trim(),
-            ward_zone: ward || null
-          }
-        }
-      });
+            email: email.trim(),
+            password,
+            mobile: mobile.trim(),
+            ward_zone: ward || ""
+          })
+        });
 
-      if (error) throw error;
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || "Registration failed.");
+        }
+        
+        const data = await res.json();
+        setGeneratedEngineerId(data.engineer_id);
+      } else {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            data: {
+              full_name: fullName.trim(),
+              role,
+              phone: mobile.trim(),
+              ward_zone: ward || null
+            }
+          }
+        });
+
+        if (error) throw error;
+      }
 
       setSuccess(true);
     } catch (err) {
@@ -125,8 +149,17 @@ export default function Register({ setPage }) {
           </div>
           <h1 style={{ fontSize: "1.6rem", marginBottom: 4 }}>Registration Successful!</h1>
           <p style={{ color: "#555", maxWidth: 340, lineHeight: 1.6 }}>
-            Your account has been created successfully. You can now log in using your email and password.
+            Your account has been created successfully. 
+            {type === "Municipal Worker" 
+              ? " We simulate sending an email in development. Here is the Engineer ID you would receive in your mail:"
+              : " You can now log in using your email and password."}
           </p>
+          
+          {type === "Municipal Worker" && generatedEngineerId && (
+            <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", padding: "12px 24px", borderRadius: 8, marginTop: 8, marginBottom: 8, color: "#92400e", fontWeight: 700, fontSize: "1.2rem", letterSpacing: 1 }}>
+              {generatedEngineerId}
+            </div>
+          )}
           <button
             className="black wide"
             style={{ marginTop: 12 }}
