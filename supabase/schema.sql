@@ -18,6 +18,8 @@ create table public.profiles (
   phone text,
   ward_zone text,
   trust_rating numeric(3,2) default 4.80,
+  emp_id text unique,
+  must_change_password boolean default true,
   created_at timestamptz not null default now()
 );
 

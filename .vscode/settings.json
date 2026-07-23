@@ -4,5 +4,47 @@
     "${workspaceFolder}/backend"
   ],
   "python.analysis.venvPath": "${workspaceFolder}/backend",
-  "python.analysis.venv": ".venv"
+  "python.analysis.venv": ".venv",
+
+  // ── Pyrefly (Meta's Python type checker) ─────────────────────────────────
+  // Point it at the correct interpreter so it doesn't analyse .venv stubs
+  "pyrefly.pythonInterpreter": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+
+  // ── Pylance / Python analysis ─────────────────────────────────────────────
+  "python.analysis.exclude": [
+    "**/backend/.venv/**",
+    "**/backend/.venv",
+    "**/__pycache__/**",
+    "**/node_modules/**"
+  ],
+  "python.analysis.ignore": [
+    "**/backend/.venv/**"
+  ],
+
+  // ── JavaScript / ESLint ──────────────────────────────────────────────────
+  "eslint.workingDirectories": [{ "directory": "frontend", "changeProcessCWD": true }],
+  "eslint.validate": ["javascript", "javascriptreact"],
+  "eslint.useFlatConfig": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+
+  // ── Disable VS Code's built-in JS/TS checker ─────────────────────────────
+  "javascript.validate.enable": false,
+  "typescript.validate.enable": false,
+  "js/ts.implicitProjectConfig.checkJs": false,
+
+  // ── File watcher exclusions ───────────────────────────────────────────────
+  "files.watcherExclude": {
+    "**/backend/.venv/**": true,
+    "**/frontend/node_modules/**": true,
+    "**/frontend/dist/**": true
+  },
+
+  // ── Search exclusions ────────────────────────────────────────────────────
+  "search.exclude": {
+    "**/backend/.venv": true,
+    "**/frontend/node_modules": true,
+    "**/frontend/dist": true
+  }
 }

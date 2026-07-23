@@ -85,7 +85,7 @@ export default function Register({ setPage }) {
 
     setLoading(true);
     try {
-      const role = type === "Municipal Worker" ? "engineer" : "citizen";
+      const role = type === "Engineer" ? "engineer" : "citizen";
 
       if (role === "engineer") {
         const res = await fetch(`${apiUrl}/auth/register-engineer`, {
@@ -94,9 +94,9 @@ export default function Register({ setPage }) {
           body: JSON.stringify({
             full_name: fullName.trim(),
             email: email.trim(),
-            password,
             mobile: mobile.trim(),
-            ward_zone: ward || ""
+            ward_zone: ward || "",
+            password: password
           })
         });
 
@@ -149,17 +149,32 @@ export default function Register({ setPage }) {
           </div>
           <h1 style={{ fontSize: "1.6rem", marginBottom: 4 }}>Registration Successful!</h1>
           <p style={{ color: "#555", maxWidth: 340, lineHeight: 1.6 }}>
-            Your account has been created successfully. 
-            {type === "Municipal Worker" 
-              ? " We simulate sending an email in development. Here is the Engineer ID you would receive in your mail:"
-              : " You can now log in using your email and password."}
+            Your account has been created successfully.
+            {type === "Engineer" ? (
+              <>
+                {" "}Your <strong>Employee ID</strong> and default password have been sent to your registered email address.
+              </>
+            ) : " You can now log in using your email and password."}
           </p>
-          
-          {type === "Municipal Worker" && generatedEngineerId && (
-            <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", padding: "12px 24px", borderRadius: 8, marginTop: 8, marginBottom: 8, color: "#92400e", fontWeight: 700, fontSize: "1.2rem", letterSpacing: 1 }}>
-              {generatedEngineerId}
+
+          {type === "Engineer" && (
+            <div style={{
+              display: "flex", alignItems: "flex-start", gap: 12,
+              background: "#eff6ff", border: "1px solid #bfdbfe",
+              borderRadius: 10, padding: "14px 18px", maxWidth: 340,
+              textAlign: "left", marginTop: 4,
+            }}>
+              <span style={{ fontSize: "1.3rem", lineHeight: 1 }}>📧</span>
+              <div>
+                <div style={{ fontWeight: 700, color: "#1e40af", fontSize: ".88rem", marginBottom: 3 }}>Check your inbox</div>
+                <div style={{ color: "#3b5bdb", fontSize: ".82rem", lineHeight: 1.5 }}>
+                  Your Employee ID and login instructions have been emailed to <strong>{email.trim()}</strong>. 
+                  Check your <strong>Spam</strong> folder if you don't see it within a minute.
+                </div>
+              </div>
             </div>
           )}
+
           <button
             className="black wide"
             style={{ marginTop: 12 }}
@@ -224,7 +239,7 @@ export default function Register({ setPage }) {
 
         <label>Register as:</label>
         <div className="segmented">
-          {["Citizen", "Municipal Worker"].map((v) => (
+          {["Citizen", "Engineer"].map((v) => (
             <button
               type="button"
               className={type === v ? "selected" : ""}
@@ -307,7 +322,7 @@ export default function Register({ setPage }) {
           </span>
         </label>
 
-        {/* Password */}
+        {/* Password — shown for both Citizen and Engineer */}
         <label>
           Create Password
           <span className="input-icon" style={errors.password ? { borderColor: "#c0152a" } : {}}>
@@ -372,7 +387,7 @@ export default function Register({ setPage }) {
           disabled={loading}
           style={loading ? { opacity: 0.7, cursor: "not-allowed" } : {}}
         >
-          {loading ? "Creating Account…" : <>{type === "Municipal Worker" ? "Register as Engineer" : "Register Account"} <ArrowRight /></>}
+          {loading ? "Creating Account…" : <>{type === "Engineer" ? "Register as Engineer" : "Register Account"} <ArrowRight /></>}
         </button>
 
         <p className="center">

@@ -49,6 +49,8 @@ dist/
 
 # ─── IDE & OS ─────────────────────────────────────────────────────
 .vscode/settings.json
+pyproject.toml
+jsconfig.json
 .idea/
 *.suo
 *.ntvs*

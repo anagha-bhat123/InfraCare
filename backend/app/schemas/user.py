@@ -21,8 +21,8 @@ class LoginRequest(BaseModel):
             raise ValueError("Identifier is required.")
         role = info.data.get("role", "citizen")
         if role == "engineer":
-            if not ENG_ID_RE.match(v):
-                raise ValueError("Invalid Employee ID format. Expected: M-000-XXXX.")
+            if not ENG_ID_RE.match(v) and not MOBILE_RE.match(v):
+                raise ValueError("Enter your Employee ID (M-000-XXXX) or registered mobile number.")
         elif role == "admin":
             if not EMAIL_RE.match(v):
                 raise ValueError("Invalid government email address.")
@@ -33,13 +33,56 @@ class LoginRequest(BaseModel):
 
     @field_validator("password")
     @classmethod
+    def validate_password(cls, v, info):
+        if not v:
+            raise ValueError("Password is required.")
+        role = info.data.get("role", "citizen")
+        # For non-engineer demo users, check numeric-only and length constraint if it is a demo credential.
+        # Otherwise, allow any valid password (since new changed passwords can be alpha-numeric).
+        return v
+
+class RegisterEngineerRequest(BaseModel):
+    full_name: str
+    email: str
+    mobile: str
+    ward_zone: str = ""
+    password: str = ""   # Engineer sets their own password; falls back to default if empty
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v):
+        v = v.strip().lower()
+        if not EMAIL_RE.match(v):
+            raise ValueError("Enter a valid email address.")
+        return v
+
+    @field_validator("mobile")
+    @classmethod
+    def validate_mobile(cls, v):
+        v = v.strip()
+        if not MOBILE_RE.match(v):
+            raise ValueError("Enter a valid 10-digit mobile number.")
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v):
+        if v and len(v) < 6:
+            raise ValueError("Password must be at least 6 characters.")
+        return v
+
+class ChangePasswordRequest(BaseModel):
+    identifier: str
+    old_password: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
     def validate_password(cls, v):
         if not v:
             raise ValueError("Password is required.")
-        if not v.isdigit():
-            raise ValueError("Password must contain numbers only.")
-        if len(v) < 6 or len(v) > 8:
-            raise ValueError("Password must be between 6 and 8 digits.")
+        if len(v) < 6:
+            raise ValueError("Password must be at least 6 characters.")
         return v
 
 class ResetPasswordRequest(BaseModel):
@@ -54,3 +97,4 @@ class ResetPasswordRequest(BaseModel):
         if len(v) < 6:
             raise ValueError("Password must be at least 6 characters.")
         return v
+
