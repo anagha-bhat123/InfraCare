@@ -98,3 +98,32 @@ class ResetPasswordRequest(BaseModel):
             raise ValueError("Password must be at least 6 characters.")
         return v
 
+
+class UpdateProfileRequest(BaseModel):
+    user_id: str
+    full_name: str = ""
+    phone: str = ""
+    ward_zone: str = ""
+    zone: str = ""
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, v):
+        return v.strip()
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v):
+        v = v.strip()
+        if v and not MOBILE_RE.match(v):
+            raise ValueError("Enter a valid 10-digit mobile number.")
+        return v
+
+
+class UpdatePreferencesRequest(BaseModel):
+    user_id: str
+    email_alerts: bool = True
+    sms_notifs: bool = False
+    hazard_alerts: bool = True
+    repair_completion: bool = True
+

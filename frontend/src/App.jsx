@@ -94,10 +94,10 @@ export default function App() {
       if (supabase) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          // Fetch profile for role info
+          // Fetch full profile for role + saved fields
           const { data: profile } = await supabase
             .from("profiles")
-            .select("role, full_name")
+            .select("role, full_name, phone, ward_zone, zone")
             .eq("id", session.user.id)
             .single();
           // Priority: profiles table → user_metadata (set at signup) → email
@@ -107,6 +107,9 @@ export default function App() {
             role: profile?.role || meta.role || "citizen",
             name: profile?.full_name || meta.full_name || session.user.email,
             email: session.user.email,
+            phone: profile?.phone || "",
+            ward: profile?.ward_zone || "",
+            zone: profile?.zone || "",
           };
           restoreFromParsed(userData);
           return;
@@ -176,16 +179,17 @@ export default function App() {
       setPage("home");
     } else {
       // Merge update — profile edits pass partial objects like { ...user, name: "New Name" }
-      setUser((prev) => ({ ...prev, ...u }));
-      // Keep localStorage in sync for demo/remembered users
-      const saved = localStorage.getItem("infracare_user");
-      if (saved) {
+      setUser((prev) => {
+        const merged = { ...prev, ...u };
+        // Always persist to localStorage so profile changes survive page refresh
         try {
-          localStorage.setItem("infracare_user", JSON.stringify({ ...JSON.parse(saved), ...u }));
-        } catch { /* ignore */ }
-      }
+          localStorage.setItem("infracare_user", JSON.stringify(merged));
+        } catch { /* ignore quota errors */ }
+        return merged;
+      });
     }
   };
+
 
   const fetchReports = async () => {
     try {

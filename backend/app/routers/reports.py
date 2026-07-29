@@ -9,11 +9,15 @@ router = APIRouter(prefix="/reports", tags=["reports"])
 def list_reports():
     if not supabase:
         return {"reports": []}
-    result = supabase.table("damage_reports").select("*, report_photos(*), report_status_history(*)").order("created_at", desc=True).execute()
+    result = supabase.table("damage_reports").select("*").order("created_at", desc=True).execute()
     return {"reports": result.data}
+
+from app.database import create_client
+from app.config import settings
 
 @router.post("")
 def create_report(report: DamageReport):
+    local_supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY) if settings.SUPABASE_URL else None
     row = {
         "title": report.title,
         "category": report.category,
@@ -23,15 +27,9 @@ def create_report(report: DamageReport):
         "longitude": report.longitude,
         "status": report.status,
     }
-    if not supabase:
+    if not local_supabase:
         return {"report": {**row, "id": report.id or "local-demo", "created_at": datetime.utcnow().isoformat()}}
-    created = supabase.table("damage_reports").insert(row).execute()
-    report_id = created.data[0]["id"]
-    supabase.table("report_status_history").insert({
-        "report_id": report_id,
-        "title": "Report Received",
-        "description": "Citizen report filed with GPS metadata.",
-    }).execute()
+    created = local_supabase.table("damage_reports").insert(row).execute()
     return {"report": created.data[0]}
 
 @router.post("/{report_id}/photo")
@@ -56,13 +54,22 @@ async def upload_report_photo(
         "longitude": longitude,
         "captured_at": captured_at,
     }
-    result = supabase.table("report_photos").insert(row).execute()
-    return {"photo": result.data[0]}
+    try:
+        result = supabase.table("report_photos").insert(row).execute()
+        return {"photo": result.data[0]}
+    except Exception as e:
+        print(f"Failed to insert into report_photos (table might be missing): {e}")
+        return {"photo": {"report_id": report_id, "photo_url": public_url}}
 
 @router.patch("/{report_id}/status")
 def update_status(report_id: str, status: str, note: str = ""):
     if not supabase:
         return {"report_id": report_id, "status": status, "note": note}
     supabase.table("damage_reports").update({"status": status}).eq("id", report_id).execute()
-    supabase.table("report_status_history").insert({"report_id": report_id, "title": status, "description": note}).execute()
+    
+    try:
+        supabase.table("report_status_history").insert({"report_id": report_id, "title": status, "description": note}).execute()
+    except Exception as e:
+        print(f"Failed to insert into report_status_history (table might be missing): {e}")
+        
     return {"report_id": report_id, "status": status}

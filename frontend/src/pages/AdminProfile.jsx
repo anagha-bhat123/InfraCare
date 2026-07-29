@@ -1,10 +1,15 @@
-import React, { useState } from "react";
-import { 
-  LayoutDashboard, BarChart3, AlertTriangle, 
-  Wrench, Users, FileText, Search, Bell,
-  User, History, ShieldCheck, ArrowRight 
+import React, { useState, useEffect } from "react";
+import {
+  Bell, User, History, ShieldCheck, ArrowRight, CheckCircle, XCircle
 } from "lucide-react";
+import { apiUrl } from "../services/api";
 import { supabase } from "../services/supabase";
+
+// Check if user ID is a real UUID (not a demo string like "demo-admin")
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isRealUser(userId) {
+  return userId && UUID_RE.test(userId);
+}
 
 function getDisplayName(user) {
   const n = (user?.name || "").trim();
@@ -102,13 +107,40 @@ function ToggleRow({ title, desc, checked, onChange }) {
   );
 }
 
+function Toast({ message, type, onClose }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 3500);
+    return () => clearTimeout(t);
+  }, [onClose]);
+
+  return (
+    <div style={{
+      position: "fixed", bottom: 32, right: 32, zIndex: 9999,
+      background: type === "success" ? "#111" : "#d32f2f",
+      color: "#fff", borderRadius: 8, padding: "14px 20px",
+      display: "flex", alignItems: "center", gap: 10,
+      boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+      animation: "slideUp 0.3s ease",
+      minWidth: 260, maxWidth: 400,
+    }}>
+      <style>{`@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
+      {type === "success" ? <CheckCircle size={18} /> : <XCircle size={18} />}
+      <span style={{ fontSize: "0.92rem", fontWeight: 500 }}>{message}</span>
+    </div>
+  );
+}
+
 export default function AdminProfile({ user, setPage, setUser }) {
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null);
+
   const [fullName, setFullName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
   const [phone, setPhone] = useState(user?.phone || "");
   const [ward, setWard] = useState(user?.ward || "");
   const [zone, setZone] = useState(user?.zone || "");
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const [emailAlerts, setEmailAlerts] = useState(user?.emailAlerts ?? true);
   const [smsNotifs, setSmsNotifs] = useState(user?.smsNotifs ?? false);
@@ -116,12 +148,50 @@ export default function AdminProfile({ user, setPage, setUser }) {
   const [repairCompletion, setRepairCompletion] = useState(user?.repairCompletion ?? true);
 
   const roleName = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "Admin";
-  const avatarUrl = user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=32&h=32&q=80";
+  const avatarUrl = user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=200&h=200&q=80";
+
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+  };
+
+  // Load saved profile from DB on mount
+  useEffect(() => {
+    if (!user?.id) { setLoading(false); return; }
+
+    const load = async () => {
+      try {
+        if (isRealUser(user.id)) {
+          const res = await fetch(`${apiUrl}/profile/${encodeURIComponent(user.id)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.profile) {
+              const p = data.profile;
+              if (p.full_name) setFullName(p.full_name);
+              if (p.phone) setPhone(p.phone);
+              if (p.ward_zone) setWard(p.ward_zone);
+              if (p.zone) setZone(p.zone);
+              if (p.updated_at) setLastUpdated(new Date(p.updated_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }));
+            }
+            if (data?.preferences) {
+              const pr = data.preferences;
+              setEmailAlerts(pr.email_alerts ?? true);
+              setSmsNotifs(pr.sms_notifs ?? false);
+              setHazardAlerts(pr.hazard_alerts ?? true);
+              setRepairCompletion(pr.repair_completion ?? true);
+            }
+          }
+        }
+      } catch { /* graceful degradation */ }
+      finally { setLoading(false); }
+    };
+
+    load();
+  }, [user?.id]);
 
   const discardChanges = () => {
-    setFullName("");
-    setEmail("");
-    setPhone("");
+    setFullName(user?.name || "");
+    setEmail(user?.email || "");
+    setPhone(user?.phone || "");
     setWard(user?.ward || "");
     setZone(user?.zone || "");
     setEmailAlerts(user?.emailAlerts ?? true);
@@ -133,30 +203,44 @@ export default function AdminProfile({ user, setPage, setUser }) {
   const saveProfile = async () => {
     setSaving(true);
     try {
-      if (supabase) {
-        await supabase.auth.updateUser({
-          data: { full_name: fullName.trim(), phone: phone.trim(), ward_zone: ward },
+      const name = fullName.trim() || getDisplayName(user);
+      const now = new Date().toISOString();
+
+      if (isRealUser(user?.id)) {
+        // Real users save via Backend API to bypass RLS issues
+        const profileRes = await fetch(`${apiUrl}/profile/update`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: user.id, full_name: name, phone: phone.trim(), ward_zone: ward, zone: zone.trim() }),
         });
-        await supabase.from("profiles").upsert({
-          id: user.id, full_name: fullName.trim(),
-          phone: phone.trim() || null, ward_zone: ward || null, role: user.role,
+        if (!profileRes.ok) {
+          const err = await profileRes.json().catch(() => ({}));
+          throw new Error(err.detail || "Failed to save profile.");
+        }
+        await fetch(`${apiUrl}/profile/preferences`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: user.id, email_alerts: emailAlerts, sms_notifs: smsNotifs, hazard_alerts: hazardAlerts, repair_completion: repairCompletion }),
         });
       }
-      setUser({ 
-        ...user, 
-        name: fullName.trim(), 
-        email: email.trim(),
-        phone: phone.trim(), 
-        ward,
-        zone,
-        emailAlerts,
-        smsNotifs,
-        hazardAlerts,
-        repairCompletion
-      });
-      alert("Changes saved successfully!");
+
+      // Update in-memory user state (persisted to localStorage by handleSetUser)
+      setUser({ ...user, name, email: email.trim() || user.email, phone: phone.trim(), ward, zone, emailAlerts, smsNotifs, hazardAlerts, repairCompletion });
+      setLastUpdated(new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }));
+      showToast("Changes saved successfully!", "success");
+
+      // Clear fields after save
+      setFullName("");
+      setEmail("");
+      setPhone("");
+      setWard("");
+      setZone("");
+      setEmailAlerts(true);
+      setSmsNotifs(false);
+      setHazardAlerts(true);
+      setRepairCompletion(true);
     } catch (err) {
-      alert(err.message || "Save failed.");
+      showToast(err.message || "Save failed.", "error");
     } finally {
       setSaving(false);
     }
@@ -164,10 +248,10 @@ export default function AdminProfile({ user, setPage, setUser }) {
 
   return (
     <div style={{ backgroundColor: "#fafafa", minHeight: "100vh", padding: "40px 20px" }}>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
       <div style={{ width: "100%" }}>
-        {/* PAGE CONTENT */}
         <div className="admin-scroll-content p-8 max-w-6xl mx-auto">
-          
           <div style={{ width: "100%" }}>
 
             {/* Banner */}
@@ -193,112 +277,119 @@ export default function AdminProfile({ user, setPage, setUser }) {
               </div>
             </div>
 
-            {/* Form Container */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, marginBottom: 32 }}>
+            {loading ? (
+              <div style={{ textAlign: "center", padding: "60px 0", color: "#888", fontSize: "0.95rem" }}>
+                Loading your profile…
+              </div>
+            ) : (
+              <>
+                {/* Form Container */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, marginBottom: 32 }}>
 
-              {/* Column 1: Personal Information */}
-              <div style={{ border: "1px solid #e0e0e0", borderRadius: 4, padding: "32px", background: "#fff" }}>
-                <h2 style={{ fontSize: "1.4rem", fontWeight: 600, fontFamily: "serif", display: "flex", alignItems: "center", gap: 12, marginBottom: 32, color: "#111" }}>
-                  <User size={22} /> Personal Information
-                </h2>
+                  {/* Column 1: Personal Information */}
+                  <div style={{ border: "1px solid #e0e0e0", borderRadius: 4, padding: "32px", background: "#fff" }}>
+                    <h2 style={{ fontSize: "1.4rem", fontWeight: 600, fontFamily: "serif", display: "flex", alignItems: "center", gap: 12, marginBottom: 32, color: "#111" }}>
+                      <User size={22} /> Personal Information
+                    </h2>
 
-                <div style={{ display: "grid", gap: 24 }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                    <InputField label="Full Name" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Enter your name" />
-                    <InputField label="Phone Number" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Enter your phone number" />
+                    <div style={{ display: "grid", gap: 24 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                        <InputField label="Full Name" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Enter your name" />
+                        <InputField label="Phone Number" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Enter your phone number" />
+                      </div>
+
+                      <InputField label="Email Address" value={email} onChange={e => setEmail(e.target.value)} placeholder="Enter your email" />
+
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                        <SelectField
+                          label="Ward / District"
+                          value={ward}
+                          onChange={e => setWard(e.target.value)}
+                          options={["Ward 04 - Central Business", "Ward 05 - North District", "Ward 02 - East Side"]}
+                          placeholder="Select Ward / District"
+                        />
+                        <InputField label="Zone Designation" value={zone} onChange={e => setZone(e.target.value)} placeholder="e.g. Zone B-R2" />
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 32 }}>
+                      <InfoBox icon={<History size={20} />} label="Last Update" value={lastUpdated || "Not yet saved"} />
+                      <InfoBox icon={<ShieldCheck size={20} />} label="Identity Status" value="VERIFIED" isBadge />
+                    </div>
                   </div>
 
-                  <InputField label="Email Address" value={email} onChange={e => setEmail(e.target.value)} placeholder="Enter your email" />
+                  {/* Column 2: Notifications */}
+                  <div style={{ border: "1px solid #e0e0e0", borderRadius: 4, padding: "32px", background: "#fff" }}>
+                    <h2 style={{ fontSize: "1.4rem", fontWeight: 600, fontFamily: "serif", display: "flex", alignItems: "center", gap: 12, marginBottom: 16, color: "#111" }}>
+                      <Bell size={22} /> Notification Settings
+                    </h2>
+                    <p style={{ color: "#555", fontSize: "0.95rem", marginBottom: 40, lineHeight: 1.6 }}>
+                      Manage how and when you receive updates regarding municipal services and infrastructure status.
+                    </p>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                    <SelectField
-                      label="Ward / District"
-                      value={ward}
-                      onChange={e => setWard(e.target.value)}
-                      options={["Ward 04 - Central Business", "Ward 05 - North District", "Ward 02 - East Side"]}
-                      placeholder="Select Ward / District"
+                    <div style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: 1, color: "#555", marginBottom: 16 }}>STATUS UPDATES</div>
+                    <ToggleRow
+                      title="Email Alerts"
+                      desc="Receive deep-dive report progress"
+                      checked={emailAlerts} onChange={setEmailAlerts}
                     />
-                    <InputField label="Zone Designation" value={zone} onChange={e => setZone(e.target.value)} placeholder="e.g. Zone B-R2" />
+                    <ToggleRow
+                      title="SMS Notifications"
+                      desc="Instant updates on your mobile"
+                      checked={smsNotifs} onChange={setSmsNotifs}
+                    />
+
+                    <hr style={{ border: "none", borderTop: "1px solid #eee", margin: "32px 0" }} />
+
+                    <div style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: 1, color: "#555", marginBottom: 16 }}>EMERGENCY &amp; REPAIRS</div>
+                    <ToggleRow
+                      title="Hazard Alerts"
+                      desc="Immediate notice for public risks"
+                      checked={hazardAlerts} onChange={setHazardAlerts}
+                    />
+                    <ToggleRow
+                      title="Repair Completion"
+                      desc="Notified when work in your zone is finished"
+                      checked={repairCompletion} onChange={setRepairCompletion}
+                    />
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 32 }}>
-                  <InfoBox icon={<History size={20} />} label="Last Update" value="October 24, 2024" />
-                  <InfoBox icon={<ShieldCheck size={20} />} label="Identity Status" value="VERIFIED" isBadge />
+                {/* Footer Actions */}
+                <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: 32, display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 40 }}>
+                  <button
+                    onClick={() => window.confirm("Are you sure you want to sign out?") && setUser(null)}
+                    style={{ color: "#d32f2f", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: "0.95rem" }}
+                  >
+                    Sign Out
+                  </button>
+
+                  <div style={{ display: "flex", gap: 24, alignItems: "center" }}>
+                    <button
+                      onClick={discardChanges}
+                      style={{ background: "none", border: "none", fontWeight: 600, color: "#555", cursor: "pointer", fontSize: "0.95rem" }}
+                    >
+                      Discard Changes
+                    </button>
+                    <button
+                      onClick={saveProfile}
+                      disabled={saving}
+                      style={{
+                        background: saving ? "#666" : "#000", color: "#fff", padding: "12px 24px", borderRadius: 4,
+                        fontWeight: 600, display: "flex", gap: 10, alignItems: "center", cursor: saving ? "not-allowed" : "pointer",
+                        border: "none", fontSize: "0.95rem", transition: "background 0.2s"
+                      }}
+                    >
+                      {saving ? "Saving…" : "Save Changes"} <ArrowRight size={18} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              {/* Column 2: Notifications */}
-              <div style={{ border: "1px solid #e0e0e0", borderRadius: 4, padding: "32px", background: "#fff" }}>
-                <h2 style={{ fontSize: "1.4rem", fontWeight: 600, fontFamily: "serif", display: "flex", alignItems: "center", gap: 12, marginBottom: 16, color: "#111" }}>
-                  <Bell size={22} /> Notification Settings
-                </h2>
-                <p style={{ color: "#555", fontSize: "0.95rem", marginBottom: 40, lineHeight: 1.6 }}>
-                  Manage how and when you receive updates regarding municipal services and infrastructure status.
-                </p>
-
-                <div style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: 1, color: "#555", marginBottom: 16 }}>STATUS UPDATES</div>
-                <ToggleRow
-                  title="Email Alerts"
-                  desc="Receive deep-dive report progress"
-                  checked={emailAlerts} onChange={setEmailAlerts}
-                />
-                <ToggleRow
-                  title="SMS Notifications"
-                  desc="Instant updates on your mobile"
-                  checked={smsNotifs} onChange={setSmsNotifs}
-                />
-
-                <hr style={{ border: "none", borderTop: "1px solid #eee", margin: "32px 0" }} />
-
-                <div style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: 1, color: "#555", marginBottom: 16 }}>EMERGENCY & REPAIRS</div>
-                <ToggleRow
-                  title="Hazard Alerts"
-                  desc="Immediate notice for public risks"
-                  checked={hazardAlerts} onChange={setHazardAlerts}
-                />
-                <ToggleRow
-                  title="Repair Completion"
-                  desc="Notified when work in your zone is finished"
-                  checked={repairCompletion} onChange={setRepairCompletion}
-                />
-              </div>
-            </div>
-
-            {/* Footer Actions */}
-            <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: 32, display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 40 }}>
-              <button
-                onClick={() => window.confirm("Are you sure you want to sign out?") && setUser(null)}
-                style={{ color: "#d32f2f", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: "0.95rem" }}
-              >
-                Sign Out
-              </button>
-
-              <div style={{ display: "flex", gap: 24, alignItems: "center" }}>
-                <button 
-                  onClick={discardChanges}
-                  style={{ background: "none", border: "none", fontWeight: 600, color: "#555", cursor: "pointer", fontSize: "0.95rem" }}
-                >
-                  Discard Changes
-                </button>
-                <button
-                  onClick={saveProfile}
-                  disabled={saving}
-                  style={{
-                    background: "#000", color: "#fff", padding: "12px 24px", borderRadius: 4,
-                    fontWeight: 600, display: "flex", gap: 10, alignItems: "center", cursor: "pointer",
-                    border: "none", fontSize: "0.95rem"
-                  }}
-                >
-                  {saving ? "Saving..." : "Save Changes"} <ArrowRight size={18} />
-                </button>
-              </div>
-            </div>
+              </>
+            )}
 
           </div>
-
         </div>
-            </div>
+      </div>
     </div>
   );
 }

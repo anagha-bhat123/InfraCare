@@ -17,10 +17,12 @@ create table public.profiles (
   role public.user_role not null default 'citizen',
   phone text,
   ward_zone text,
+  zone text,
   trust_rating numeric(3,2) default 4.80,
   emp_id text unique,
   must_change_password boolean default true,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz default now()
 );
 
 create table public.damage_reports (
@@ -168,6 +170,8 @@ alter table public.report_status_history enable row level security;
 alter table public.maintenance_assignments enable row level security;
 
 create policy "citizens read own profile" on public.profiles for select using (auth.uid() = id);
+create policy "citizens update own profile" on public.profiles for update using (auth.uid() = id) with check (auth.uid() = id);
+create policy "citizens insert own profile" on public.profiles for insert with check (auth.uid() = id);
 create policy "admins read all profiles" on public.profiles for select using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'));
 
 create policy "citizens create reports" on public.damage_reports for insert with check (auth.uid() = reporter_id);
@@ -183,3 +187,71 @@ create policy "staff create history" on public.report_status_history for insert 
 
 create policy "engineers read assignments" on public.maintenance_assignments for select using (engineer_id = auth.uid() or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'));
 create policy "admins manage assignments" on public.maintenance_assignments for all using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'));
+
+-- User notification preferences (profile page toggles)
+
+create table public.user_preferences (
+  user_id text primary key,
+  email_alerts boolean not null default true,
+  sms_notifs boolean not null default false,
+  hazard_alerts boolean not null default true,
+  repair_completion boolean not null default true,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.user_preferences enable row level security;
+
+create policy "users read own preferences" on public.user_preferences for select using (user_id = auth.uid()::text);
+create policy "users upsert own preferences" on public.user_preferences for all using (user_id = auth.uid()::text);
+-- Service role bypass (used by backend with service key) is implicit
+
+-- ── Trigger: auto-sync Supabase Auth signups → public.users + public.profiles ──
+-- Ensures citizens who register via supabase.auth.signUp() get the required
+-- public.users and public.profiles rows so their profile page can save to DB.
+
+create or replace function public.handle_new_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_role public.user_role := 'citizen';
+  v_full_name text;
+  v_phone text;
+  v_ward_zone text;
+begin
+  begin
+    if NEW.raw_user_meta_data->>'role' in ('citizen', 'engineer', 'admin') then
+      v_role := (NEW.raw_user_meta_data->>'role')::public.user_role;
+    end if;
+  exception when others then
+    v_role := 'citizen';
+  end;
+
+  v_full_name  := nullif(trim(coalesce(NEW.raw_user_meta_data->>'full_name', '')), '');
+  v_phone      := nullif(trim(coalesce(NEW.raw_user_meta_data->>'phone', '')), '');
+  v_ward_zone  := nullif(trim(coalesce(NEW.raw_user_meta_data->>'ward_zone', '')), '');
+
+  insert into public.users (id, email, password_hash, role)
+  values (NEW.id, NEW.email, 'supabase_auth', v_role)
+  on conflict (id) do nothing;
+
+  insert into public.profiles (id, full_name, role, phone, ward_zone)
+  values (
+    NEW.id,
+    coalesce(v_full_name, split_part(NEW.email, '@', 1)),
+    v_role,
+    v_phone,
+    v_ward_zone
+  )
+  on conflict (id) do nothing;
+
+  return NEW;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_auth_user();

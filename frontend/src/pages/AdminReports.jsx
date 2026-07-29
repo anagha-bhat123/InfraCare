@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { 
   LayoutDashboard, BarChart3, AlertTriangle, 
   Wrench, Users, FileText, Search, Bell, Settings,
@@ -6,16 +6,75 @@ import {
   Droplet, Car, Lightbulb, Grid, PenTool
 } from "lucide-react";
 
-export default function AdminReports({ setPage }) {
+const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
+const CategoryIcon = ({ category }) => {
+  const size = 18;
+  const className = "text-gray";
+  switch (category) {
+    case "Road Damage": return <PenTool size={size} className={className} />;
+    case "Water Leak": return <Droplet size={size} className={className} />;
+    case "Fallen Tree": return <AlertTriangle size={size} className={className} />;
+    case "Street Light": return <Lightbulb size={size} className={className} />;
+    case "Missing Sign": return <Grid size={size} className={className} />;
+    default: return <Car size={size} className={className} />;
+  }
+};
+
+const UrgencyBadge = ({ urgency }) => {
+  const u = (urgency || "").toLowerCase();
+  if (u === "critical" || u === "urgent" || u === "high priority") return <span className="badge-critical">CRITICAL</span>;
+  if (u === "medium") return <span className="badge-medium">MEDIUM</span>;
+  return <span className="badge-low">{urgency ? urgency.toUpperCase() : "LOW"}</span>;
+};
+
+const StatusBadge = ({ status }) => {
+  const s = (status || "Pending").toLowerCase();
+  if (s === "verified") return <><span className="dot solid"></span> Verified</>;
+  if (s === "in progress" || s === "assigned") return <><span className="dot gray"></span> In Progress</>;
+  if (s === "resolved" || s === "completed") return <><span className="dot solid" style={{background: "#2e7d32"}}></span> Resolved</>;
+  return <><span className="dot line"></span> Pending</>;
+};
+
+export default function AdminReports({ reports = [], setPage }) {
+  const [urgencyFilter, setUrgencyFilter] = useState("ALL");
+
+  const today = new Date().toISOString().split('T')[0];
+  const reportsToday = reports.filter(r => r.created_at && r.created_at.startsWith(today)).length;
+  
+  const criticalReports = reports.filter(r => {
+    const u = (r.urgency || "").toLowerCase();
+    return u === "critical" || u === "urgent" || u === "high priority";
+  }).slice(0, 3); // top 3 for queue
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "N/A";
+    const d = new Date(dateStr);
+    const datePart = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const timePart = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+    return <>{datePart},<br/>{timePart}</>;
+  };
+
+  const getTimeAgo = (dateStr) => {
+    if (!dateStr) return "";
+    const diff = Math.floor((new Date() - new Date(dateStr)) / 60000); // mins
+    if (diff < 60) return `${diff}m ago`;
+    const hrs = Math.floor(diff / 60);
+    if (hrs < 24) return `${hrs}h ${diff % 60}m ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  };
+
+  const filteredReports = reports.filter(r => {
+    if (urgencyFilter === "ALL") return true;
+    const u = (r.urgency || "").toLowerCase();
+    if (urgencyFilter === "CRITICAL") return u === "critical" || u === "urgent" || u === "high priority";
+    if (urgencyFilter === "MEDIUM") return u === "medium";
+    return true;
+  });
+
   return (
     <div style={{ backgroundColor: "#fafafa", minHeight: "100vh", padding: "20px 40px" }}>
       <div style={{ width: "100%" }}>
-
-      {/* MAIN CONTENT */}
-      
-        
-
-        {/* PAGE CONTENT */}
         <div className="admin-scroll-content pt-4">
           <div className="admin-page-header border-bottom pb-4 mb-8">
             <div className="admin-header-text">
@@ -35,7 +94,7 @@ export default function AdminReports({ setPage }) {
                 <div className="stat-group">
                   <span className="stat-label">Reports Today</span>
                   <div className="stat-value">
-                    <span className="number serif-title">142</span>
+                    <span className="number serif-title">{reportsToday}</span>
                     <span className="trend text-red">+12%<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1 inline"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span>
                   </div>
                 </div>
@@ -56,35 +115,23 @@ export default function AdminReports({ setPage }) {
               <div className="escalation-queue">
                 <div className="queue-header">
                   <h4>ESCALATION QUEUE</h4>
-                  <span className="queue-badge">4 PRIORITY</span>
+                  <span className="queue-badge">{criticalReports.length} PRIORITY</span>
                 </div>
                 <div className="queue-list">
-                  <div className="queue-item">
-                    <div className="queue-item-top">
-                      <span className="queue-critical">CRITICAL</span>
-                      <span className="queue-time">12m ago</span>
+                  {criticalReports.length > 0 ? criticalReports.map(r => (
+                    <div className="queue-item" key={r.id}>
+                      <div className="queue-item-top">
+                        <span className="queue-critical">CRITICAL</span>
+                        <span className="queue-time">{getTimeAgo(r.created_at)}</span>
+                      </div>
+                      <h5>{r.title || r.category || "Untitled Report"}</h5>
+                      <span className="queue-id">ID: #{r.id.substring(0, 8)}</span>
                     </div>
-                    <h5>Main St. Water Main Burst</h5>
-                    <span className="queue-id">ID: #INF-9042</span>
-                  </div>
-                  <div className="queue-item">
-                    <div className="queue-item-top">
-                      <span className="queue-critical">CRITICAL</span>
-                      <span className="queue-time">45m ago</span>
-                    </div>
-                    <h5>Hazardous Pothole Lane 4</h5>
-                    <span className="queue-id">ID: #INF-8921</span>
-                  </div>
-                  <div className="queue-item">
-                    <div className="queue-item-top">
-                      <span className="queue-critical">CRITICAL</span>
-                      <span className="queue-time">1h 10m ago</span>
-                    </div>
-                    <h5>Downed Power Line (West)</h5>
-                    <span className="queue-id">ID: #INF-8810</span>
-                  </div>
+                  )) : (
+                    <div style={{padding: "20px 0", color: "#666", fontSize: "0.85rem"}}>No critical escalations at this time.</div>
+                  )}
                 </div>
-                <button className="view-all-btn">VIEW ALL ESCALATIONS</button>
+                {criticalReports.length > 0 && <button className="view-all-btn">VIEW ALL ESCALATIONS</button>}
               </div>
             </div>
 
@@ -99,9 +146,9 @@ export default function AdminReports({ setPage }) {
                 <div className="filter-group">
                   <span className="filter-label">URGENCY:</span>
                   <div className="urgency-toggles">
-                    <button className="active">ALL</button>
-                    <button>CRITICAL</button>
-                    <button>MEDIUM</button>
+                    <button className={urgencyFilter === "ALL" ? "active" : ""} onClick={() => setUrgencyFilter("ALL")}>ALL</button>
+                    <button className={urgencyFilter === "CRITICAL" ? "active" : ""} onClick={() => setUrgencyFilter("CRITICAL")}>CRITICAL</button>
+                    <button className={urgencyFilter === "MEDIUM" ? "active" : ""} onClick={() => setUrgencyFilter("MEDIUM")}>MEDIUM</button>
                   </div>
                 </div>
                 <div className="filter-group date-export">
@@ -121,70 +168,36 @@ export default function AdminReports({ setPage }) {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td className="id-cell">#INF-<br/>9042</td>
-                    <td className="type-cell">
-                      <Droplet size={18} className="text-gray" />
-                      <span>Water<br/>Main</span>
-                    </td>
-                    <td><span className="badge-critical">CRITICAL</span></td>
-                    <td className="status-cell"><span className="dot line"></span> Pending</td>
-                    <td className="date-cell">Oct 24,<br/>08:42</td>
-                  </tr>
-                  <tr>
-                    <td className="id-cell">#INF-<br/>9038</td>
-                    <td className="type-cell">
-                      <Car size={18} className="text-gray" />
-                      <span>Pothole</span>
-                    </td>
-                    <td><span className="badge-medium">MEDIUM</span></td>
-                    <td className="status-cell"><span className="dot solid"></span> Verified</td>
-                    <td className="date-cell">Oct 24,<br/>07:15</td>
-                  </tr>
-                  <tr>
-                    <td className="id-cell">#INF-<br/>9011</td>
-                    <td className="type-cell">
-                      <Lightbulb size={18} className="text-gray" />
-                      <span>Street<br/>Light</span>
-                    </td>
-                    <td><span className="badge-low">LOW</span></td>
-                    <td className="status-cell"><span className="dot gray"></span> In<br/>Progress</td>
-                    <td className="date-cell">Oct 23,<br/>22:30</td>
-                  </tr>
-                  <tr>
-                    <td className="id-cell">#INF-<br/>8995</td>
-                    <td className="type-cell">
-                      <Grid size={18} className="text-gray" />
-                      <span>Missing<br/>Sign</span>
-                    </td>
-                    <td><span className="badge-medium">MEDIUM</span></td>
-                    <td className="status-cell"><span className="dot line"></span> Pending</td>
-                    <td className="date-cell">Oct 23,<br/>19:12</td>
-                  </tr>
-                  <tr>
-                    <td className="id-cell">#INF-<br/>8921</td>
-                    <td className="type-cell">
-                      <PenTool size={18} className="text-gray" />
-                      <span>Road<br/>Damage</span>
-                    </td>
-                    <td><span className="badge-critical">CRITICAL</span></td>
-                    <td className="status-cell"><span className="dot line"></span> Pending</td>
-                    <td className="date-cell">Oct 23,<br/>16:45</td>
-                  </tr>
+                  {filteredReports.length === 0 ? (
+                    <tr><td colSpan="5" style={{textAlign: "center", padding: "40px"}}>No reports found.</td></tr>
+                  ) : filteredReports.map(r => (
+                    <tr key={r.id}>
+                      <td className="id-cell">#{r.id.substring(0, 8).toUpperCase()}</td>
+                      <td className="type-cell">
+                        <CategoryIcon category={r.category} />
+                        <span>{r.category ? r.category.split(" ").map((w,i)=><React.Fragment key={i}>{w}{i === 0 && r.category.split(" ").length > 1 ? <br/> : " "}</React.Fragment>) : "Unknown"}</span>
+                      </td>
+                      <td><UrgencyBadge urgency={r.urgency} /></td>
+                      <td className="status-cell"><StatusBadge status={r.status} /></td>
+                      <td className="date-cell">{formatDate(r.created_at)}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
 
               <div className="archive-footer table-pagination border-sides border-bottom bg-gray-50">
-                <span className="results-text">SHOWING 1-15 OF 2,412 RESULTS</span>
-                <div className="pagination pagination-new">
-                  <button><ChevronLeft size={16} /></button>
-                  <button className="active">1</button>
-                  <button>2</button>
-                  <button>3</button>
-                  <span className="ellipsis">...</span>
-                  <button>161</button>
-                  <button><ChevronRight size={16} /></button>
-                </div>
+                <span className="results-text">SHOWING 1-{Math.min(filteredReports.length, 15)} OF {filteredReports.length} RESULTS</span>
+                {filteredReports.length > 15 && (
+                  <div className="pagination pagination-new">
+                    <button><ChevronLeft size={16} /></button>
+                    <button className="active">1</button>
+                    <button>2</button>
+                    <button>3</button>
+                    <span className="ellipsis">...</span>
+                    <button>{Math.ceil(filteredReports.length / 15)}</button>
+                    <button><ChevronRight size={16} /></button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
