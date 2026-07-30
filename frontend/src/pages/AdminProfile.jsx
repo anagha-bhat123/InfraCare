@@ -356,14 +356,7 @@ export default function AdminProfile({ user, setPage, setUser }) {
                 </div>
 
                 {/* Footer Actions */}
-                <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: 32, display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 40 }}>
-                  <button
-                    onClick={() => window.confirm("Are you sure you want to sign out?") && setUser(null)}
-                    style={{ color: "#d32f2f", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: "0.95rem" }}
-                  >
-                    Sign Out
-                  </button>
-
+                <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: 32, display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: 40 }}>
                   <div style={{ display: "flex", gap: 24, alignItems: "center" }}>
                     <button
                       onClick={discardChanges}
