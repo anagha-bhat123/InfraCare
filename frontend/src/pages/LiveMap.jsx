@@ -3,7 +3,7 @@ import { CheckCircle2, ArrowRight, ArrowLeft, Search, LocateFixed, X } from "luc
 import MapPanel from "../components/MapPanel";
 import { reportsSeed } from "../data/seedData";
 
-export default function LiveMap({ setPage }) {
+export default function LiveMap({ reports = [], setPage }) {
   const [coords, setCoords] = useState([40.7128, -74.006]);
   const [popup, setPopup] = useState(true);
   const [heat, setHeat] = useState(true);
@@ -55,7 +55,7 @@ export default function LiveMap({ setPage }) {
         </button>
       </aside>
       <section className="live-map-area">
-        <MapPanel coords={coords} setCoords={setCoords} />
+        <MapPanel coords={coords} setCoords={setCoords} heat={heat} reports={reports} />
         <div className="map-search">
           <input 
             placeholder="Search GPS coordinates..." 

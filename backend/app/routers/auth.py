@@ -10,8 +10,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 # Demo credential store — replace with real DB lookup in production
 DEMO_USERS = {
-    "citizen":  {"identifiers": ["citizen@demo.com", "9876543210"], "password": "123456"},
-    "engineer": {"identifiers": ["M-001-AB12"],                     "password": "123456"},
+    "citizen":  {"identifiers": ["citizen@demo.com", "anaghabhat920@gmail.com", "9876543210"], "password": "123456"},
+    "engineer": {"identifiers": ["M-001-AB12", "m-001-ab12"],                     "password": "123456"},
     "admin":    {"identifiers": ["admin@infracare.gov.in"],         "password": "12345678"},
 }
 
@@ -22,12 +22,51 @@ ENGINEER_CREDS: dict = {}  # {"m-001-ab12": "$2b$...", ...}
 
 def is_demo_credential(identifier: str) -> bool:
     v = identifier.strip().lower()
-    return v in ["citizen@demo.com", "9876543210", "m-001-ab12", "admin@infracare.gov.in"]
+    return v in ["citizen@demo.com", "anaghabhat920@gmail.com", "9876543210", "m-001-ab12", "admin@infracare.gov.in"]
 
 def generate_engineer_id() -> str:
     seq = "".join(random.choices(string.digits, k=3))
     chars = "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
     return f"M-{seq}-{chars}"
+
+@router.get("/engineers")
+def list_engineers():
+    default_engineers = [
+        {"id": "eng-1", "full_name": "Eng. Marcus Thorne", "emp_id": "M-001-AB12", "ward_zone": "Zone 4", "display": "Eng. Marcus Thorne (M-001-AB12)"},
+        {"id": "eng-2", "full_name": "Eng. Kavya Rao", "emp_id": "M-002-CD34", "ward_zone": "Zone 2", "display": "Eng. Kavya Rao (M-002-CD34)"},
+        {"id": "eng-3", "full_name": "Crew #14-B (Miller)", "emp_id": "M-014-B", "ward_zone": "Central Sector", "display": "Crew #14-B (Miller)"},
+        {"id": "eng-4", "full_name": "Crew #12-A (Sharma)", "emp_id": "M-012-A", "ward_zone": "North Sector", "display": "Crew #12-A (Sharma)"},
+        {"id": "eng-5", "full_name": "Crew #08-C (Patel)", "emp_id": "M-008-C", "ward_zone": "West Sector", "display": "Crew #08-C (Patel)"},
+    ]
+    if not supabase:
+        return {"engineers": default_engineers}
+
+    try:
+        res = supabase.table("profiles").select("*").eq("role", "engineer").execute()
+        db_engineers = res.data or []
+        formatted = []
+        for eng in db_engineers:
+            name = eng.get("full_name") or eng.get("name") or "Engineer"
+            emp = eng.get("emp_id") or ""
+            display = f"{name} ({emp})" if emp else name
+            formatted.append({
+                "id": eng.get("id"),
+                "full_name": name,
+                "emp_id": emp,
+                "ward_zone": eng.get("ward_zone"),
+                "display": display
+            })
+        
+        # Merge defaults so list is always complete
+        existing_displays = set(e["display"] for e in formatted)
+        for d in default_engineers:
+            if d["display"] not in existing_displays:
+                formatted.append(d)
+
+        return {"engineers": formatted}
+    except Exception as e:
+        print(f"Failed to fetch engineers from DB: {e}")
+        return {"engineers": default_engineers}
 
 @router.post("/register-engineer")
 def register_engineer(payload: RegisterEngineerRequest):

@@ -11,7 +11,7 @@ export const reportsSeed = [
     department: "Public Works (Div 4)",
     officer: "Sgt. Marcus Thorne",
     coords: [40.7128, -74.006],
-    evidence: "https://images.unsplash.com/photo-1584447098522-875fdfab944b?auto=format&fit=crop&w=900&q=80",
+    evidence: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=900&q=80",
     history: [
       ["Repair Crew Dispatched", "Team Alpha has been assigned to the location. Estimated completion: 48 hours.", "Today, 09:15 AM"],
       ["Damage Verified", "On-site inspector confirmed the severity. Escalated to High Priority status.", "Oct 25, 14:30 PM"],
@@ -63,7 +63,13 @@ export const assignments = [
     summary: "Significant road surface degradation reported by multiple citizens. Hazard level: High. Obstruction in primary transit lane.",
     type: "Pothole (Grade A)",
     surface: "High-Density Asphalt",
-    crew: "Crew #14-B (Miller)"
+    crew: "Crew #14-B (Miller)",
+    photos: [
+      "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1605027628030-9bb6f83535e6?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1621252179027-94459d278660?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=80"
+    ]
   },
   {
     id: "RD-4398",
@@ -74,7 +80,13 @@ export const assignments = [
     summary: "Metal grate has shifted into vehicle lane. Temporary cones placed.",
     type: "Drainage Cover",
     surface: "Concrete Edge",
-    crew: "Crew #12-A (Sharma)"
+    crew: "Crew #12-A (Sharma)",
+    photos: [
+      "https://images.unsplash.com/photo-1621252179027-94459d278660?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1605027628030-9bb6f83535e6?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=80"
+    ]
   },
   {
     id: "RD-4405",
@@ -85,7 +97,13 @@ export const assignments = [
     summary: "Longitudinal cracking on shoulder reported after heavy rain.",
     type: "Cracked Asphalt",
     surface: "Asphalt Shoulder",
-    crew: "Crew #08-C (Patel)"
+    crew: "Crew #08-C (Patel)",
+    photos: [
+      "https://images.unsplash.com/photo-1605027628030-9bb6f83535e6?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1584447098522-875fdfab944b?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1621252179027-94459d278660?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=80"
+    ]
   }
 ];
 

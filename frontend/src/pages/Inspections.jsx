@@ -10,15 +10,35 @@ export default function Inspections({ setPage }) {
 
   const inspection = inspections.find((i) => i.id === activeId);
 
-  const submitSignOff = (e) => {
+  const submitSignOff = async (e) => {
     e.preventDefault();
     if (!data.signature.trim()) return alert("Digital signature is required.");
-    setSubmitted(true);
-    setTimeout(() => {
-      alert(`Inspection ${activeId} submitted successfully.`);
-      setSubmitted(false);
-      setData({ severity: "Moderate", notes: "", signature: "" });
-    }, 1000);
+    
+    try {
+      const token = localStorage.getItem("infracare_token");
+      const headers = { 
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {})
+      };
+      const res = await fetch(`http://127.0.0.1:8000/inspections/${activeId}/submit`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(data)
+      });
+      if (res.ok) {
+        setSubmitted(true);
+        setTimeout(() => {
+          alert(`Inspection ${activeId} submitted successfully.`);
+          setSubmitted(false);
+          setData({ severity: "Moderate", notes: "", signature: "" });
+        }, 1000);
+      } else {
+        alert("Failed to submit inspection.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error submitting inspection.");
+    }
   };
 
   return (

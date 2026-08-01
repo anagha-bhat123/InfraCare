@@ -5,24 +5,29 @@ import { reportsSeed } from "../data/seedData";
 const STEPS = ["Submitted", "Verified", "Crew Assigned", "In Progress", "Resolved"];
 
 function getStepIndex(status) {
-  const s = status.toLowerCase();
+  const s = (status || "").toLowerCase();
   if (s.includes("resolved") || s.includes("completed")) return 4;
-  if (s.includes("progress")) return 3;
+  if (s.includes("progress") || s.includes("verification") || s.includes("review")) return 3;
   if (s.includes("crew") || s.includes("assigned")) return 2;
-  if (s.includes("verified")) return 1;
+  if (s.includes("approved") || s.includes("verified")) return 1;
   return 0; // pending or submitted
 }
 
 function getUrgencyStyle(urgency, status) {
-  const s = status.toLowerCase();
+  const s = (status || "").toLowerCase();
   if (s.includes("resolved") || s.includes("completed")) {
-    return { bg: "#e6f4ea", color: "#137333", text: "RESOLVED" };
+    return { bg: "#e6f4ea", color: "#137333", text: "RESOLVED ✓" };
   }
-  const u = urgency.toUpperCase();
-  if (u.includes("HIGH") || u.includes("URGENT")) {
-    return { bg: "#fef0d9", color: "#b06000", text: "URGENT" };
+  if (s.includes("progress") || s.includes("verification")) {
+    return { bg: "#ffedd5", color: "#ea580c", text: "WORK IN PROGRESS" };
   }
-  return { bg: "#f1f3f4", color: "#5f6368", text: "NORMAL" };
+  if (s.includes("crew") || s.includes("assigned")) {
+    return { bg: "#e0e7ff", color: "#3730a3", text: "ENGINEER ASSIGNED" };
+  }
+  if (s.includes("approved") || s.includes("verified")) {
+    return { bg: "#dbeafe", color: "#1d4ed8", text: "APPROVED BY ADMIN" };
+  }
+  return { bg: "#fef3c7", color: "#d97706", text: "PENDING REVIEW" };
 }
 
 export default function Track({ reports, setPage }) {
@@ -34,10 +39,16 @@ export default function Track({ reports, setPage }) {
   const [expandedReportId, setExpandedReportId] = useState(null);
 
   const actualReports = reports && reports.length > 0 ? reports : reportsSeed;
-  const filteredReports = actualReports.filter(r => {
+  const sortedReports = [...actualReports].sort((a, b) => {
+    const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return dateB - dateA;
+  });
+
+  const filteredReports = sortedReports.filter(r => {
     if (tab === "In Progress" && getStepIndex(r.status) === 4) return false;
     if (tab === "Resolved" && getStepIndex(r.status) !== 4) return false;
-    
+
     if (search) {
       const q = search.toLowerCase();
       return r.id.toLowerCase().includes(q) || r.category.toLowerCase().includes(q) || r.title.toLowerCase().includes(q);
@@ -48,7 +59,7 @@ export default function Track({ reports, setPage }) {
   return (
     <div style={{ backgroundColor: "#fafafa", minHeight: "100vh", padding: "40px 20px" }}>
       <div style={{ width: "100%" }}>
-        
+
         {/* Header */}
         <div style={{ marginBottom: 40 }}>
           <h1 style={{ fontSize: "2.4rem", fontFamily: "serif", marginBottom: 12, color: "#111" }}>My Submissions</h1>
@@ -83,16 +94,16 @@ export default function Track({ reports, setPage }) {
 
           <div style={{ position: "relative", width: "100%", maxWidth: 320 }}>
             <Search size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#888" }} />
-            <input 
-              type="text" 
-              placeholder="Search by ID or Type" 
+            <input
+              type="text"
+              placeholder="Search by ID or Type"
               value={search}
               onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
-              style={{ 
-                width: "100%", padding: "10px 10px 10px 36px", 
+              style={{
+                width: "100%", padding: "10px 10px 10px 36px",
                 border: "1px solid #ddd", borderRadius: 4,
                 fontSize: "0.9rem", outline: "none"
-              }} 
+              }}
             />
           </div>
         </div>
@@ -104,22 +115,22 @@ export default function Track({ reports, setPage }) {
             const badge = getUrgencyStyle(report.urgency, report.status);
 
             return (
-              <div key={report.id} style={{ 
-                display: "flex", 
-                border: "1px solid #e0e0e0", 
-                borderRadius: 4, 
-                overflow: "hidden", 
+              <div key={report.id} style={{
+                display: "flex",
+                border: "1px solid #e0e0e0",
+                borderRadius: 4,
+                overflow: "hidden",
                 background: "#fff",
                 flexDirection: "row"
               }}>
-                <img 
-                  src={report.evidence || report.report_photos?.[0]?.photo_url || "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=900&q=80"} 
-                  alt={report.title} 
-                  style={{ width: 280, minHeight: 250, objectFit: "cover", flexShrink: 0, alignSelf: "stretch" }} 
+                <img
+                  src={report.evidence || report.report_photos?.[0]?.photo_url || "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=900&q=80"}
+                  alt={report.title}
+                  style={{ width: 280, minHeight: 250, objectFit: "cover", flexShrink: 0, alignSelf: "stretch" }}
                 />
-                
+
                 <div style={{ padding: "32px", flex: 1, display: "flex", flexDirection: "column" }}>
-                  
+
                   {/* Top Meta */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -147,7 +158,7 @@ export default function Track({ reports, setPage }) {
                       </p>
                     )}
                   </div>
-                  
+
                   {/* Stepper */}
                   <div style={{ display: "flex", alignItems: "flex-start", width: "100%", marginBottom: 48, padding: "0 10px" }}>
                     {STEPS.map((step, i) => {
@@ -158,9 +169,9 @@ export default function Track({ reports, setPage }) {
                         <React.Fragment key={step}>
                           {/* Node */}
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
-                            <div style={{ 
-                              width: 20, height: 20, borderRadius: "50%", 
-                              background: isCompleted ? "#000" : (isCurrent ? "#fff" : "#fff"), 
+                            <div style={{
+                              width: 20, height: 20, borderRadius: "50%",
+                              background: isCompleted ? "#000" : (isCurrent ? "#fff" : "#fff"),
                               border: isCompleted ? "none" : (isCurrent ? "5px solid #000" : "1px solid #ccc"),
                               display: "flex", alignItems: "center", justifyContent: "center",
                               zIndex: 2,
@@ -168,9 +179,9 @@ export default function Track({ reports, setPage }) {
                             }}>
                               {isCompleted && <Check size={12} color="#fff" strokeWidth={3} />}
                             </div>
-                            <div style={{ 
-                              position: "absolute", top: 30, width: 80, textAlign: "center", 
-                              fontSize: "0.75rem", fontWeight: 500, 
+                            <div style={{
+                              position: "absolute", top: 30, width: 80, textAlign: "center",
+                              fontSize: "0.75rem", fontWeight: 500,
                               color: (isCompleted || isCurrent) ? "#111" : "#aaa",
                               lineHeight: 1.3,
                               whiteSpace: "pre-line"
@@ -178,13 +189,13 @@ export default function Track({ reports, setPage }) {
                               {step.replace(" ", "\n")}
                             </div>
                           </div>
-                          
+
                           {/* Line */}
                           {i < STEPS.length - 1 && (
-                            <div style={{ 
-                              flex: 1, height: 1.5, 
+                            <div style={{
+                              flex: 1, height: 1.5,
                               background: (i < stepIndex) ? "#000" : "#e0e0e0",
-                              marginTop: 9, 
+                              marginTop: 9,
                               zIndex: 1,
                               marginLeft: 8, marginRight: 8
                             }} />
@@ -196,19 +207,19 @@ export default function Track({ reports, setPage }) {
 
                   {/* Action Button */}
                   <div style={{ alignSelf: "flex-end", marginTop: "auto" }}>
-                    <button 
+                    <button
                       onClick={() => setExpandedReportId(expandedReportId === report.id ? null : report.id)}
-                      style={{ 
-                      background: "none", border: "none", 
-                      display: "flex", alignItems: "center", gap: 6, 
-                      fontWeight: 700, fontSize: "0.75rem", 
-                      letterSpacing: 0.5, cursor: "pointer", color: "#111" 
-                    }}>
+                      style={{
+                        background: "none", border: "none",
+                        display: "flex", alignItems: "center", gap: 6,
+                        fontWeight: 700, fontSize: "0.75rem",
+                        letterSpacing: 0.5, cursor: "pointer", color: "#111"
+                      }}>
                       {stepIndex === 4 ? "VIEW RESOLUTION SUMMARY" : "VIEW OFFICIAL UPDATES"}
                       <ChevronDown size={16} style={{ transform: expandedReportId === report.id ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
                     </button>
                   </div>
-                  
+
                   {expandedReportId === report.id && report.history && (
                     <div style={{ marginTop: 24, padding: "20px", background: "#f9f9f9", borderRadius: 8, border: "1px solid #eee" }}>
                       <h4 style={{ fontSize: "0.85rem", fontWeight: 700, marginBottom: 16, letterSpacing: 0.5 }}>OFFICIAL UPDATES</h4>
@@ -232,7 +243,7 @@ export default function Track({ reports, setPage }) {
             );
           })}
         </div>
-        
+
         {/* Pagination */}
         {Math.ceil(filteredReports.length / itemsPerPage) > 1 && (
           <div style={{ display: "flex", justifyContent: "center", marginTop: 40, gap: 8 }}>

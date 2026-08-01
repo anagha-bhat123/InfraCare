@@ -133,3 +133,116 @@ def send_engineer_welcome_email(
         print(f"[EMAIL] SEND FAILED to {to_email}: {exc}", flush=True)
         logger.error("Failed to send welcome email to %s: %s", to_email, exc)
         return False
+
+def send_status_update_email(to_email: str, report_id: str, new_status: str, note: str = "") -> bool:
+    print(f"[EMAIL] Preparing to send status update email for report {report_id} to {to_email}", flush=True)
+    if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+        print("[EMAIL] ERROR: SMTP credentials missing.", flush=True)
+        return False
+
+    subject = f"InfraCare: Update on your Report #{report_id}"
+    text_body = f"Your report #{report_id} status has been updated to: {new_status}.\n\nNote: {note}\n\nThank you for using InfraCare."
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = settings.EMAIL_FROM
+    msg["To"] = to_email
+    msg.attach(MIMEText(text_body, "plain"))
+
+    try:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=20) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.sendmail(settings.SMTP_USER, to_email, msg.as_string())
+        print(f"[EMAIL] SUCCESS - status update sent to {to_email}", flush=True)
+        return True
+    except Exception as exc:
+        print(f"[EMAIL] SEND FAILED to {to_email}: {exc}", flush=True)
+        return False
+
+def send_new_report_admin_notification(report_data: dict) -> bool:
+    admin_email = getattr(settings, "ADMIN_EMAIL", "admin@infracare.gov.in")
+    tracking_id = report_data.get("tracking_id", "CMP-NEW")
+    title = report_data.get("title", "Infrastructure Defect")
+    category = report_data.get("category", "Uncategorized")
+    urgency = report_data.get("urgency", "Normal")
+    description = report_data.get("description", "No description provided.")
+    
+    print(f"[EMAIL ALERT TO ADMIN] New Citizen Complaint Received: {tracking_id} - {title}", flush=True)
+    
+    if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+        print("[EMAIL ALERT TO ADMIN] SMTP credentials missing, alert logged to console.", flush=True)
+        return False
+
+    subject = f"[ACTION REQUIRED] New Citizen Report Submitted: {tracking_id}"
+    text_body = (
+        f"Attention Admin,\n\n"
+        f"A new civic damage complaint has been submitted by a citizen.\n\n"
+        f"Complaint Tracking ID: {tracking_id}\n"
+        f"Category:               {category}\n"
+        f"Urgency Level:          {urgency}\n"
+        f"Title:                  {title}\n"
+        f"Description:            {description}\n\n"
+        f"Please log in to the InfraCare Admin Command Portal to review the complaint, approve it, and assign an engineer.\n\n"
+        f"— InfraCare Automated System Alert"
+    )
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = settings.EMAIL_FROM
+    msg["To"] = admin_email
+    msg.attach(MIMEText(text_body, "plain"))
+
+    try:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=20) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.sendmail(settings.SMTP_USER, admin_email, msg.as_string())
+        print(f"[EMAIL ALERT TO ADMIN] SUCCESS - Notification sent to Admin ({admin_email})", flush=True)
+        return True
+    except Exception as exc:
+        print(f"[EMAIL ALERT TO ADMIN] SEND FAILED to {admin_email}: {exc}", flush=True)
+        return False
+
+def send_engineer_task_assignment_email(engineer_name: str, report_id: str, title: str, category: str, note: str = "") -> bool:
+    eng_email = "m-001-ab12@infracare.gov.in"
+    print(f"[EMAIL ALERT TO ENGINEER] Task Assigned to {engineer_name}: Report #{report_id} - {title}", flush=True)
+
+    if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+        print("[EMAIL ALERT TO ENGINEER] SMTP credentials missing, alert logged to console.", flush=True)
+        return False
+
+    subject = f"[TASK DISPATCHED] New Assignment #{report_id} — {title}"
+    text_body = (
+        f"Dear {engineer_name},\n\n"
+        f"Admin has assigned a new field task to your crew.\n\n"
+        f"Task Ref ID: {report_id}\n"
+        f"Category:    {category}\n"
+        f"Title:       {title}\n"
+        f"Admin Note:  {note}\n\n"
+        f"Please log in to the Engineer Portal to view location coordinates, inspection details, and log your field repair updates.\n\n"
+        f"— InfraCare Dispatch System"
+    )
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = settings.EMAIL_FROM
+    msg["To"] = eng_email
+    msg.attach(MIMEText(text_body, "plain"))
+
+    try:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=20) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.sendmail(settings.SMTP_USER, eng_email, msg.as_string())
+        print(f"[EMAIL ALERT TO ENGINEER] SUCCESS - Notification sent to Engineer ({eng_email})", flush=True)
+        return True
+    except Exception as exc:
+        print(f"[EMAIL ALERT TO ENGINEER] SEND FAILED: {exc}", flush=True)
+        return False

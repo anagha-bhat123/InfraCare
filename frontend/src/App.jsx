@@ -198,7 +198,17 @@ export default function App() {
       const res = await fetch(`${apiUrl}/reports`, { headers });
       if (res.ok) {
         const data = await res.json();
-        setReports(data.reports || []);
+        if (data.reports && data.reports.length > 0) {
+          setReports((prev) => {
+            const map = new Map();
+            data.reports.forEach((r) => map.set(r.id, r));
+            prev.forEach((r) => {
+              if (!map.has(r.id)) map.set(r.id, r);
+            });
+            const merged = Array.from(map.values());
+            return merged.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+          });
+        }
       }
     } catch (e) {
       console.error("Failed to fetch reports:", e);
@@ -210,6 +220,18 @@ export default function App() {
   }, []);
 
   const addReport = async (reportData) => {
+    const tempId = `RD-${Math.floor(10000 + Math.random() * 90000)}`;
+    const tempTracking = `CMP-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newLocalReport = {
+      id: tempId,
+      tracking_id: tempTracking,
+      created_at: new Date().toISOString(),
+      date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+      ...reportData
+    };
+
+    setReports((prev) => [newLocalReport, ...prev]);
+
     try {
       const token = localStorage.getItem("infracare_token");
       const headers = { 
@@ -223,41 +245,86 @@ export default function App() {
       });
       if (res.ok) {
         const data = await res.json();
-        
-        if (reportData.evidenceFile && data.report?.id) {
-          const formData = new FormData();
-          formData.append("photo", reportData.evidenceFile);
-          formData.append("latitude", reportData.latitude);
-          formData.append("longitude", reportData.longitude);
-          formData.append("captured_at", reportData.capturedAt || new Date().toLocaleString());
+        const serverReport = data.report;
+        if (serverReport) {
+          setReports((prev) => prev.map((r) => (r.id === tempId ? { ...r, ...serverReport } : r)));
           
-          await fetch(`${apiUrl}/reports/${data.report.id}/photo`, {
-            method: "POST",
-            body: formData,
-            ...(token ? { headers: { "Authorization": `Bearer ${token}` } } : {})
-          });
+          if (reportData.evidenceFile && serverReport.id) {
+            const formData = new FormData();
+            formData.append("photo", reportData.evidenceFile);
+            formData.append("latitude", reportData.latitude);
+            formData.append("longitude", reportData.longitude);
+            formData.append("captured_at", reportData.capturedAt || new Date().toLocaleString());
+            
+            const photoRes = await fetch(`${apiUrl}/reports/${serverReport.id}/photo`, {
+              method: "POST",
+              body: formData,
+              ...(token ? { headers: { "Authorization": `Bearer ${token}` } } : {})
+            });
+            if (photoRes.ok) {
+              const photoData = await photoRes.json();
+              if (photoData.photo?.photo_url) {
+                setReports((prev) => prev.map((r) => (r.id === serverReport.id ? { ...r, evidence: photoData.photo.photo_url } : r)));
+              }
+            }
+          }
         }
-        
-        fetchReports();
       }
     } catch (e) {
-      console.error("Failed to add report", e);
+      console.error("Failed to add report to backend:", e);
     }
   };
 
-  const updateReportStatus = async (reportId, status, note = "") => {
+  const updateReportStatus = async (reportId, status, note = "", assignedEngineer = "", engineerNotes = "") => {
+    const cleanId = String(reportId || "").replace("#", "").trim().toLowerCase();
+
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'info',
+      title: `Status: ${status}`,
+      text: assignedEngineer ? `Assigned to ${assignedEngineer}` : (note || "Report updated"),
+      showConfirmButton: false,
+      timer: 3000
+    });
+
+    setReports((prev) => prev.map((r) => {
+      const rId = String(r.id || "").replace("#", "").trim().toLowerCase();
+      const rTrack = String(r.tracking_id || "").replace("#", "").trim().toLowerCase();
+      const isMatch = rId === cleanId || rTrack === cleanId || (rId && cleanId && (rId.includes(cleanId) || cleanId.includes(rId.substring(0, 8))));
+      
+      if (isMatch) {
+        const updatedHistory = [
+          [status, note || (assignedEngineer ? `Assigned to ${assignedEngineer}` : "Status updated by Admin"), new Date().toLocaleTimeString()],
+          ...(r.history || [])
+        ];
+        return {
+          ...r,
+          status,
+          assigned_engineer: assignedEngineer || r.assigned_engineer,
+          engineer_notes: engineerNotes || r.engineer_notes,
+          crew: assignedEngineer || r.crew,
+          history: updatedHistory
+        };
+      }
+      return r;
+    }));
+
     try {
       const token = localStorage.getItem("infracare_token");
       const headers = token ? { "Authorization": `Bearer ${token}` } : {};
-      const res = await fetch(`${apiUrl}/reports/${reportId}/status?status=${encodeURIComponent(status)}&note=${encodeURIComponent(note)}`, {
+      const queryParams = new URLSearchParams({
+        status,
+        note,
+        ...(assignedEngineer ? { assigned_engineer: assignedEngineer } : {}),
+        ...(engineerNotes ? { engineer_notes: engineerNotes } : {})
+      });
+      await fetch(`${apiUrl}/reports/${reportId}/status?${queryParams.toString()}`, {
         method: "PATCH",
         headers
       });
-      if (res.ok) {
-        fetchReports();
-      }
     } catch (e) {
-      console.error("Failed to update status", e);
+      console.error("Failed to update status on backend:", e);
     }
   };
 
@@ -290,10 +357,9 @@ export default function App() {
   const hideChrome = ["login", "register", "reset-password"].includes(page);
   return (
     <>
-      {!hideChrome && <Header page={page} setPage={setPage} user={user} setUser={handleSetUser} />}
+      {!hideChrome && <Header page={page} setPage={setPage} user={user} setUser={handleSetUser} reports={reports} />}
       {view}
       {!hideChrome && <Footer setPage={setPage} />}
-
     </>
   );
 }

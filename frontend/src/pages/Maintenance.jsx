@@ -1,17 +1,36 @@
 import React from "react";
 import { AlertTriangle } from "lucide-react";
+import MapPanel from "../components/MapPanel";
 
-export default function Maintenance({ setPage }) {
+export default function Maintenance({ reports = [], setPage }) {
+  const assignedReports = (reports || []).filter(r => r.assigned_engineer || ["Crew Assigned", "In Progress", "Pending Final Verification", "Approved"].includes(r.status));
+
   return (
     <main className="page">
       <h1>Operational Dashboard</h1>
       <p className="lead">CENTRAL HUB / MONITORING - Overview of live hazards, active repairs, and field operations.</p>
 
+      {assignedReports.length > 0 && (
+        <div style={{ backgroundColor: "#eff6ff", border: "1.5px solid #bfdbfe", borderRadius: 6, padding: "16px 20px", marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "#1d4ed8", letterSpacing: 0.5, marginBottom: 2 }}>NEW INCIDENT REPORT ASSIGNED BY ADMIN</div>
+            <div style={{ fontSize: "1rem", fontWeight: 700, color: "#1e3a8a" }}>{assignedReports[0].title || assignedReports[0].category} (#{assignedReports[0].tracking_id || assignedReports[0].id?.substring(0,8)})</div>
+            <div style={{ fontSize: "0.85rem", color: "#3b82f6" }}>Assigned to: {assignedReports[0].assigned_engineer || "Engineering Crew"} · Status: {assignedReports[0].status}</div>
+          </div>
+          <button 
+            onClick={() => setPage && setPage("tasks")}
+            style={{ backgroundColor: "#2563eb", color: "#fff", border: "none", padding: "10px 18px", borderRadius: 4, fontWeight: 700, fontSize: "0.85rem", cursor: "pointer" }}
+          >
+            Open Task & Log Completion &rarr;
+          </button>
+        </div>
+      )}
+
       <section className="metrics">
         {[
           ["1,248", "Total Scan Sites"], 
           ["14", "Critical Flaws"], 
-          ["8", "Active Repairs"], 
+          [String(8 + assignedReports.length), "Active Repairs"], 
           ["3", "Teams Deployed"]
         ].map(([n, l]) => (
           <div key={l}><strong>{n}</strong><span>{l}</span></div>
@@ -27,21 +46,15 @@ export default function Maintenance({ setPage }) {
                 LIVE FEED
              </div>
           </div>
-          <div style={{ 
-            flex: 1, 
-            backgroundColor: "#e2e8f0", 
-            backgroundImage: "url('https://maps.googleapis.com/maps/api/staticmap?center=52.5200,13.4050&zoom=13&size=800x600&style=feature:all|element:labels|visibility:on&sensor=false')", 
-            backgroundSize: "cover", 
-            backgroundPosition: "center",
-            position: "relative"
-          }}>
-             <div style={{ position: "absolute", bottom: 16, right: 16, backgroundColor: "#fff", padding: "16px", borderRadius: 4, border: "1px solid #111", minWidth: 160 }}>
-                <div style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: 1, color: "#6b7280", marginBottom: 12 }}>SEVERITY SCALE</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ flex: 1, height: 8, background: "linear-gradient(to right, #fbbf24, #f97316, #dc2626)" }}></div>
-                  <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#111" }}>Low - Critical</div>
-                </div>
+          <div style={{ flex: 1, position: "relative", minHeight: 350 }}>
+            <MapPanel coords={[40.7128, -74.006]} reports={reports} heat={true} />
+            <div style={{ position: "absolute", bottom: 16, right: 16, backgroundColor: "#fff", padding: "16px", borderRadius: 4, border: "1px solid #111", minWidth: 160, zIndex: 1000 }}>
+              <div style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: 1, color: "#6b7280", marginBottom: 12 }}>SEVERITY SCALE</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ flex: 1, height: 8, background: "linear-gradient(to right, #fbbf24, #f97316, #dc2626)" }}></div>
+                <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#111" }}>Low - Critical</div>
               </div>
+            </div>
           </div>
         </section>
 
@@ -52,6 +65,15 @@ export default function Maintenance({ setPage }) {
           </div>
           
           <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 24, paddingRight: 8 }}>
+            {assignedReports.map((r, i) => (
+              <HazardItem 
+                key={r.id || i}
+                time="JUST NOW" 
+                sector={r.assigned_engineer ? `ASSIGNED TO: ${r.assigned_engineer.toUpperCase()}` : "ADMIN DISPATCH"} 
+                text={`${r.title || r.category}: ${r.description || 'Report assigned by Admin for field inspection and repair.'}`} 
+                color="#dc2626" 
+              />
+            ))}
             <HazardItem 
               time="12:44:02" sector="SECTOR 08" 
               text="Critical pothole formation detected at A10 junction. Emergency team dispatched." 
@@ -62,14 +84,14 @@ export default function Maintenance({ setPage }) {
               text="Structural degradation verified via AI scan on Bridge 12-B. Level: Moderate." 
               color="#f97316" 
             />
-            <HazardItem 
-              time="12:15:30" sector="SECTOR 14" 
-              text="Routine scheduled survey completed for drainage systems." 
-              color="#6b7280" 
-            />
           </div>
 
-          <button style={{ width: "100%", padding: "14px", backgroundColor: "transparent", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 4, fontSize: "0.75rem", fontWeight: 700, letterSpacing: 1, cursor: "pointer", marginTop: 24, transition: "border 0.2s" }} onMouseEnter={e => e.currentTarget.style.borderColor="rgba(255,255,255,0.6)"} onMouseLeave={e => e.currentTarget.style.borderColor="rgba(255,255,255,0.2)"}>
+          <button 
+            style={{ width: "100%", padding: "14px", backgroundColor: "transparent", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 4, fontSize: "0.75rem", fontWeight: 700, letterSpacing: 1, cursor: "pointer", marginTop: 24, transition: "border 0.2s" }} 
+            onMouseEnter={e => e.currentTarget.style.borderColor="rgba(255,255,255,0.6)"} 
+            onMouseLeave={e => e.currentTarget.style.borderColor="rgba(255,255,255,0.2)"}
+            onClick={() => setPage && setPage("tasks")}
+          >
             VIEW ALL INCIDENTS
           </button>
         </section>

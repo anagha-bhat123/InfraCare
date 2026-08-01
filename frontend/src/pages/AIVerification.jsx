@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import {
   MapPin, CheckCircle, AlertTriangle, Eye, Thermometer, XCircle
 } from "lucide-react";
+import MapPanel from "../components/MapPanel";
 
 const feedData = [
   {
@@ -48,9 +49,37 @@ const feedData = [
   }
 ];
 
-export default function AIVerification({ setPage }) {
+export default function AIVerification({ reports, updateReportStatus, setPage }) {
   const [activeTab, setActiveTab] = useState("Pending");
-  const [activeItem, setActiveItem] = useState(feedData[0]);
+  
+  const mappedReports = React.useMemo(() => {
+    if (!reports || reports.length === 0) return feedData;
+    return reports.filter(r => r.ai_verified || r.ai_damage_type).map(r => ({
+      id: r.tracking_id || `#${r.id.substring(0, 8).toUpperCase()}`,
+      priority: r.priority?.toUpperCase() || "MEDIUM",
+      priorityColor: r.priority === 'High' ? "#fee2e2" : r.priority === 'Low' ? "#f3f4f6" : "#e5e7eb",
+      priorityText: r.priority === 'High' ? "#dc2626" : r.priority === 'Low' ? "#9ca3af" : "#374151",
+      title: r.title,
+      desc: r.description || "No description provided.",
+      time: new Date(r.created_at).toLocaleDateString(),
+      zone: "Zone",
+      score: r.ai_severity === "Severe" ? 94 : r.ai_severity === "Moderate" ? 72 : 45,
+      aiText: `Identification: ${r.ai_damage_type || "Object Detected"}. Severity: ${r.ai_severity || "Unknown"}.`,
+      metrics: { depth: r.ai_severity === "Severe" ? "14.2" : "3.1", vol: "0.8", area: "2.4" },
+      risks: { vehicle: r.ai_severity === "Severe" ? "HIGH" : "LOW", ped: "LOW", weather: "MEDIUM" },
+      raw_report: r
+    }));
+  }, [reports]);
+
+  const displayData = mappedReports.length > 0 ? mappedReports : feedData;
+  const [activeItem, setActiveItem] = useState(displayData[0]);
+
+  React.useEffect(() => {
+    if (displayData.length > 0 && !activeItem) {
+      setActiveItem(displayData[0]);
+    }
+  }, [displayData, activeItem]);
+
 
   return (
     <main className="page" style={{ padding: 0 }}>
@@ -78,7 +107,7 @@ export default function AIVerification({ setPage }) {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {feedData.map(item => (
+            {displayData.map(item => (
               <div
                 key={item.id}
                 className={`assignment ${activeItem.id === item.id ? "selected" : ""}`}
@@ -141,11 +170,9 @@ export default function AIVerification({ setPage }) {
                   </div>
                 </div>
                 {/* Map */}
-                <div style={{ borderRadius: 4, overflow: "hidden", height: 280, backgroundColor: "#f3f4f6", backgroundImage: "url('https://maps.googleapis.com/maps/api/staticmap?center=51.5074,-0.1278&zoom=14&size=400x400&style=feature:all|element:labels|visibility:off&sensor=false')", backgroundSize: "cover", backgroundPosition: "center", position: "relative" }}>
-                  <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
-                    <MapPin size={36} color="#dc2626" fill="#fff" />
-                  </div>
-                  <div style={{ position: "absolute", bottom: 16, right: 16, backgroundColor: "#fff", padding: "8px 12px", fontSize: "0.75rem", fontWeight: 700, border: "1px solid #e5e7eb", borderRadius: 2, color: "#111" }}>
+                <div style={{ borderRadius: 4, overflow: "hidden", height: 280, backgroundColor: "#f3f4f6", position: "relative" }}>
+                  <MapPanel compact coords={[51.5074, -0.1278]} />
+                  <div style={{ position: "absolute", bottom: 16, right: 16, backgroundColor: "#fff", padding: "8px 12px", fontSize: "0.75rem", fontWeight: 700, border: "1px solid #e5e7eb", borderRadius: 2, color: "#111", zIndex: 1000 }}>
                     LAT: 51.5074° N<br />LNG: 0.1278° W
                   </div>
                 </div>
@@ -217,13 +244,25 @@ export default function AIVerification({ setPage }) {
 
               {/* Actions */}
               <div style={{ display: "flex", gap: 16 }}>
-                <button style={{ flex: 1.5, backgroundColor: "#000", color: "#fff", padding: "16px 24px", border: "none", borderRadius: 4, fontSize: "1rem", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+                <button 
+                  onClick={() => {
+                    if (activeItem?.raw_report?.id) {
+                      updateReportStatus(activeItem.raw_report.id, "Under Review", "AI details verified by engineer");
+                    }
+                  }}
+                  style={{ flex: 1.5, backgroundColor: "#000", color: "#fff", padding: "16px 24px", border: "none", borderRadius: 4, fontSize: "1rem", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
                   Verify & Schedule Repair <CheckCircle size={20} />
                 </button>
                 <button style={{ flex: 1, backgroundColor: "#fff", color: "#111", border: "1px solid #e5e7eb", padding: "16px 24px", borderRadius: 4, fontSize: "1rem", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
                   Escalate ! <AlertTriangle size={20} />
                 </button>
-                <button style={{ flex: 1, backgroundColor: "#fff", color: "#dc2626", border: "1px solid #fca5a5", padding: "16px 24px", borderRadius: 4, fontSize: "1rem", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+                <button 
+                  onClick={() => {
+                    if (activeItem?.raw_report?.id) {
+                      updateReportStatus(activeItem.raw_report.id, "Rejected", "Rejected during AI verification");
+                    }
+                  }}
+                  style={{ flex: 1, backgroundColor: "#fff", color: "#dc2626", border: "1px solid #fca5a5", padding: "16px 24px", borderRadius: 4, fontSize: "1rem", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
                   Reject <XCircle size={20} />
                 </button>
               </div>

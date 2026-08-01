@@ -32,9 +32,13 @@ export default function Report({ addReport, setPage }) {
         setCoords([Number(pos.coords.latitude.toFixed(5)), Number(pos.coords.longitude.toFixed(5))]);
         setLocationVerified(true);
       },
-      () => alert("Location permission was not granted. The demo keeps the current coordinates.")
+      () => console.log("Location permission was not granted or failed. Using default coordinates.")
     );
   };
+
+  React.useEffect(() => {
+    locate();
+  }, []);
 
   const onFile = (file) => {
     if (!file) return;
@@ -100,7 +104,8 @@ export default function Report({ addReport, setPage }) {
     addReport(newReport);
     
     clearForm();
-    Swal.fire('Submitted!', 'Your complaint has been successfully submitted.', 'success');
+    await Swal.fire('Submitted!', 'Your complaint has been successfully submitted and sent to the Admin Command Portal.', 'success');
+    if (setPage) setPage("track");
   };
 
   return (

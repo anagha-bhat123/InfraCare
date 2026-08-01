@@ -7,7 +7,10 @@ import {
 } from "lucide-react";
 import MapPanel from "../components/MapPanel";
 
-export default function AdminDashboard({ setPage }) {
+export default function AdminDashboard({ reports = [], setPage }) {
+  const total = reports.length || 4821;
+  const verified = reports.filter(r => r.status === 'Resolved' || r.ai_verified).length || 3104;
+  const pending = reports.filter(r => r.status === 'Pending' || r.priority === 'High').length || 1717;
   return (
     <div style={{ backgroundColor: "#fafafa", minHeight: "100vh", padding: "20px 40px" }}>
       <div style={{ width: "100%" }}>
@@ -24,7 +27,7 @@ export default function AdminDashboard({ setPage }) {
               <p>Real-time infrastructure oversight for the City of New York. Monitoring 5 boroughs<br/>with live citizen reporting integration.</p>
             </div>
             <div className="admin-header-actions">
-              <button className="admin-btn-outline"><Download size={16} /> Export<br/>PDF</button>
+              <button className="admin-btn-outline" onClick={() => setPage("admin-reports")}><Download size={16} /> Export<br/>CSV</button>
               <button className="admin-btn-black" onClick={() => setPage("admin-maintenance")}>Deploy<br/>Crew <ArrowRight size={16} /></button>
             </div>
           </div>
@@ -37,7 +40,7 @@ export default function AdminDashboard({ setPage }) {
               </div>
               <div className="kpi-card-body">
                 <span className="kpi-label">TOTAL SUBMISSIONS</span>
-                <div className="kpi-value">4,821</div>
+                <div className="kpi-value">{total}</div>
                 <div className="kpi-desc">Reports received in Q3</div>
               </div>
             </div>
@@ -48,8 +51,8 @@ export default function AdminDashboard({ setPage }) {
                 <div className="kpi-badge black">VERIFIED</div>
               </div>
               <div className="kpi-card-body">
-                <span className="kpi-label">RESOLVED ISSUES</span>
-                <div className="kpi-value">3,104</div>
+                <span className="kpi-label">RESOLVED / VERIFIED</span>
+                <div className="kpi-value">{verified}</div>
                 <div className="kpi-desc">64.3% efficiency rate</div>
               </div>
             </div>
@@ -60,8 +63,8 @@ export default function AdminDashboard({ setPage }) {
                 <div className="kpi-badge danger">42 Critical</div>
               </div>
               <div className="kpi-card-body">
-                <span className="kpi-label">PENDING REVIEW</span>
-                <div className="kpi-value">1,717</div>
+                <span className="kpi-label">PENDING / CRITICAL</span>
+                <div className="kpi-value">{pending}</div>
                 <div className="kpi-desc">Requires immediate dispatch</div>
               </div>
             </div>

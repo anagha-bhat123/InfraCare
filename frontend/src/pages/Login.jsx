@@ -68,6 +68,7 @@ function FieldError({ msg }) {
 /* ─── Demo credentials (backend only) ────────────────────────────── */
 const DEMO_IDS = new Set([
   "citizen@demo.com",
+  "anaghabhat920@gmail.com",
   "m-001-ab12",
   "admin@infracare.gov.in",
 ]);

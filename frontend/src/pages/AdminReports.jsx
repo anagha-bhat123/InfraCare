@@ -36,8 +36,65 @@ const StatusBadge = ({ status }) => {
   return <><span className="dot line"></span> Pending</>;
 };
 
-export default function AdminReports({ reports = [], setPage }) {
+export default function AdminReports({ reports = [], updateReportStatus, setPage }) {
   const [urgencyFilter, setUrgencyFilter] = useState("ALL");
+  const [selectedEng, setSelectedEng] = useState({});
+  const [engineersList, setEngineersList] = useState([]);
+
+  useEffect(() => {
+    async function fetchEngineers() {
+      try {
+        const res = await fetch(`${apiUrl}/auth/engineers`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.engineers && data.engineers.length > 0) {
+            setEngineersList(data.engineers);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to fetch engineers:", e);
+      }
+    }
+    fetchEngineers();
+  }, []);
+
+  const updateReportPriority = async (id, priority) => {
+    try {
+      const token = localStorage.getItem("infracare_token");
+      const headers = { 
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {})
+      };
+      // For now, we mock the priority update in DB, just show alert
+      // In real backend, we'd add an endpoint PATCH /reports/{id}/priority
+      alert(`Priority updated to ${priority}`);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const exportToCSV = () => {
+    if (!filteredReports || filteredReports.length === 0) return alert("No data to export");
+    const headers = ["REPORT ID", "TYPE", "URGENCY", "PRIORITY", "STATUS", "DATE"];
+    const rows = filteredReports.map(r => [
+      r.id.substring(0, 8).toUpperCase(),
+      r.category || "Unknown",
+      r.urgency || "Low",
+      r.priority || "Medium",
+      r.status || "Pending",
+      new Date(r.created_at).toLocaleString()
+    ]);
+    const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `reports_export_${new Date().getTime()}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const today = new Date().toISOString().split('T')[0];
   const reportsToday = reports.filter(r => r.created_at && r.created_at.startsWith(today)).length;
@@ -64,7 +121,14 @@ export default function AdminReports({ reports = [], setPage }) {
     return `${Math.floor(hrs / 24)}d ago`;
   };
 
-  const filteredReports = reports.filter(r => {
+  const displayReports = reports.length > 0 ? reports : reportsSeed;
+  const sortedReports = [...displayReports].sort((a, b) => {
+    const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return dateB - dateA;
+  });
+
+  const filteredReports = sortedReports.filter(r => {
     if (urgencyFilter === "ALL") return true;
     const u = (r.urgency || "").toLowerCase();
     if (urgencyFilter === "CRITICAL") return u === "critical" || u === "urgent" || u === "high priority";
@@ -153,7 +217,7 @@ export default function AdminReports({ reports = [], setPage }) {
                 </div>
                 <div className="filter-group date-export">
                   <button className="admin-btn-text"><Calendar size={14} className="mr-2 inline" /> LAST 24H</button>
-                  <button className="admin-btn-text"><Download size={14} className="mr-2 inline" /> EXPORT</button>
+                  <button className="admin-btn-text" onClick={exportToCSV}><Download size={14} className="mr-2 inline" /> EXPORT CSV</button>
                 </div>
               </div>
 
@@ -163,7 +227,10 @@ export default function AdminReports({ reports = [], setPage }) {
                     <th>REPORT ID</th>
                     <th>TYPE</th>
                     <th>URGENCY</th>
+                    <th>PRIORITY</th>
+                    <th>ASSIGNED ENGINEER</th>
                     <th>STATUS</th>
+                    <th>ACTION</th>
                     <th>DATE</th>
                   </tr>
                 </thead>
@@ -178,7 +245,101 @@ export default function AdminReports({ reports = [], setPage }) {
                         <span>{r.category ? r.category.split(" ").map((w,i)=><React.Fragment key={i}>{w}{i === 0 && r.category.split(" ").length > 1 ? <br/> : " "}</React.Fragment>) : "Unknown"}</span>
                       </td>
                       <td><UrgencyBadge urgency={r.urgency} /></td>
-                      <td className="status-cell"><StatusBadge status={r.status} /></td>
+                      <td>
+                        <select 
+                          value={r.priority || "Medium"} 
+                          onChange={(e) => updateReportPriority(r.id, e.target.value)}
+                          style={{ padding: "4px", borderRadius: "4px", border: "1px solid #ddd" }}
+                        >
+                          <option>Low</option>
+                          <option>Medium</option>
+                          <option>High</option>
+                        </select>
+                      </td>
+                      <td>
+                        <select
+                          value={r.assigned_engineer || r.crew || selectedEng[r.id] || (engineersList[0]?.display || "Eng. Marcus Thorne (M-001-AB12)")}
+                          onChange={(e) => {
+                            const newEng = e.target.value;
+                            setSelectedEng({ ...selectedEng, [r.id]: newEng });
+                            if (updateReportStatus) {
+                              const newStatus = (r.status === "Pending" || r.status === "Submitted" || !r.status) ? "Crew Assigned" : r.status;
+                              updateReportStatus(r.id, newStatus, `Admin assigned engineer: ${newEng}`, newEng);
+                            }
+                          }}
+                          style={{ padding: "6px", borderRadius: "4px", border: "1px solid #ccc", fontSize: "0.82rem", backgroundColor: "#fff", fontWeight: 600 }}
+                        >
+                          {(engineersList.length > 0 ? engineersList : [
+                            { display: "Eng. Marcus Thorne (M-001-AB12)" },
+                            { display: "Eng. Kavya Rao (M-002-CD34)" },
+                            { display: "Crew #14-B (Miller)" },
+                            { display: "Crew #12-A (Sharma)" },
+                            { display: "Crew #08-C (Patel)" }
+                          ]).map((eng, idx) => (
+                            <option key={eng.id || idx} value={eng.display || eng.full_name}>
+                              {eng.display || eng.full_name}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="status-cell">
+                        <select
+                          value={r.status || "Pending"}
+                          onChange={(e) => {
+                            const newStatus = e.target.value;
+                            const eng = selectedEng[r.id] || r.assigned_engineer || r.crew || "Eng. Marcus Thorne (M-001-AB12)";
+                            if (updateReportStatus) {
+                              updateReportStatus(r.id, newStatus, `Admin changed status to ${newStatus}`, eng);
+                            }
+                          }}
+                          style={{
+                            padding: "6px",
+                            borderRadius: "4px",
+                            border: "1px solid #ccc",
+                            fontSize: "0.82rem",
+                            fontWeight: 700,
+                            backgroundColor: r.status === "Resolved" ? "#e6f4ea" : r.status === "Crew Assigned" ? "#e0e7ff" : r.status === "In Progress" ? "#fff7ed" : "#fff",
+                            color: r.status === "Resolved" ? "#137333" : r.status === "Crew Assigned" ? "#3730a3" : r.status === "In Progress" ? "#c2410c" : "#111"
+                          }}
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="Approved">Approved</option>
+                          <option value="Crew Assigned">Crew Assigned</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Pending Final Verification">Pending Final Verification</option>
+                          <option value="Resolved">Resolved</option>
+                          <option value="Rejected">Rejected</option>
+                        </select>
+                      </td>
+                      <td>
+                        {r.status === "Pending" || r.status === "Submitted" || !r.status ? (
+                          <button
+                            onClick={() => {
+                              const eng = selectedEng[r.id] || r.assigned_engineer || "Eng. Marcus Thorne (M-001-AB12)";
+                              if (updateReportStatus) {
+                                updateReportStatus(r.id, "Crew Assigned", `Approved by Admin and assigned to ${eng}`, eng);
+                              }
+                            }}
+                            style={{ background: "#111", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "4px", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer" }}
+                          >
+                            Approve & Assign
+                          </button>
+                        ) : r.status === "Pending Final Verification" || r.status === "Completed by Engineer" || r.status === "In Progress" ? (
+                          <button
+                            onClick={() => {
+                              const eng = selectedEng[r.id] || r.assigned_engineer || "Eng. Marcus Thorne (M-001-AB12)";
+                              if (updateReportStatus) {
+                                updateReportStatus(r.id, "Resolved", "Admin verified field completion and resolved complaint.", eng);
+                              }
+                            }}
+                            style={{ background: "#16a34a", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "4px", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer" }}
+                          >
+                            Verify & Resolve
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: "0.75rem", color: "#16a34a", fontWeight: 700 }}>Resolved ✓</span>
+                        )}
+                      </td>
                       <td className="date-cell">{formatDate(r.created_at)}</td>
                     </tr>
                   ))}

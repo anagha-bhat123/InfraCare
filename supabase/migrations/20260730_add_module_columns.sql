@@ -1,0 +1,7 @@
+-- Add new columns for Module 2, 3, 5
+ALTER TABLE damage_reports
+ADD COLUMN IF NOT EXISTS tracking_id TEXT,
+ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'Medium',
+ADD COLUMN IF NOT EXISTS ai_damage_type TEXT,
+ADD COLUMN IF NOT EXISTS ai_severity TEXT,
+ADD COLUMN IF NOT EXISTS ai_verified BOOLEAN DEFAULT FALSE;

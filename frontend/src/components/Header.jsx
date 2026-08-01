@@ -2,10 +2,43 @@ import React, { useState, useRef, useEffect } from "react";
 import { Search, Bell, ArrowRight, LogOut, User, Menu, X, ArrowLeft } from "lucide-react";
 import Brand from "./Brand";
 
-export default function Header({ page, setPage, user, setUser, simple = false }) {
+export default function Header({ page, setPage, user, setUser, reports = [], simple = false }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const notifRef = useRef(null);
+
+  const notifications = React.useMemo(() => {
+    const list = reports || [];
+    if (user?.role === "engineer") {
+      const engItems = list.filter(r => r.assigned_engineer || ["Crew Assigned", "In Progress", "Approved", "Pending Final Verification"].includes(r.status));
+      return engItems.length > 0 ? engItems : list;
+    }
+    if (user?.role === "admin") {
+      const adminItems = list.filter(r => r.status === "Pending" || r.status === "Submitted" || !r.status || r.status === "Pending Final Verification");
+      return adminItems.length > 0 ? adminItems : list;
+    }
+    // Default fallback (e.g. citizen or guest)
+    const activeItems = list.filter(r => r.assigned_engineer || r.status !== "Resolved");
+    return activeItems.length > 0 ? activeItems : list;
+  }, [reports, user?.role]);
+
+  const notifHeaderTitle = 
+    user?.role === "engineer" ? "Assigned Task Alerts" :
+    user?.role === "admin" ? "Citizen Report Alerts" : "Incident Updates";
+
+  const notifBadgeText = 
+    user?.role === "engineer" ? "ASSIGNED" :
+    user?.role === "admin" ? "PENDING" : "UPDATES";
+
+  const notifItemTag = 
+    user?.role === "engineer" ? "TASK ASSIGNED" :
+    user?.role === "admin" ? "NEW REPORT" : "RESOLVED";
+
+  const notifTargetPage = 
+    user?.role === "engineer" ? "tasks" :
+    user?.role === "admin" ? "admin-reports" : "track";
 
   let nav = ["home", "report", "track", "profile"];
   if (user?.role === "engineer") {
@@ -16,11 +49,14 @@ export default function Header({ page, setPage, user, setUser, simple = false })
     nav = ["dashboard", "analysis", "admin-reports", "admin-maintenance", "admin-users", "admin-logs"];
   }
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(e) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setDropdownOpen(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotifOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -90,9 +126,105 @@ export default function Header({ page, setPage, user, setUser, simple = false })
             </button>
           )}
           {!simple && (
-            <button className="icon-button" onClick={() => alert("No new notifications")}>
-              <Bell />
-            </button>
+            <div ref={notifRef} style={{ position: "relative" }}>
+              <button 
+                className="icon-button" 
+                onClick={() => setNotifOpen(!notifOpen)}
+                style={{ position: "relative" }}
+                title="Notifications"
+              >
+                <Bell />
+                {notifications.length > 0 && (
+                  <span style={{
+                    position: "absolute",
+                    top: 2, right: 2,
+                    backgroundColor: "#dc2626",
+                    color: "#fff",
+                    borderRadius: "50%",
+                    width: 16, height: 16,
+                    fontSize: "0.65rem",
+                    fontWeight: 800,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                  }}>
+                    {notifications.length}
+                  </span>
+                )}
+              </button>
+
+              {notifOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 10px)",
+                    right: 0,
+                    background: "#fff",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 8,
+                    boxShadow: "0 8px 24px rgba(0,0,0,.15)",
+                    width: 320,
+                    zIndex: 100,
+                    overflow: "hidden",
+                  }}
+                >
+                  <div style={{ padding: "12px 16px", borderBottom: "1px solid #eee", background: "#f8fafc", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "#111" }}>{notifHeaderTitle}</span>
+                    <span style={{ fontSize: "0.7rem", backgroundColor: user?.role === "engineer" ? "#dbeafe" : "#fee2e2", color: user?.role === "engineer" ? "#1d4ed8" : "#dc2626", fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>
+                      {notifications.length} {notifBadgeText}
+                    </span>
+                  </div>
+
+                  <div style={{ maxHeight: 280, overflowY: "auto" }}>
+                    {notifications.length === 0 ? (
+                      <div style={{ padding: "24px", textAlign: "center", color: "#888", fontSize: "0.85rem" }}>
+                        No notifications.
+                      </div>
+                    ) : (
+                      notifications.map(r => (
+                        <div
+                          key={r.id}
+                          onClick={() => {
+                            setNotifOpen(false);
+                            setPage(notifTargetPage);
+                          }}
+                          style={{
+                            padding: "12px 16px",
+                            borderBottom: "1px solid #f0f0f0",
+                            cursor: "pointer",
+                            transition: "background 0.15s",
+                            backgroundColor: "#fff"
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                            <span style={{ fontSize: "0.75rem", fontWeight: 700, color: user?.role === "engineer" ? "#2563eb" : "#dc2626" }}>{notifItemTag}</span>
+                            <span style={{ fontSize: "0.7rem", color: "#9ca3af" }}>#{r.tracking_id || (r.id ? r.id.substring(0, 8) : "REF")}</span>
+                          </div>
+                          <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111", marginBottom: 2 }}>{r.title || r.category}</div>
+                          <div style={{ fontSize: "0.75rem", color: "#6b7280", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {r.description || (user?.role === "engineer" ? "Assigned to your crew by Admin." : "Submitted by citizen.")}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div style={{ padding: "10px 16px", background: "#f8fafc", borderTop: "1px solid #eee", textAlign: "center" }}>
+                    <button
+                      onClick={() => {
+                        setNotifOpen(false);
+                        setPage(notifTargetPage);
+                      }}
+                      style={{ background: "none", border: "none", color: "#111", fontWeight: 700, fontSize: "0.75rem", cursor: "pointer" }}
+                    >
+                      View All in {user?.role === "engineer" ? "Scheduling" : user?.role === "admin" ? "Admin Panel" : "Track Portal"} &rarr;
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
           {user ? (
             <div ref={dropdownRef} style={{ position: "relative" }}>
