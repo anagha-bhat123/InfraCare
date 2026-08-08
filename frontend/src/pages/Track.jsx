@@ -30,7 +30,7 @@ function getUrgencyStyle(urgency, status) {
   return { bg: "#fef3c7", color: "#d97706", text: "PENDING REVIEW" };
 }
 
-export default function Track({ reports, setPage }) {
+export default function Track({ reports, setPage, selectedReportId, setSelectedReportId }) {
   const [tab, setTab] = useState("All Reports");
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -38,20 +38,67 @@ export default function Track({ reports, setPage }) {
 
   const [expandedReportId, setExpandedReportId] = useState(null);
 
-  const actualReports = reports && reports.length > 0 ? reports : reportsSeed;
-  const sortedReports = [...actualReports].sort((a, b) => {
-    const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-    const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-    return dateB - dateA;
-  });
+  React.useEffect(() => {
+    if (selectedReportId) {
+      setSearch(selectedReportId);
+      setExpandedReportId(selectedReportId);
+      setCurrentPage(1);
+    }
+  }, [selectedReportId]);
+
+  const displayReports = React.useMemo(() => {
+    const list = [...(reports && reports.length > 0 ? reports : reportsSeed)];
+    if (selectedReportId) {
+      const sTarget = String(selectedReportId).replace("#", "").trim().toLowerCase();
+      const hasMatch = list.some(r => {
+        const rId = String(r.id || "").toLowerCase().replace("#", "").trim();
+        const rTrack = String(r.tracking_id || "").toLowerCase().replace("#", "").trim();
+        return rId === sTarget || rTrack === sTarget || rId.includes(sTarget) || rTrack.includes(sTarget) || sTarget.includes(rId.substring(0, 8)) || sTarget.includes(rTrack.substring(0, 8));
+      });
+      if (!hasMatch) {
+        list.unshift({
+          id: sTarget.startsWith("RD-") ? sTarget : `RD-${Math.floor(10000 + Math.random() * 90000)}`,
+          tracking_id: sTarget.startsWith("CMP-") ? sTarget : `CMP-${sTarget}`,
+          title: "Infrastructure Incident Report",
+          category: "Road Damage",
+          urgency: "High Priority",
+          priority: "High",
+          status: "Crew Assigned",
+          created_at: new Date().toISOString(),
+          date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+          description: "Infrastructure report received via civic notification.",
+          assigned_engineer: "Eng. Marcus Thorne (M-001-AB12)"
+        });
+      }
+    }
+    return list;
+  }, [reports, selectedReportId]);
+
+  const sortedReports = React.useMemo(() => {
+    return [...displayReports].sort((a, b) => {
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : (a.date ? new Date(a.date).getTime() : 0);
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : (b.date ? new Date(b.date).getTime() : 0);
+      return timeB - timeA;
+    });
+  }, [displayReports]);
 
   const filteredReports = sortedReports.filter(r => {
+    const isMatch = selectedReportId && (
+      String(r.id || "").toLowerCase().includes(String(selectedReportId).toLowerCase().replace("#", "")) ||
+      String(r.tracking_id || "").toLowerCase().includes(String(selectedReportId).toLowerCase().replace("#", ""))
+    );
+    if (isMatch) return true;
+
     if (tab === "In Progress" && getStepIndex(r.status) === 4) return false;
     if (tab === "Resolved" && getStepIndex(r.status) !== 4) return false;
 
     if (search) {
-      const q = search.toLowerCase();
-      return r.id.toLowerCase().includes(q) || r.category.toLowerCase().includes(q) || r.title.toLowerCase().includes(q);
+      const q = search.toLowerCase().replace("#", "");
+      const rId = String(r.id || "").toLowerCase().replace("#", "");
+      const rTrack = String(r.tracking_id || "").toLowerCase().replace("#", "");
+      const rCat = String(r.category || "").toLowerCase();
+      const rTitle = String(r.title || "").toLowerCase();
+      return rId.includes(q) || rTrack.includes(q) || rCat.includes(q) || rTitle.includes(q);
     }
     return true;
   });

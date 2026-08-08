@@ -196,20 +196,33 @@ export default function App() {
       const token = localStorage.getItem("infracare_token");
       const headers = token ? { "Authorization": `Bearer ${token}` } : {};
       const res = await fetch(`${apiUrl}/reports`, { headers });
+      let serverReports = [];
       if (res.ok) {
         const data = await res.json();
-        if (data.reports && data.reports.length > 0) {
-          setReports((prev) => {
-            const map = new Map();
-            data.reports.forEach((r) => map.set(r.id, r));
-            prev.forEach((r) => {
-              if (!map.has(r.id)) map.set(r.id, r);
-            });
-            const merged = Array.from(map.values());
-            return merged.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-          });
-        }
+        if (data.reports) serverReports = data.reports;
       }
+      
+      let localSaved = [];
+      try {
+        const saved = localStorage.getItem("infracare_local_reports");
+        if (saved) localSaved = JSON.parse(saved);
+      } catch (e) {}
+
+      setReports((prev) => {
+        const map = new Map();
+        serverReports.forEach((r) => map.set(r.id, r));
+        localSaved.forEach((r) => { if (!map.has(r.id)) map.set(r.id, r); });
+        prev.forEach((r) => { if (!map.has(r.id)) map.set(r.id, r); });
+        const merged = Array.from(map.values());
+        return merged.sort((a, b) => {
+          const getTime = (r) => {
+            if (r.created_at) { const t = new Date(r.created_at).getTime(); if (!isNaN(t) && t > 0) return t; }
+            if (r.date) { const t = new Date(r.date).getTime(); if (!isNaN(t) && t > 0) return t; }
+            return 0;
+          };
+          return getTime(b) - getTime(a);
+        });
+      });
     } catch (e) {
       console.error("Failed to fetch reports:", e);
     }
@@ -217,6 +230,13 @@ export default function App() {
 
   useEffect(() => {
     fetchReports();
+    const interval = setInterval(fetchReports, 4000);
+    const handler = () => fetchReports();
+    window.addEventListener("refreshReports", handler);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("refreshReports", handler);
+    };
   }, []);
 
   const addReport = async (reportData) => {
@@ -229,6 +249,12 @@ export default function App() {
       date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
       ...reportData
     };
+
+    try {
+      const saved = localStorage.getItem("infracare_local_reports");
+      const list = saved ? JSON.parse(saved) : [];
+      localStorage.setItem("infracare_local_reports", JSON.stringify([newLocalReport, ...list]));
+    } catch (e) {}
 
     setReports((prev) => [newLocalReport, ...prev]);
 
@@ -288,27 +314,35 @@ export default function App() {
       timer: 3000
     });
 
-    setReports((prev) => prev.map((r) => {
-      const rId = String(r.id || "").replace("#", "").trim().toLowerCase();
-      const rTrack = String(r.tracking_id || "").replace("#", "").trim().toLowerCase();
-      const isMatch = rId === cleanId || rTrack === cleanId || (rId && cleanId && (rId.includes(cleanId) || cleanId.includes(rId.substring(0, 8))));
-      
-      if (isMatch) {
-        const updatedHistory = [
-          [status, note || (assignedEngineer ? `Assigned to ${assignedEngineer}` : "Status updated by Admin"), new Date().toLocaleTimeString()],
-          ...(r.history || [])
-        ];
-        return {
-          ...r,
-          status,
-          assigned_engineer: assignedEngineer || r.assigned_engineer,
-          engineer_notes: engineerNotes || r.engineer_notes,
-          crew: assignedEngineer || r.crew,
-          history: updatedHistory
-        };
-      }
-      return r;
-    }));
+    setReports((prev) => {
+      const updatedList = prev.map((r) => {
+        const rId = String(r.id || "").replace("#", "").trim().toLowerCase();
+        const rTrack = String(r.tracking_id || "").replace("#", "").trim().toLowerCase();
+        const isMatch = rId === cleanId || rTrack === cleanId || (rId && cleanId && (rId.includes(cleanId) || cleanId.includes(rId.substring(0, 8))));
+        
+        if (isMatch) {
+          const updatedHistory = [
+            [status, note || (assignedEngineer ? `Assigned to ${assignedEngineer}` : "Status updated by Admin"), new Date().toLocaleTimeString()],
+            ...(r.history || [])
+          ];
+          return {
+            ...r,
+            status,
+            assigned_engineer: assignedEngineer || r.assigned_engineer,
+            engineer_notes: engineerNotes || r.engineer_notes,
+            crew: assignedEngineer || r.crew,
+            history: updatedHistory
+          };
+        }
+        return r;
+      });
+
+      try {
+        localStorage.setItem("infracare_local_reports", JSON.stringify(updatedList));
+      } catch (e) {}
+
+      return updatedList;
+    });
 
     try {
       const token = localStorage.getItem("infracare_token");
@@ -328,21 +362,28 @@ export default function App() {
     }
   };
 
+  const [selectedReportId, setSelectedReportId] = useState(null);
+
   const view = useMemo(() => {
     if (page === "reset-password") return <ResetPassword setPage={setPage} />;
     if (page === "login") return <Login setUser={handleSetUser} setPage={setPage} />;
     if (page === "register") return <Register setPage={setPage} />;
     if (page === "report") return <Report addReport={addReport} setPage={setPage} />;
-    if (page === "track") return <Track reports={reports} setPage={setPage} />;
+    if (page === "track" || page === "resolved" || page === "Resolved") {
+      if (user?.role === "admin") {
+        return <AdminReports reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} />;
+      }
+      return <Track reports={reports} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} />;
+    }
     if (page === "dashboard") return <AdminDashboard reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} />;
-    if (page === "admin-reports") return <AdminReports reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} />;
+    if (page === "admin-reports" || page === "resolved-reports") return <AdminReports reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} />;
     if (page === "admin-maintenance") return <AdminMaintenance setPage={setPage} />;
     if (page === "admin-users") return <AdminUsers setPage={setPage} />;
     if (page === "admin-logs") return <AdminLogs setPage={setPage} />;
     if (page === "admin-profile") return <AdminProfile user={user} setPage={setPage} setUser={handleSetUser} />;
     if (page === "map") return <LiveMap reports={reports} setPage={setPage} />;
     if (page === "analysis") return <AdminAnalysis setPage={setPage} />;
-    if (page === "tasks") return <Tasks reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} />;
+    if (page === "tasks") return <Tasks reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} />;
     if (page === "maintenance") return <Maintenance reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} />;
     if (page === "team-allocation") return <TeamAllocation reports={reports} setPage={setPage} />;
     if (page === "ai-verification") return <AIVerification reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} />;
@@ -352,12 +393,12 @@ export default function App() {
     if (page === "terms-of-service") return <TermsOfService setPage={setPage} />;
     if (page === "help-center") return <HelpCenter setPage={setPage} />;
     return <Home setPage={setPage} />;
-  }, [page, user, reports]);
+  }, [page, user, reports, selectedReportId]);
 
   const hideChrome = ["login", "register", "reset-password"].includes(page);
   return (
     <>
-      {!hideChrome && <Header page={page} setPage={setPage} user={user} setUser={handleSetUser} reports={reports} />}
+      {!hideChrome && <Header page={page} setPage={setPage} user={user} setUser={handleSetUser} reports={reports} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} />}
       {view}
       {!hideChrome && <Footer setPage={setPage} />}
     </>

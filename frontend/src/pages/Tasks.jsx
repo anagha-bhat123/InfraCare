@@ -3,7 +3,7 @@ import { MapPin, Navigation } from "lucide-react";
 import MapPanel from "../components/MapPanel";
 import { reportsSeed, assignments } from "../data/seedData";
 
-export default function Tasks({ reports = [], updateReportStatus, setPage }) {
+export default function Tasks({ reports = [], updateReportStatus, setPage, selectedReportId, setSelectedReportId }) {
   const allAssignments = React.useMemo(() => {
     const sortedReports = [...(reports || [])].sort((a, b) => {
       const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -35,6 +35,17 @@ export default function Tasks({ reports = [], updateReportStatus, setPage }) {
   const [engineerNote, setEngineerNote] = useState("");
 
   React.useEffect(() => {
+    if (selectedReportId) {
+      const match = allAssignments.find(a => 
+        String(a.id).toLowerCase() === String(selectedReportId).toLowerCase() || 
+        String(a.raw_id).toLowerCase() === String(selectedReportId).toLowerCase() ||
+        String(a.id).toLowerCase().includes(String(selectedReportId).toLowerCase())
+      );
+      if (match) {
+        setActiveId(match.id);
+        return;
+      }
+    }
     if (allAssignments.length > 0) {
       const liveItem = allAssignments.find(a => a.is_raw);
       if (liveItem) {
@@ -43,7 +54,7 @@ export default function Tasks({ reports = [], updateReportStatus, setPage }) {
         setActiveId(allAssignments[0].id);
       }
     }
-  }, [reports, allAssignments]);
+  }, [reports, allAssignments, selectedReportId]);
 
   const activeItem = allAssignments.find((a) => a.id === activeId || a.raw_id === activeId) || allAssignments[0];
 

@@ -2,27 +2,88 @@ import React, { useState, useRef, useEffect } from "react";
 import { Search, Bell, ArrowRight, LogOut, User, Menu, X, ArrowLeft } from "lucide-react";
 import Brand from "./Brand";
 
-export default function Header({ page, setPage, user, setUser, reports = [], simple = false }) {
+const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
+export default function Header({ page, setPage, user, setUser, reports = [], simple = false, selectedReportId, setSelectedReportId }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [fetchedNotifs, setFetchedNotifs] = useState([]);
   const dropdownRef = useRef(null);
   const notifRef = useRef(null);
 
+  useEffect(() => {
+    async function loadNotifications() {
+      if (!user) return;
+      try {
+        const query = new URLSearchParams();
+        if (user.role === "engineer") {
+          query.set("role", "engineer");
+          if (user.name) query.set("engineer_name", user.name);
+        } else if (user.role === "admin") {
+          query.set("role", "admin");
+        } else {
+          query.set("role", "citizen");
+          if (user.id) query.set("user_id", user.id);
+        }
+        const res = await fetch(`${apiUrl}/reports/notifications?${query.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.notifications) {
+            setFetchedNotifs(data.notifications);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to fetch notifications:", e);
+      }
+    }
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 4000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const markRead = async (notifId) => {
+    try {
+      await fetch(`${apiUrl}/reports/notifications/${notifId}/read`, { method: "PATCH" });
+      setFetchedNotifs(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const notifications = React.useMemo(() => {
     const list = reports || [];
-    if (user?.role === "engineer") {
-      const engItems = list.filter(r => r.assigned_engineer || ["Crew Assigned", "In Progress", "Approved", "Pending Final Verification"].includes(r.status));
-      return engItems.length > 0 ? engItems : list;
+    let items = [];
+
+    if (fetchedNotifs.length > 0) {
+      items = fetchedNotifs.map(n => ({
+        id: n.id,
+        report_id: n.report_id,
+        tracking_id: n.report_id ? n.report_id.substring(0, 8).toUpperCase() : "ALERT",
+        title: n.title,
+        description: n.message,
+        category: n.title,
+        status: n.type,
+        read: n.read,
+        created_at: n.created_at
+      }));
+    } else {
+      if (user?.role === "engineer") {
+        const engName = (user?.name || "").toLowerCase();
+        items = list.filter(r => {
+          const assigned = (r.assigned_engineer || r.crew || "").toLowerCase();
+          return (engName && (assigned.includes(engName) || engName.includes(assigned))) ||
+                 ["Crew Assigned", "In Progress", "Approved", "Pending Final Verification"].includes(r.status);
+        });
+      } else if (user?.role === "admin") {
+        items = list.filter(r => r.status === "Pending" || r.status === "Submitted" || !r.status || r.status === "Pending Final Verification");
+      } else {
+        items = list.filter(r => r.assigned_engineer || r.status !== "Resolved");
+      }
     }
-    if (user?.role === "admin") {
-      const adminItems = list.filter(r => r.status === "Pending" || r.status === "Submitted" || !r.status || r.status === "Pending Final Verification");
-      return adminItems.length > 0 ? adminItems : list;
-    }
-    // Default fallback (e.g. citizen or guest)
-    const activeItems = list.filter(r => r.assigned_engineer || r.status !== "Resolved");
-    return activeItems.length > 0 ? activeItems : list;
-  }, [reports, user?.role]);
+
+    return items;
+  }, [reports, user, fetchedNotifs]);
 
   const notifHeaderTitle = 
     user?.role === "engineer" ? "Assigned Task Alerts" :
@@ -171,7 +232,7 @@ export default function Header({ page, setPage, user, setUser, reports = [], sim
                   <div style={{ padding: "12px 16px", borderBottom: "1px solid #eee", background: "#f8fafc", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "#111" }}>{notifHeaderTitle}</span>
                     <span style={{ fontSize: "0.7rem", backgroundColor: user?.role === "engineer" ? "#dbeafe" : "#fee2e2", color: user?.role === "engineer" ? "#1d4ed8" : "#dc2626", fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>
-                      {notifications.length} {notifBadgeText}
+                      {notifications.filter(n => !n.read).length} UNREAD
                     </span>
                   </div>
 
@@ -185,25 +246,38 @@ export default function Header({ page, setPage, user, setUser, reports = [], sim
                         <div
                           key={r.id}
                           onClick={() => {
+                            const targetId = r.report_id || r.tracking_id || r.id;
+                            if (setSelectedReportId && targetId) {
+                              setSelectedReportId(targetId);
+                            }
+                            if (r.id) markRead(r.id);
+                            window.dispatchEvent(new CustomEvent("refreshReports"));
                             setNotifOpen(false);
-                            setPage(notifTargetPage);
+                            let target = notifTargetPage;
+                            if (user?.role === "admin") target = "admin-reports";
+                            else if (user?.role === "engineer") target = "tasks";
+                            else if (user?.role === "citizen") target = "track";
+                            setPage(target);
                           }}
                           style={{
                             padding: "12px 16px",
                             borderBottom: "1px solid #f0f0f0",
                             cursor: "pointer",
                             transition: "background 0.15s",
-                            backgroundColor: "#fff"
+                            backgroundColor: r.read ? "#fafafa" : "#eff6ff"
                           }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = r.read ? "#fafafa" : "#eff6ff")}
                         >
                           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                            <span style={{ fontSize: "0.75rem", fontWeight: 700, color: user?.role === "engineer" ? "#2563eb" : "#dc2626" }}>{notifItemTag}</span>
-                            <span style={{ fontSize: "0.7rem", color: "#9ca3af" }}>#{r.tracking_id || (r.id ? r.id.substring(0, 8) : "REF")}</span>
+                            <span style={{ fontSize: "0.75rem", fontWeight: 700, color: user?.role === "engineer" ? "#2563eb" : "#dc2626" }}>
+                              {!r.read && <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#2563eb", marginRight: 6 }}></span>}
+                              {notifItemTag}
+                            </span>
+                            <span style={{ fontSize: "0.7rem", color: "#9ca3af" }}>#{r.tracking_id || (r.id ? String(r.id).substring(0, 8) : "REF")}</span>
                           </div>
                           <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111", marginBottom: 2 }}>{r.title || r.category}</div>
-                          <div style={{ fontSize: "0.75rem", color: "#6b7280", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          <div style={{ fontSize: "0.75rem", color: "#4b5563", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                             {r.description || (user?.role === "engineer" ? "Assigned to your crew by Admin." : "Submitted by citizen.")}
                           </div>
                         </div>

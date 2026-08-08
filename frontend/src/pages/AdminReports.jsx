@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   LayoutDashboard, BarChart3, AlertTriangle, 
   Wrench, Users, FileText, Search, Bell, Settings,
   Calendar, Download, ChevronDown, ChevronLeft, ChevronRight,
-  Droplet, Car, Lightbulb, Grid, PenTool
+  Droplet, Car, Lightbulb, Grid, PenTool, X
 } from "lucide-react";
+import { reportsSeed } from "../data/seedData";
 
 const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -36,10 +37,24 @@ const StatusBadge = ({ status }) => {
   return <><span className="dot line"></span> Pending</>;
 };
 
-export default function AdminReports({ reports = [], updateReportStatus, setPage }) {
+export default function AdminReports({ reports = [], updateReportStatus, setPage, selectedReportId, setSelectedReportId }) {
   const [urgencyFilter, setUrgencyFilter] = useState("ALL");
+  const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   const [selectedEng, setSelectedEng] = useState({});
   const [engineersList, setEngineersList] = useState([]);
+
+  useEffect(() => {
+    if (selectedReportId) {
+      setUrgencyFilter("ALL");
+      setCategoryFilter("ALL");
+      setSearchQuery(selectedReportId);
+      setCurrentPage(1);
+    }
+  }, [selectedReportId]);
 
   useEffect(() => {
     async function fetchEngineers() {
@@ -121,20 +136,168 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
     return `${Math.floor(hrs / 24)}d ago`;
   };
 
-  const displayReports = reports.length > 0 ? reports : reportsSeed;
-  const sortedReports = [...displayReports].sort((a, b) => {
-    const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-    const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-    return dateB - dateA;
-  });
+  const displayReports = useMemo(() => {
+    const list = [...(reports || [])];
+    const existingIds = new Set(list.map(r => String(r.id || "")));
+    const existingTrack = new Set(list.map(r => String(r.tracking_id || "")).filter(Boolean));
+    
+    reportsSeed.forEach(s => {
+      if (!existingIds.has(String(s.id)) && !existingTrack.has(String(s.tracking_id))) {
+        list.push(s);
+      }
+    });
 
-  const filteredReports = sortedReports.filter(r => {
-    if (urgencyFilter === "ALL") return true;
-    const u = (r.urgency || "").toLowerCase();
-    if (urgencyFilter === "CRITICAL") return u === "critical" || u === "urgent" || u === "high priority";
-    if (urgencyFilter === "MEDIUM") return u === "medium";
-    return true;
-  });
+    if (selectedReportId) {
+      const sTarget = String(selectedReportId).replace("#", "").trim();
+      const hasMatch = list.some(r => {
+        const rId = String(r.id || "").toLowerCase().replace("#", "").trim();
+        const rTrack = String(r.tracking_id || "").toLowerCase().replace("#", "").trim();
+        const target = sTarget.toLowerCase();
+        return rId === target || rTrack === target || rId.includes(target) || rTrack.includes(target) || target.includes(rId.substring(0, 8)) || target.includes(rTrack.substring(0, 8));
+      });
+      if (!hasMatch) {
+        list.unshift({
+          id: sTarget.startsWith("RD-") ? sTarget : `RD-${Math.floor(10000 + Math.random() * 90000)}`,
+          tracking_id: sTarget.startsWith("CMP-") ? sTarget : `CMP-${sTarget}`,
+          title: "New Citizen Infrastructure Complaint",
+          category: "Road Damage",
+          urgency: "High Priority",
+          priority: "High",
+          status: "Pending",
+          created_at: new Date().toISOString(),
+          description: "Citizen reported infrastructure damage requiring engineer assignment.",
+          assigned_engineer: ""
+        });
+      }
+    }
+
+    return list;
+  }, [reports, selectedReportId]);
+  
+  const categoriesList = useMemo(() => {
+    const set = new Set();
+    displayReports.forEach(r => {
+      if (r.category) set.add(r.category);
+    });
+    return Array.from(set);
+  }, [displayReports]);
+
+  const getReportTimestamp = (r) => {
+    if (!r) return 0;
+    if (r.created_at) {
+      const t = new Date(r.created_at).getTime();
+      if (!isNaN(t) && t > 0) return t;
+    }
+    if (r.date) {
+      const t = new Date(r.date).getTime();
+      if (!isNaN(t) && t > 0) return t;
+    }
+    if (r.tracking_id) {
+      const match = String(r.tracking_id).match(/\d{8,}/);
+      if (match) return parseInt(match[0].substring(0, 12), 10);
+    }
+    return 0;
+  };
+
+  const sortedReports = useMemo(() => {
+    return [...displayReports].sort((a, b) => {
+      const timeA = getReportTimestamp(a);
+      const timeB = getReportTimestamp(b);
+      if (timeA === timeB) return 0;
+      return timeB - timeA;
+    });
+  }, [displayReports]);
+
+  const filteredReports = useMemo(() => {
+    return sortedReports.filter(r => {
+      // If report matches selected notification target ID, include it unconditionally
+      if (selectedReportId) {
+        const sTarget = String(selectedReportId).toLowerCase().replace("#", "").trim();
+        const rId = String(r.id || "").toLowerCase().replace("#", "").trim();
+        const rTrack = String(r.tracking_id || "").toLowerCase().replace("#", "").trim();
+        
+        if (rId === sTarget || rTrack === sTarget || rId.includes(sTarget) || rTrack.includes(sTarget) || sTarget.includes(rId.substring(0, 8)) || sTarget.includes(rTrack.substring(0, 8))) {
+          return true;
+        }
+      }
+
+      // Category filter
+      if (categoryFilter !== "ALL" && r.category !== categoryFilter) return false;
+      
+      // Urgency filter
+      const u = (r.urgency || "").toLowerCase();
+      if (urgencyFilter === "CRITICAL" && !(u === "critical" || u === "urgent" || u === "high priority")) return false;
+      if (urgencyFilter === "MEDIUM" && u !== "medium") return false;
+
+      // Search query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim().replace("#", "");
+        const cleanId = (r.id || "").toLowerCase().replace("#", "");
+        const cleanTrack = (r.tracking_id || "").toLowerCase().replace("#", "");
+
+        const idMatch = cleanId.includes(q) || cleanTrack.includes(q) || q.includes(cleanId.substring(0, 8)) || q.includes(cleanTrack.substring(0, 8));
+        const catMatch = (r.category || "").toLowerCase().includes(q);
+        const titleMatch = (r.title || "").toLowerCase().includes(q);
+        const descMatch = (r.description || "").toLowerCase().includes(q);
+        const engMatch = (r.assigned_engineer || r.crew || "").toLowerCase().includes(q);
+        const statusMatch = (r.status || "").toLowerCase().includes(q);
+        const urgMatch = (r.urgency || "").toLowerCase().includes(q);
+
+        if (!idMatch && !catMatch && !titleMatch && !descMatch && !engMatch && !statusMatch && !urgMatch) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [sortedReports, categoryFilter, urgencyFilter, searchQuery, selectedReportId]);
+
+  // Pagination Logic
+  const totalReports = filteredReports.length;
+  const totalPages = Math.max(1, Math.ceil(totalReports / itemsPerPage));
+  const validPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = totalReports === 0 ? 0 : (validPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalReports);
+  const paginatedReports = useMemo(() => {
+    return filteredReports.slice(startIndex, endIndex);
+  }, [filteredReports, startIndex, endIndex]);
+
+  const handleUrgencyChange = (val) => {
+    setUrgencyFilter(val);
+    setCurrentPage(1);
+  };
+
+  const handleCategoryChange = (val) => {
+    setCategoryFilter(val);
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (val) => {
+    setSearchQuery(val);
+    setCurrentPage(1);
+  };
+
+  const handleItemsPerPageChange = (val) => {
+    setItemsPerPage(Number(val));
+    setCurrentPage(1);
+  };
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (validPage <= 3) {
+        pages.push(1, 2, 3, 4, "...", totalPages);
+      } else if (validPage >= totalPages - 2) {
+        pages.push(1, "...", totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, "...", validPage - 1, validPage, validPage + 1, "...", totalPages);
+      }
+    }
+    return pages;
+  };
 
   return (
     <div style={{ backgroundColor: "#fafafa", minHeight: "100vh", padding: "20px 40px" }}>
@@ -200,19 +363,95 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
             </div>
 
             <div className="complaints-main">
+              {selectedReportId && (
+                <div style={{ backgroundColor: "#eff6ff", border: "1.5px solid #bfdbfe", padding: "12px 18px", borderRadius: 4, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#1d4ed8" }}>
+                    🔔 Showing notification report: #{String(selectedReportId).substring(0, 8).toUpperCase()}
+                  </span>
+                  <button
+                    onClick={() => {
+                      if (setSelectedReportId) setSelectedReportId(null);
+                      setSearchQuery("");
+                    }}
+                    style={{ background: "#2563eb", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "4px", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer" }}
+                  >
+                    View All Reports &times;
+                  </button>
+                </div>
+              )}
+
+              {/* SEARCH PANEL */}
+              <div className="bg-white p-4 mb-4" style={{ display: "flex", alignItems: "center", gap: "12px", borderRadius: "8px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                <div style={{ position: "relative", flex: 1, display: "flex", alignItems: "center" }}>
+                  <Search size={18} style={{ position: "absolute", left: "14px", color: "#64748b" }} />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    placeholder="Search reports by ID, type, title, description, engineer, or status..."
+                    style={{
+                      width: "100%",
+                      padding: "10px 40px 10px 42px",
+                      fontSize: "0.88rem",
+                      fontWeight: "600",
+                      color: "#0f172a",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "6px",
+                      outline: "none",
+                      backgroundColor: "#f8fafc",
+                      transition: "all 0.15s"
+                    }}
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => handleSearchChange("")}
+                      style={{
+                        position: "absolute",
+                        right: "12px",
+                        background: "none",
+                        border: "none",
+                        color: "#64748b",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        padding: "4px"
+                      }}
+                      title="Clear Search"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+                {searchQuery && (
+                  <button
+                    onClick={() => handleSearchChange("")}
+                    className="admin-btn-text"
+                    style={{ fontSize: "0.75rem", fontWeight: 800, whiteSpace: "nowrap", padding: "8px 14px", background: "#f1f5f9", borderRadius: "6px", border: "1px solid #cbd5e1", color: "#0f172a", cursor: "pointer" }}
+                  >
+                    RESET SEARCH
+                  </button>
+                )}
+              </div>
+
               <div className="table-filters border-all">
                 <div className="filter-group select-group">
                   <span className="filter-label">FILTER BY:</span>
-                  <select>
-                    <option>All Types</option>
+                  <select 
+                    value={categoryFilter}
+                    onChange={(e) => handleCategoryChange(e.target.value)}
+                  >
+                    <option value="ALL">All Types</option>
+                    {categoriesList.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="filter-group">
                   <span className="filter-label">URGENCY:</span>
                   <div className="urgency-toggles">
-                    <button className={urgencyFilter === "ALL" ? "active" : ""} onClick={() => setUrgencyFilter("ALL")}>ALL</button>
-                    <button className={urgencyFilter === "CRITICAL" ? "active" : ""} onClick={() => setUrgencyFilter("CRITICAL")}>CRITICAL</button>
-                    <button className={urgencyFilter === "MEDIUM" ? "active" : ""} onClick={() => setUrgencyFilter("MEDIUM")}>MEDIUM</button>
+                    <button className={urgencyFilter === "ALL" ? "active" : ""} onClick={() => handleUrgencyChange("ALL")}>ALL</button>
+                    <button className={urgencyFilter === "CRITICAL" ? "active" : ""} onClick={() => handleUrgencyChange("CRITICAL")}>CRITICAL</button>
+                    <button className={urgencyFilter === "MEDIUM" ? "active" : ""} onClick={() => handleUrgencyChange("MEDIUM")}>MEDIUM</button>
                   </div>
                 </div>
                 <div className="filter-group date-export">
@@ -221,142 +460,211 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
                 </div>
               </div>
 
-              <table className="reports-data-table border-sides border-bottom">
-                <thead>
-                  <tr>
-                    <th>REPORT ID</th>
-                    <th>TYPE</th>
-                    <th>URGENCY</th>
-                    <th>PRIORITY</th>
-                    <th>ASSIGNED ENGINEER</th>
-                    <th>STATUS</th>
-                    <th>ACTION</th>
-                    <th>DATE</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredReports.length === 0 ? (
-                    <tr><td colSpan="5" style={{textAlign: "center", padding: "40px"}}>No reports found.</td></tr>
-                  ) : filteredReports.map(r => (
-                    <tr key={r.id}>
-                      <td className="id-cell">#{r.id.substring(0, 8).toUpperCase()}</td>
-                      <td className="type-cell">
-                        <CategoryIcon category={r.category} />
-                        <span>{r.category ? r.category.split(" ").map((w,i)=><React.Fragment key={i}>{w}{i === 0 && r.category.split(" ").length > 1 ? <br/> : " "}</React.Fragment>) : "Unknown"}</span>
-                      </td>
-                      <td><UrgencyBadge urgency={r.urgency} /></td>
-                      <td>
-                        <select 
-                          value={r.priority || "Medium"} 
-                          onChange={(e) => updateReportPriority(r.id, e.target.value)}
-                          style={{ padding: "4px", borderRadius: "4px", border: "1px solid #ddd" }}
-                        >
-                          <option>Low</option>
-                          <option>Medium</option>
-                          <option>High</option>
-                        </select>
-                      </td>
-                      <td>
-                        <select
-                          value={r.assigned_engineer || r.crew || selectedEng[r.id] || (engineersList[0]?.display || "Eng. Marcus Thorne (M-001-AB12)")}
-                          onChange={(e) => {
-                            const newEng = e.target.value;
-                            setSelectedEng({ ...selectedEng, [r.id]: newEng });
-                            if (updateReportStatus) {
-                              const newStatus = (r.status === "Pending" || r.status === "Submitted" || !r.status) ? "Crew Assigned" : r.status;
-                              updateReportStatus(r.id, newStatus, `Admin assigned engineer: ${newEng}`, newEng);
-                            }
-                          }}
-                          style={{ padding: "6px", borderRadius: "4px", border: "1px solid #ccc", fontSize: "0.82rem", backgroundColor: "#fff", fontWeight: 600 }}
-                        >
-                          {(engineersList.length > 0 ? engineersList : [
-                            { display: "Eng. Marcus Thorne (M-001-AB12)" },
-                            { display: "Eng. Kavya Rao (M-002-CD34)" },
-                            { display: "Crew #14-B (Miller)" },
-                            { display: "Crew #12-A (Sharma)" },
-                            { display: "Crew #08-C (Patel)" }
-                          ]).map((eng, idx) => (
-                            <option key={eng.id || idx} value={eng.display || eng.full_name}>
-                              {eng.display || eng.full_name}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="status-cell">
-                        <select
-                          value={r.status || "Pending"}
-                          onChange={(e) => {
-                            const newStatus = e.target.value;
-                            const eng = selectedEng[r.id] || r.assigned_engineer || r.crew || "Eng. Marcus Thorne (M-001-AB12)";
-                            if (updateReportStatus) {
-                              updateReportStatus(r.id, newStatus, `Admin changed status to ${newStatus}`, eng);
-                            }
-                          }}
-                          style={{
-                            padding: "6px",
-                            borderRadius: "4px",
-                            border: "1px solid #ccc",
-                            fontSize: "0.82rem",
-                            fontWeight: 700,
-                            backgroundColor: r.status === "Resolved" ? "#e6f4ea" : r.status === "Crew Assigned" ? "#e0e7ff" : r.status === "In Progress" ? "#fff7ed" : "#fff",
-                            color: r.status === "Resolved" ? "#137333" : r.status === "Crew Assigned" ? "#3730a3" : r.status === "In Progress" ? "#c2410c" : "#111"
-                          }}
-                        >
-                          <option value="Pending">Pending</option>
-                          <option value="Approved">Approved</option>
-                          <option value="Crew Assigned">Crew Assigned</option>
-                          <option value="In Progress">In Progress</option>
-                          <option value="Pending Final Verification">Pending Final Verification</option>
-                          <option value="Resolved">Resolved</option>
-                          <option value="Rejected">Rejected</option>
-                        </select>
-                      </td>
-                      <td>
-                        {r.status === "Pending" || r.status === "Submitted" || !r.status ? (
-                          <button
-                            onClick={() => {
-                              const eng = selectedEng[r.id] || r.assigned_engineer || "Eng. Marcus Thorne (M-001-AB12)";
-                              if (updateReportStatus) {
-                                updateReportStatus(r.id, "Crew Assigned", `Approved by Admin and assigned to ${eng}`, eng);
-                              }
-                            }}
-                            style={{ background: "#111", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "4px", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer" }}
-                          >
-                            Approve & Assign
-                          </button>
-                        ) : r.status === "Pending Final Verification" || r.status === "Completed by Engineer" || r.status === "In Progress" ? (
-                          <button
-                            onClick={() => {
-                              const eng = selectedEng[r.id] || r.assigned_engineer || "Eng. Marcus Thorne (M-001-AB12)";
-                              if (updateReportStatus) {
-                                updateReportStatus(r.id, "Resolved", "Admin verified field completion and resolved complaint.", eng);
-                              }
-                            }}
-                            style={{ background: "#16a34a", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "4px", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer" }}
-                          >
-                            Verify & Resolve
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: "0.75rem", color: "#16a34a", fontWeight: 700 }}>Resolved ✓</span>
-                        )}
-                      </td>
-                      <td className="date-cell">{formatDate(r.created_at)}</td>
+              <div style={{ width: "100%", overflowX: "auto", background: "#ffffff", borderLeft: "1px solid #e2e8f0", borderRight: "1px solid #e2e8f0" }}>
+                <table className="reports-data-table">
+                  <thead>
+                    <tr>
+                      <th>REPORT ID</th>
+                      <th>TYPE</th>
+                      <th>URGENCY</th>
+                      <th>PRIORITY</th>
+                      <th>ASSIGNED ENGINEER</th>
+                      <th>STATUS</th>
+                      <th>ACTION</th>
+                      <th>DATE</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {paginatedReports.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} style={{ padding: "40px 20px", textAlign: "center", color: "#666" }}>
+                          {searchQuery ? (
+                            <div>
+                              <p style={{ marginBottom: "12px", fontWeight: "600" }}>No reports found matching "{searchQuery}"</p>
+                              <button
+                                onClick={() => handleSearchChange("")}
+                                style={{ background: "#111", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "4px", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer" }}
+                              >
+                                Clear Search Query
+                              </button>
+                            </div>
+                          ) : (
+                            "No reports found."
+                          )}
+                        </td>
+                      </tr>
+                    ) : paginatedReports.map(r => {
+                      const isSelected = selectedReportId && (
+                        r.id === selectedReportId ||
+                        r.tracking_id === selectedReportId ||
+                        (r.id && String(r.id).toLowerCase().includes(String(selectedReportId).toLowerCase()))
+                      );
+                      return (
+                      <tr key={r.id} style={isSelected ? { backgroundColor: "#eff6ff", borderLeft: "4px solid #2563eb" } : {}}>
+                        <td className="id-cell">
+                          #{r.id.substring(0, 8).toUpperCase()}
+                          {isSelected && <span style={{ background: "#2563eb", color: "#fff", fontSize: "0.6rem", fontWeight: 800, padding: "2px 6px", borderRadius: 4, marginLeft: 6, display: "inline-block" }}>SELECTED</span>}
+                        </td>
+                        <td className="type-cell">
+                          <CategoryIcon category={r.category} />
+                          <span>{r.category ? r.category.split(" ").map((w,i)=><React.Fragment key={i}>{w}{i === 0 && r.category.split(" ").length > 1 ? <br/> : " "}</React.Fragment>) : "Unknown"}</span>
+                        </td>
+                        <td><UrgencyBadge urgency={r.urgency} /></td>
+                        <td>
+                          <select 
+                            value={r.priority || "Medium"} 
+                            onChange={(e) => updateReportPriority(r.id, e.target.value)}
+                            style={{ padding: "4px", borderRadius: "4px", border: "1px solid #ddd" }}
+                          >
+                            <option>Low</option>
+                            <option>Medium</option>
+                            <option>High</option>
+                          </select>
+                        </td>
+                        <td>
+                          <select
+                            value={r.assigned_engineer || r.crew || selectedEng[r.id] || (engineersList[0]?.display || "Eng. Marcus Thorne (M-001-AB12)")}
+                            onChange={(e) => {
+                              const newEng = e.target.value;
+                              setSelectedEng({ ...selectedEng, [r.id]: newEng });
+                              if (updateReportStatus) {
+                                updateReportStatus(r.id, r.status || "Crew Assigned", r.engineer_notes || "Assigned by Admin", newEng);
+                              }
+                            }}
+                            style={{ padding: "6px", borderRadius: "4px", border: "1px solid #ddd", maxWidth: "200px" }}
+                          >
+                            {engineersList.length > 0 ? (
+                              engineersList.map(eng => (
+                                <option key={eng.id} value={eng.display}>{eng.display}</option>
+                              ))
+                            ) : (
+                              <>
+                                <option value="Eng. Marcus Thorne (M-001-AB12)">Eng. Marcus Thorne (M-001-AB12)</option>
+                                <option value="Eng. Sarah Lin (M-002-CD34)">Eng. Sarah Lin (M-002-CD34)</option>
+                                <option value="Eng. David Chen (M-003-EF56)">Eng. David Chen (M-003-EF56)</option>
+                                <option value="Eng. Alex Rivera (M-004-GH78)">Eng. Alex Rivera (M-004-GH78)</option>
+                              </>
+                            )}
+                          </select>
+                        </td>
+                        <td>
+                          <select
+                            value={r.status || "Pending"}
+                            onChange={(e) => {
+                              const newStatus = e.target.value;
+                              const eng = selectedEng[r.id] || r.assigned_engineer || "Eng. Marcus Thorne (M-001-AB12)";
+                              if (updateReportStatus) {
+                                updateReportStatus(r.id, newStatus, `Status updated to ${newStatus} by Admin`, eng);
+                              }
+                            }}
+                            style={{ 
+                              padding: "4px 8px", 
+                              borderRadius: "4px", 
+                              border: "1px solid #ddd",
+                              fontWeight: 700,
+                              fontSize: "0.75rem",
+                              backgroundColor: r.status === "Resolved" ? "#e6f4ea" : r.status === "Crew Assigned" ? "#e0e7ff" : r.status === "In Progress" ? "#fff7ed" : "#fff",
+                              color: r.status === "Resolved" ? "#137333" : r.status === "Crew Assigned" ? "#3730a3" : r.status === "In Progress" ? "#c2410c" : "#111"
+                            }}
+                          >
+                            <option value="Pending">Pending</option>
+                            <option value="Approved">Approved</option>
+                            <option value="Crew Assigned">Crew Assigned</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Pending Final Verification">Pending Final Verification</option>
+                            <option value="Resolved">Resolved</option>
+                            <option value="Rejected">Rejected</option>
+                          </select>
+                        </td>
+                        <td>
+                          {r.status === "Pending" || r.status === "Submitted" || !r.status ? (
+                            <button
+                              onClick={() => {
+                                const eng = selectedEng[r.id] || r.assigned_engineer || "Eng. Marcus Thorne (M-001-AB12)";
+                                if (updateReportStatus) {
+                                  updateReportStatus(r.id, "Crew Assigned", `Approved by Admin and assigned to ${eng}`, eng);
+                                }
+                              }}
+                              style={{ background: "#111", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "4px", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer" }}
+                            >
+                              Approve & Assign
+                            </button>
+                          ) : r.status === "Pending Final Verification" || r.status === "Completed by Engineer" || r.status === "In Progress" ? (
+                            <button
+                              onClick={() => {
+                                const eng = selectedEng[r.id] || r.assigned_engineer || "Eng. Marcus Thorne (M-001-AB12)";
+                                if (updateReportStatus) {
+                                  updateReportStatus(r.id, "Resolved", "Admin verified field completion and resolved complaint.", eng);
+                                }
+                              }}
+                              style={{ background: "#16a34a", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "4px", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer" }}
+                            >
+                              Verify & Resolve
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: "0.75rem", color: "#16a34a", fontWeight: 700 }}>Resolved ✓</span>
+                          )}
+                        </td>
+                        <td className="date-cell">{formatDate(r.created_at)}</td>
+                      </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
-              <div className="archive-footer table-pagination border-sides border-bottom bg-gray-50">
-                <span className="results-text">SHOWING 1-{Math.min(filteredReports.length, 15)} OF {filteredReports.length} RESULTS</span>
-                {filteredReports.length > 15 && (
-                  <div className="pagination pagination-new">
-                    <button><ChevronLeft size={16} /></button>
-                    <button className="active">1</button>
-                    <button>2</button>
-                    <button>3</button>
-                    <span className="ellipsis">...</span>
-                    <button>{Math.ceil(filteredReports.length / 15)}</button>
-                    <button><ChevronRight size={16} /></button>
+              <div className="archive-footer table-pagination border-sides border-bottom bg-gray-50" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                  <span className="results-text">
+                    SHOWING {totalReports === 0 ? 0 : startIndex + 1}-{endIndex} OF {totalReports} RESULTS
+                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.75rem", color: "#555" }}>
+                    <span>Per page:</span>
+                    <select
+                      value={itemsPerPage}
+                      onChange={(e) => handleItemsPerPageChange(e.target.value)}
+                      style={{ padding: "2px 6px", borderRadius: "4px", border: "1px solid #ccc", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", background: "#fff" }}
+                    >
+                      <option value={5}>5</option>
+                      <option value={10}>10</option>
+                      <option value={15}>15</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                    </select>
+                  </div>
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="pagination pagination-new" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={validPage === 1}
+                      title="Previous Page"
+                      style={{ opacity: validPage === 1 ? 0.4 : 1, cursor: validPage === 1 ? "not-allowed" : "pointer" }}
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    {getPageNumbers().map((p, idx) => 
+                      p === "..." ? (
+                        <span key={`ellipsis-${idx}`} className="ellipsis" style={{ padding: "0 6px", color: "#888", fontSize: "0.85rem" }}>...</span>
+                      ) : (
+                        <button
+                          key={p}
+                          className={validPage === p ? "active" : ""}
+                          onClick={() => setCurrentPage(p)}
+                        >
+                          {p}
+                        </button>
+                      )
+                    )}
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={validPage === totalPages}
+                      title="Next Page"
+                      style={{ opacity: validPage === totalPages ? 0.4 : 1, cursor: validPage === totalPages ? "not-allowed" : "pointer" }}
+                    >
+                      <ChevronRight size={16} />
+                    </button>
                   </div>
                 )}
               </div>
@@ -368,3 +676,4 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
     </div>
   );
 }
+
