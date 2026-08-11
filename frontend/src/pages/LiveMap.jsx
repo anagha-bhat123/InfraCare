@@ -4,7 +4,7 @@ import MapPanel from "../components/MapPanel";
 import { reportsSeed } from "../data/seedData";
 
 export default function LiveMap({ reports = [], setPage }) {
-  const [coords, setCoords] = useState([40.7128, -74.006]);
+  const [coords, setCoords] = useState([13.3409, 74.7421]);
   const [popup, setPopup] = useState(true);
   const [heat, setHeat] = useState(true);
 
@@ -23,8 +23,16 @@ export default function LiveMap({ reports = [], setPage }) {
         <p>Filter infrastructure data by region and type.</p>
         <label>
           Jurisdiction
-          <select>
-            <option>Metropolitan Area - Sector A</option>
+          <select onChange={(e) => {
+            if (e.target.value === "udupi") setCoords([13.3409, 74.7421]);
+            else if (e.target.value === "mangalore") setCoords([12.9141, 74.8560]);
+            else if (e.target.value === "manipal") setCoords([13.3525, 74.7865]);
+            else if (e.target.value === "surathkal") setCoords([13.0108, 74.7943]);
+          }}>
+            <option value="udupi">Udupi Region (Central)</option>
+            <option value="mangalore">Mangalore City Corporation</option>
+            <option value="manipal">Manipal, Udupi</option>
+            <option value="surathkal">Surathkal, Mangalore</option>
           </select>
         </label>
         <label>Report Period<input type="date" defaultValue="2023-10-01" /></label>
@@ -80,7 +88,7 @@ export default function LiveMap({ reports = [], setPage }) {
             </header>
             <div>
               <img src={reportsSeed[0].evidence} alt="Evidence preview" />
-              <p><b>Location</b>{coords[0].toFixed(4)}° N, {Math.abs(coords[1]).toFixed(4)}° W<br />Lincoln Blvd & 5th Ave</p>
+              <p><b>Location</b> {coords[0].toFixed(4)}° N, {coords[1] >= 0 ? coords[1].toFixed(4) + "° E" : Math.abs(coords[1]).toFixed(4) + "° W"}<br />Manipal Main Rd, Udupi</p>
             </div>
             <footer>
               <span><small>Priority</small><b className="red">High Severity</b></span>

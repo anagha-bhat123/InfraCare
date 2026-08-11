@@ -75,7 +75,7 @@ export default function Inspections({ setPage }) {
           
           <div className="task-grid" style={{ marginBottom: 30 }}>
             <article className="panel">
-              <h3>Site Coordinates <b>{inspection.coords[0]}° N, {Math.abs(inspection.coords[1])}° W</b></h3>
+              <h3>Site Coordinates <b>{inspection.coords[0]}° N, {inspection.coords[1] >= 0 ? inspection.coords[1] + "° E" : Math.abs(inspection.coords[1]) + "° W"}</b></h3>
               <MapPanel compact coords={inspection.coords} />
             </article>
             <article className="panel">

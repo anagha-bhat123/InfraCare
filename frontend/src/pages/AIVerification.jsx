@@ -171,9 +171,9 @@ export default function AIVerification({ reports, updateReportStatus, setPage })
                 </div>
                 {/* Map */}
                 <div style={{ borderRadius: 4, overflow: "hidden", height: 280, backgroundColor: "#f3f4f6", position: "relative" }}>
-                  <MapPanel compact coords={[51.5074, -0.1278]} />
+                  <MapPanel compact coords={[13.3409, 74.7421]} />
                   <div style={{ position: "absolute", bottom: 16, right: 16, backgroundColor: "#fff", padding: "8px 12px", fontSize: "0.75rem", fontWeight: 700, border: "1px solid #e5e7eb", borderRadius: 2, color: "#111", zIndex: 1000 }}>
-                    LAT: 51.5074° N<br />LNG: 0.1278° W
+                    LAT: 13.3409° N<br />LNG: 74.7421° E
                   </div>
                 </div>
               </div>

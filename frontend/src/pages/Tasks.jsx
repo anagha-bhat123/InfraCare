@@ -17,7 +17,7 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
       state: (r.status || "CREW ASSIGNED").toUpperCase(),
       title: r.title || r.category || "Road Damage Incident",
       place: `Lat: ${r.latitude}, Lng: ${r.longitude}`,
-      coords: [r.latitude || 40.7128, r.longitude || -74.006],
+      coords: [r.latitude || 13.3409, r.longitude || 74.7421],
       summary: r.description || "Citizen complaint assigned by Admin for field inspection and repair.",
       type: r.category || "General Damage",
       surface: "Asphalt / Roadway",
@@ -125,7 +125,7 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
                 <div style={{ border: "1px solid #e5e7eb", borderRadius: 4, padding: "24px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                     <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#6b7280", letterSpacing: 1 }}>GPS COORDINATES</span>
-                    <span style={{ fontSize: "0.95rem", fontWeight: 700, color: "#111" }}>{activeItem.coords[0]}° N, {Math.abs(activeItem.coords[1])}° W</span>
+                    <span style={{ fontSize: "0.95rem", fontWeight: 700, color: "#111" }}>{activeItem.coords[0]}° N, {activeItem.coords[1] >= 0 ? activeItem.coords[1] + "° E" : Math.abs(activeItem.coords[1]) + "° W"}</span>
                   </div>
                   <div style={{ position: "relative", borderRadius: 2, overflow: "hidden", height: 200, backgroundColor: "#f3f4f6" }}>
                     <MapPanel compact coords={activeItem.coords} />

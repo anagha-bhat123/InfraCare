@@ -47,7 +47,7 @@ export default function Maintenance({ reports = [], setPage }) {
              </div>
           </div>
           <div style={{ flex: 1, position: "relative", minHeight: 350 }}>
-            <MapPanel coords={[40.7128, -74.006]} reports={reports} heat={true} />
+            <MapPanel coords={[13.3409, 74.7421]} reports={reports} heat={true} />
             <div style={{ position: "absolute", bottom: 16, right: 16, backgroundColor: "#fff", padding: "16px", borderRadius: 4, border: "1px solid #111", minWidth: 160, zIndex: 1000 }}>
               <div style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: 1, color: "#6b7280", marginBottom: 12 }}>SEVERITY SCALE</div>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -101,10 +101,10 @@ export default function Maintenance({ reports = [], setPage }) {
         <section className="panel">
           <h2 style={{ fontSize: "1.1rem", marginBottom: 32, textTransform: "uppercase", letterSpacing: 1 }}>Damage Distribution</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            <DistributionRow label="CENTRAL SECTOR" percent={42} />
-            <DistributionRow label="NORTH DISTRICT" percent={28} />
-            <DistributionRow label="SOUTH COASTAL" percent={15} />
-            <DistributionRow label="WESTERN INDUSTRIAL" percent={15} />
+            <DistributionRow label="UDUPI CENTRAL SECTOR" percent={42} />
+            <DistributionRow label="MANIPAL HUB" percent={28} />
+            <DistributionRow label="SURATHKAL HIGHWAY" percent={15} />
+            <DistributionRow label="HAMPANKATTA & LALBAGH" percent={15} />
           </div>
         </section>
 

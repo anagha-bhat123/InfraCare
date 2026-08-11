@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-export default function MapPanel({ coords, setCoords, compact = false, heat = false, reports = [] }) {
+export default function MapPanel({ coords = [13.3409, 74.7421], setCoords, compact = false, heat = false, reports = [] }) {
   const node = useRef(null);
   const map = useRef(null);
   const marker = useRef(null);

@@ -18,7 +18,7 @@ import Swal from "sweetalert2";
 
 export default function Report({ addReport, setPage }) {
   const [urgency, setUrgency] = useState("Normal");
-  const [coords, setCoords] = useState([40.7128, -74.006]);
+  const [coords, setCoords] = useState([13.3409, 74.7421]);
   const [photo, setPhoto] = useState(null);
   const [category, setCategory] = useState("");
   const [desc, setDesc] = useState("");
@@ -61,7 +61,7 @@ export default function Report({ addReport, setPage }) {
     setPhoto(null);
     setUrgency("Normal");
     setLocationVerified(false);
-    setCoords([40.7128, -74.006]);
+    setCoords([13.3409, 74.7421]);
     setSubmitted(false);
   };
 
@@ -209,7 +209,7 @@ export default function Report({ addReport, setPage }) {
           </div>
           <MapPanel coords={coords} setCoords={(c) => { setCoords(c); setLocationVerified(true); }} />
           <div className="coordbar">
-            Current coordinates <b>{coords[0]}° N, {Math.abs(coords[1])}° W</b>
+            Current coordinates <b>{coords[0]}° N, {coords[1] >= 0 ? coords[1] + "° E" : Math.abs(coords[1]) + "° W"}</b>
             <button type="button" onClick={locate}><LocateFixed /></button>
           </div>
           <aside className="info">The system has automatically pinpointed your location using GPS metadata. You can manually adjust the pin for better precision.</aside>
