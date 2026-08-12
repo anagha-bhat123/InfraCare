@@ -11,21 +11,48 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # Demo credential store — replace with real DB lookup in production
 DEMO_USERS = {
     "citizen":  {"identifiers": ["citizen@demo.com", "anaghabhat920@gmail.com", "9876543210"], "password": "123456"},
-    "engineer": {"identifiers": ["M-001-AB12", "m-001-ab12"],                     "password": "123456"},
-    "admin":    {"identifiers": ["admin@infracare.gov.in"],         "password": "12345678"},
+    "engineer": {"identifiers": ["M-001-PWD1", "m-001-pwd1", "M-002-MES1", "m-002-mes1", "M-001-AB12", "m-001-ab12"], "password": "123456"},
+    "admin":    {"identifiers": ["admin@infracare.gov.in"], "password": "12345678"},
+    "approver": {"identifiers": ["approver@demo.com", "approver@infracare.gov.in", "fin-001-app"], "password": "approver123"},
+}
+
+# Specialized Engineer Department Metadata
+SPECIFIC_ENGINEERS = {
+    "m-001-pwd1": {
+        "id": "eng-pwd-101",
+        "name": "Er. Rajesh Sharma (PWD - Road & Drainage)",
+        "email": "pwd.engineer@infracare.gov.in",
+        "emp_id": "M-001-PWD1",
+        "department": "PWD - Road & Drainage",
+        "password": "pwd123",
+    },
+    "m-002-mes1": {
+        "id": "eng-mes-102",
+        "name": "Er. Vikram R. (MESCOM - Streetlight & Grid)",
+        "email": "mescom.engineer@infracare.gov.in",
+        "emp_id": "M-002-MES1",
+        "department": "MESCOM - Streetlight & Grid",
+        "password": "mescom123",
+    },
+    "m-001-ab12": {
+        "id": "eng-1",
+        "name": "Eng. Marcus Thorne (PWD Civil)",
+        "email": "marcus.engineer@infracare.gov.in",
+        "emp_id": "M-001-AB12",
+        "department": "PWD - Road & Drainage",
+        "password": "123456",
+    }
 }
 
 # Per-engineer credential store: maps emp_id.lower() -> bcrypt password_hash
-# Populated at registration so each engineer can use their own chosen password
-# even when Supabase DB is unavailable (e.g. emp_id column migration pending).
-ENGINEER_CREDS: dict = {}  # {"m-001-ab12": "$2b$...", ...}
+ENGINEER_CREDS: dict = {}
 
 def is_demo_credential(identifier: str) -> bool:
     v = identifier.strip().lower()
-    return v in ["citizen@demo.com", "anaghabhat920@gmail.com", "9876543210", "m-001-ab12", "admin@infracare.gov.in"]
+    return v in ["citizen@demo.com", "anaghabhat920@gmail.com", "9876543210", "m-001-pwd1", "m-002-mes1", "m-001-ab12", "admin@infracare.gov.in", "approver@demo.com", "approver@infracare.gov.in", "fin-001-app"]
 
-def generate_engineer_id() -> str:
-    seq = "".join(random.choices(string.digits, k=3))
+def generate_engineer_id(department: str = "") -> str:
+    seq = "002" if department and "mescom" in department.lower() else "001"
     chars = "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
     return f"M-{seq}-{chars}"
 
@@ -74,7 +101,7 @@ def register_engineer(payload: RegisterEngineerRequest):
     if supabase:
         try:
             for _ in range(10):
-                candidate = generate_engineer_id()
+                candidate = generate_engineer_id(payload.department)
                 existing = supabase.table("profiles").select("id").eq("emp_id", candidate).execute()
                 if not existing.data:
                     emp_id = candidate
@@ -83,7 +110,7 @@ def register_engineer(payload: RegisterEngineerRequest):
             pass
     
     if not emp_id:
-        emp_id = generate_engineer_id()
+        emp_id = generate_engineer_id(payload.department)
         
     default_password = payload.password.strip() if payload.password and payload.password.strip() else "123456"
     password_hash = get_password_hash(default_password)
@@ -197,13 +224,17 @@ def login(payload: LoginRequest):
                 if not verify_password(payload.password, user["password_hash"]):
                     raise HTTPException(status_code=401, detail="Incorrect password.")
                     
-                role_home = {"citizen": "home", "engineer": "maintenance", "admin": "map"}
+                role_home = {"citizen": "home", "engineer": "maintenance", "approver": "approval-authority", "admin": "map"}
+                emp_id = profile.get("emp_id") or ""
+                dept = "MESCOM - Streetlight & Grid" if (emp_id.upper().startswith("M-002") or "MES" in emp_id.upper()) else "PWD - Road & Drainage"
                 return {
                     "user": {
                         "id": profile["id"],
                         "role": "engineer",
                         "name": profile["full_name"],
                         "email": user["email"],
+                        "emp_id": emp_id,
+                        "department": dept
                     },
                     "must_change_password": profile.get("must_change_password", True),
                     "redirect": role_home["engineer"]
@@ -229,9 +260,29 @@ def login(payload: LoginRequest):
             detail="Identifier not found. Check your credentials and selected role.",
         )
 
-    # ── Engineer: verify against individual password hash stored at registration
+    role_home = {"citizen": "home", "engineer": "maintenance", "approver": "approval-authority", "admin": "dashboard"}
+
+    # ── Engineer: verify against individual password hash or specific demo account
     if payload.role == "engineer":
-        stored_hash = ENGINEER_CREDS.get(payload.identifier.strip().lower())
+        spec_key = payload.identifier.strip().lower()
+        if spec_key in SPECIFIC_ENGINEERS:
+            spec = SPECIFIC_ENGINEERS[spec_key]
+            if payload.password != spec["password"] and payload.password != store.get("password", ""):
+                raise HTTPException(status_code=401, detail="Incorrect password. Please enter valid password for your engineering department.")
+            return {
+                "user": {
+                    "id": spec["id"],
+                    "role": "engineer",
+                    "name": spec["name"],
+                    "email": spec["email"],
+                    "emp_id": spec["emp_id"],
+                    "department": spec["department"]
+                },
+                "must_change_password": False,
+                "redirect": role_home["engineer"]
+            }
+
+        stored_hash = ENGINEER_CREDS.get(spec_key)
         if stored_hash:
             if not verify_password(payload.password, stored_hash):
                 raise HTTPException(status_code=401, detail="Incorrect password. Please try again.")
@@ -244,16 +295,29 @@ def login(payload: LoginRequest):
         if payload.password != valid_password:
             raise HTTPException(status_code=401, detail="Incorrect password. Please try again.")
 
-    role_home = {"citizen": "home", "engineer": "maintenance", "admin": "map"}
-    # must_change_password is False — engineer set their own password at registration
     must_change = False
 
+    user_data = {
+        "id":   f"demo-{payload.role}",
+        "role": payload.role,
+        "name": payload.identifier or payload.role.title(),
+    }
+    
+    if payload.role == "engineer":
+        emp_id = payload.identifier.strip().upper()
+        matched_info = SPECIFIC_ENGINEERS.get(payload.identifier.strip().lower())
+        if matched_info:
+            user_data["name"] = matched_info["name"]
+            user_data["email"] = matched_info["email"]
+            user_data["emp_id"] = matched_info["emp_id"]
+            user_data["department"] = matched_info["department"]
+        else:
+            dept = "MESCOM - Streetlight & Grid" if (emp_id.startswith("M-002") or "MES" in emp_id) else "PWD - Road & Drainage"
+            user_data["emp_id"] = emp_id
+            user_data["department"] = dept
+
     return {
-        "user": {
-            "id":   f"demo-{payload.role}",
-            "role": payload.role,
-            "name": payload.identifier or payload.role.title(),
-        },
+        "user": user_data,
         "must_change_password": must_change,
         "redirect": role_home[payload.role],
     }

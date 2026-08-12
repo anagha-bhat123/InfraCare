@@ -15,8 +15,9 @@ const EMAIL_RE  = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MOBILE_RE = /^[6-9]\d{9}$/;
 
 function detectRole(value) {
-  const v = value.trim();
+  const v = value.trim().toLowerCase();
   if (!v) return null;
+  if (v.includes("approver") || v.startsWith("fin-")) return "approver";
   if (ENG_ID_RE.test(v)) return "engineer";
   if (GOV_RE.test(v))    return "admin";
   if (EMAIL_RE.test(v) || MOBILE_RE.test(v)) return "citizen";
@@ -27,12 +28,23 @@ function detectRole(value) {
 const ROLE_META = {
   citizen:  { label: "Citizen",  icon: UserCircle,  color: "#2563eb", bg: "#eff6ff" },
   engineer: { label: "Engineer", icon: HardHat,     color: "#d97706", bg: "#fffbeb" },
+  approver: { label: "Approval Authority", icon: ShieldCheck, color: "#7c3aed", bg: "#f3e8ff" },
   admin:    { label: "Admin",    icon: ShieldCheck, color: "#16a34a", bg: "#f0fdf4" },
 };
 
-function RoleBadge({ role }) {
+function RoleBadge({ role, identifier }) {
   if (!role) return null;
-  const { label, icon: Icon, color, bg } = ROLE_META[role];
+  const meta = ROLE_META[role];
+  let label = meta.label;
+  if (role === "engineer" && identifier) {
+    const cleanId = identifier.trim().toUpperCase();
+    if (cleanId.startsWith("M-002") || cleanId.includes("MES")) {
+      label = "MESCOM (Streetlight) Engineer";
+    } else if (cleanId.startsWith("M-001") || cleanId.includes("PWD")) {
+      label = "PWD (Road & Drainage) Engineer";
+    }
+  }
+  const { icon: Icon, color, bg } = meta;
   return (
     <span
       style={{
@@ -69,8 +81,11 @@ function FieldError({ msg }) {
 const DEMO_IDS = new Set([
   "citizen@demo.com",
   "anaghabhat920@gmail.com",
+  "m-001-pwd1",
+  "m-002-mes1",
   "m-001-ab12",
   "admin@infracare.gov.in",
+  "approver@demo.com",
 ]);
 
 function isDemoCredential(identifier) {
@@ -266,6 +281,7 @@ export default function Login({ setUser, setPage }) {
         <h1>Welcome Back</h1>
         <p>Enter your credentials — we'll detect your role automatically.</p>
 
+
             {/* Server-level error */}
             {serverError && (
               <div
@@ -297,7 +313,7 @@ export default function Login({ setUser, setPage }) {
                 onBlur={() => setIdTouched(true)}
                 style={idError ? { borderColor: "#c0152a" } : {}}
               />
-              <RoleBadge role={detectedRole} />
+              <RoleBadge role={detectedRole} identifier={identifier} />
               <FieldError msg={idError} />
             </label>
 

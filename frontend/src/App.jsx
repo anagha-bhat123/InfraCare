@@ -25,6 +25,7 @@ import AdminUsers from "./pages/AdminUsers";
 import AdminLogs from "./pages/AdminLogs";
 import AdminProfile from "./pages/AdminProfile";
 import TeamAllocation from "./pages/TeamAllocation";
+import ApprovalAuthority from "./pages/ApprovalAuthority";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import HelpCenter from "./pages/HelpCenter";
@@ -86,6 +87,7 @@ export default function App() {
       if (parsed.role === "citizen") setPage("home");
       else if (parsed.role === "engineer") setPage("maintenance");
       else if (parsed.role === "inspector") setPage("inspections");
+      else if (parsed.role === "approver") setPage("approval-authority");
       else if (parsed.role === "admin") setPage("dashboard");
     };
 
@@ -155,15 +157,19 @@ export default function App() {
           setPage("home");
         }
       } else if (user.role === "engineer") {
-        if (!["tasks", "maintenance", "profile", "ai-verification", "team-allocation"].includes(page)) {
+        if (!["tasks", "maintenance", "profile", "ai-verification", "team-allocation", "approval-authority"].includes(page)) {
           setPage("maintenance");
         }
       } else if (user.role === "inspector") {
         if (!["inspections", "profile"].includes(page)) {
           setPage("inspections");
         }
+      } else if (user.role === "approver") {
+        if (!["approval-authority", "dashboard", "admin-reports", "profile"].includes(page)) {
+          setPage("approval-authority");
+        }
       } else if (user.role === "admin") {
-        if (!["dashboard", "admin-reports", "tasks", "profile", "analysis", "admin-maintenance", "admin-users", "admin-logs", "admin-profile"].includes(page)) {
+        if (!["dashboard", "admin-reports", "tasks", "profile", "analysis", "admin-maintenance", "admin-users", "admin-logs", "admin-profile", "approval-authority"].includes(page)) {
           setPage("dashboard");
         }
       }
@@ -383,9 +389,10 @@ export default function App() {
     if (page === "admin-profile") return <AdminProfile user={user} setPage={setPage} setUser={handleSetUser} />;
     if (page === "map") return <LiveMap reports={reports} setPage={setPage} />;
     if (page === "analysis") return <AdminAnalysis setPage={setPage} />;
-    if (page === "tasks") return <Tasks reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} />;
-    if (page === "maintenance") return <Maintenance reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} />;
+    if (page === "tasks") return <Tasks reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} user={user} />;
+    if (page === "maintenance") return <Maintenance reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} user={user} />;
     if (page === "team-allocation") return <TeamAllocation reports={reports} setPage={setPage} />;
+    if (page === "approval-authority") return <ApprovalAuthority user={user} reports={reports} setPage={setPage} />;
     if (page === "ai-verification") return <AIVerification reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} />;
     if (page === "inspections") return <Inspections setPage={setPage} />;
     if (page === "profile") return <Profile user={user} setPage={setPage} setUser={handleSetUser} />;

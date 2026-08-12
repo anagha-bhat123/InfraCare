@@ -79,6 +79,9 @@ export default function AdminDashboard({ reports = [], setPage }) {
               <p>Real-time infrastructure oversight for Udupi & Mangalore Municipal Regions. Live citizen<br/>reporting & emergency field unit integration.</p>
             </div>
             <div className="admin-header-actions">
+              <button className="admin-btn-outline" onClick={() => setPage("approval-authority")}>
+                Budget<br/>Approvals
+              </button>
               <button className="admin-btn-outline" onClick={exportCSV}>
                 <Download size={16} className="inline mr-1" /> Export<br/>CSV
               </button>
@@ -122,6 +125,18 @@ export default function AdminDashboard({ reports = [], setPage }) {
                 <span className="kpi-label">PENDING / CRITICAL</span>
                 <div className="kpi-value">{pending}</div>
                 <div className="kpi-desc">Requires immediate dispatch</div>
+              </div>
+            </div>
+
+            <div className="admin-kpi-card" onClick={() => setPage("approval-authority")} style={{ cursor: "pointer", transition: "transform 0.15s" }}>
+              <div className="kpi-card-header">
+                <div className="kpi-icon-box" style={{ backgroundColor: "#e0f2fe", color: "#0284c7" }}><Target size={18} /></div>
+                <div className="kpi-badge" style={{ backgroundColor: "#dbeafe", color: "#1d4ed8" }}>AUTHORITY</div>
+              </div>
+              <div className="kpi-card-body">
+                <span className="kpi-label">BUDGET APPROVALS</span>
+                <div className="kpi-value" style={{ fontSize: "1.4rem" }}>Rs. 4.1L</div>
+                <div className="kpi-desc" style={{ color: "#0284c7", fontWeight: 700 }}>Click to Manage & Authorize &rarr;</div>
               </div>
             </div>
           </div>

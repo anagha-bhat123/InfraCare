@@ -46,6 +46,7 @@ export default function Register({ setPage }) {
   const [success, setSuccess] = useState(false);
   const [serverError, setServerError] = useState("");
   const [generatedEngineerId, setGeneratedEngineerId] = useState("");
+  const [department, setDepartment] = useState("PWD - Road & Drainage");
 
   // Form fields
   const [fullName, setFullName] = useState("");
@@ -96,7 +97,8 @@ export default function Register({ setPage }) {
             email: email.trim(),
             mobile: mobile.trim(),
             ward_zone: ward || "",
-            password: password
+            password: password,
+            department: department
           })
         });
 
@@ -251,6 +253,20 @@ export default function Register({ setPage }) {
           ))}
         </div>
         <em>Note: Admin accounts are managed by Department Heads.</em>
+
+        {type === "Engineer" && (
+          <label style={{ marginTop: 12 }}>
+            Department
+            <span className="input-icon">
+              <ClipboardCheck />
+              <select value={department} onChange={(e) => setDepartment(e.target.value)}>
+                <option value="PWD - Road & Drainage">PWD (Road & Drainage)</option>
+                <option value="MESCOM - Streetlight & Grid">MESCOM (Streetlight & Grid)</option>
+              </select>
+            </span>
+          </label>
+        )}
+
 
         {/* Full Name */}
         <label>

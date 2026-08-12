@@ -10,7 +10,7 @@ if parent_dir not in sys.path:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import health, auth, reports, assignments, profile, inspections
+from app.routers import health, auth, reports, assignments, profile, inspections, budget_approvals
 
 app = FastAPI(title="InfraCare API", version="1.0.0")
 
@@ -28,3 +28,5 @@ app.include_router(reports.router)
 app.include_router(assignments.router)
 app.include_router(profile.router)
 app.include_router(inspections.router)
+app.include_router(budget_approvals.router)
+

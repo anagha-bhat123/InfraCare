@@ -2,13 +2,26 @@ import React from "react";
 import { AlertTriangle } from "lucide-react";
 import MapPanel from "../components/MapPanel";
 
-export default function Maintenance({ reports = [], setPage }) {
-  const assignedReports = (reports || []).filter(r => r.assigned_engineer || ["Crew Assigned", "In Progress", "Pending Final Verification", "Approved"].includes(r.status));
+export default function Maintenance({ reports = [], setPage, user }) {
+  const department = user?.department || (user?.emp_id?.toUpperCase()?.startsWith("M-002") ? "MESCOM - Streetlight & Grid" : "PWD - Road & Drainage");
+
+  // Filter reports by department:
+  // MESCOM handles Streetlight Hazard. PWD handles everything else.
+  const filteredReports = (reports || []).filter(r => {
+    const isStreetlight = r.category === "Streetlight Hazard";
+    if (department === "MESCOM - Streetlight & Grid") {
+      return isStreetlight;
+    } else {
+      return !isStreetlight;
+    }
+  });
+
+  const assignedReports = filteredReports.filter(r => r.assigned_engineer || ["Crew Assigned", "In Progress", "Pending Final Verification", "Approved"].includes(r.status));
 
   return (
     <main className="page">
       <h1>Operational Dashboard</h1>
-      <p className="lead">CENTRAL HUB / MONITORING - Overview of live hazards, active repairs, and field operations.</p>
+      <p className="lead">CENTRAL HUB / MONITORING - Overview of live hazards, active repairs, and field operations for <strong>{department}</strong>.</p>
 
       {assignedReports.length > 0 && (
         <div style={{ backgroundColor: "#eff6ff", border: "1.5px solid #bfdbfe", borderRadius: 6, padding: "16px 20px", marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -47,7 +60,7 @@ export default function Maintenance({ reports = [], setPage }) {
              </div>
           </div>
           <div style={{ flex: 1, position: "relative", minHeight: 350 }}>
-            <MapPanel coords={[13.3409, 74.7421]} reports={reports} heat={true} />
+            <MapPanel coords={[13.3409, 74.7421]} reports={filteredReports} heat={true} />
             <div style={{ position: "absolute", bottom: 16, right: 16, backgroundColor: "#fff", padding: "16px", borderRadius: 4, border: "1px solid #111", minWidth: 160, zIndex: 1000 }}>
               <div style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: 1, color: "#6b7280", marginBottom: 12 }}>SEVERITY SCALE</div>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

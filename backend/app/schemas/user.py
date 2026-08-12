@@ -9,7 +9,7 @@ ENG_ID_RE  = re.compile(r"^M-\d{3}-[A-Z0-9]{4}$", re.IGNORECASE)
 class LoginRequest(BaseModel):
     # IMPORTANT: role must be declared BEFORE identifier so that
     # Pydantic populates it in info.data by the time validate_identifier runs.
-    role: Literal["citizen", "engineer", "admin"]
+    role: Literal["citizen", "engineer", "admin", "approver"]
     identifier: str
     password: str
 
@@ -26,6 +26,9 @@ class LoginRequest(BaseModel):
         elif role == "admin":
             if not EMAIL_RE.match(v):
                 raise ValueError("Invalid government email address.")
+        elif role == "approver":
+            if not EMAIL_RE.match(v) and not v.lower().startswith("approver") and not v.lower().startswith("fin-"):
+                raise ValueError("Enter a valid approver email address or ID.")
         else:  # citizen
             if not EMAIL_RE.match(v) and not MOBILE_RE.match(v):
                 raise ValueError("Enter a valid email address or 10-digit mobile number.")
@@ -47,6 +50,7 @@ class RegisterEngineerRequest(BaseModel):
     mobile: str
     ward_zone: str = ""
     password: str = ""   # Engineer sets their own password; falls back to default if empty
+    department: str = ""
 
     @field_validator("email")
     @classmethod

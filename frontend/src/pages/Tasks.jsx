@@ -3,9 +3,55 @@ import { MapPin, Navigation } from "lucide-react";
 import MapPanel from "../components/MapPanel";
 import { reportsSeed, assignments } from "../data/seedData";
 
-export default function Tasks({ reports = [], updateReportStatus, setPage, selectedReportId, setSelectedReportId }) {
+const mescomAssignments = [
+  {
+    id: "RD-7701",
+    state: "DISPATCHED",
+    title: "Broken Streetlight Mast - Hampankatta",
+    place: "Hampankatta, Mangalore",
+    coords: [12.8697, 74.8423],
+    summary: "Streetlight mast is leaning dangerously over the footpath. Needs immediate stabilization and bulb replacement.",
+    type: "Streetlight Hazard",
+    surface: "Electrical Grid Pole",
+    crew: "Crew #09-E (MESCOM)",
+    photos: [
+      "https://images.unsplash.com/photo-1509395062183-67c5ad6faff9?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1474487548417-781cb71495f3?auto=format&fit=crop&w=800&q=80"
+    ]
+  },
+  {
+    id: "RD-7702",
+    state: "IN PROGRESS",
+    title: "Dim Streetlight Grid",
+    place: "Manipal Main Rd, Udupi",
+    coords: [13.3525, 74.7865],
+    summary: "Entire streetlight grid on the junction has gone dim or is flickering constantly.",
+    type: "Streetlight Hazard",
+    surface: "Electrical Grid Junction Box",
+    crew: "Crew #05-F (MESCOM)",
+    photos: [
+      "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1509395062183-67c5ad6faff9?auto=format&fit=crop&w=800&q=80"
+    ]
+  }
+];
+
+export default function Tasks({ reports = [], updateReportStatus, setPage, selectedReportId, setSelectedReportId, user }) {
+  const department = user?.department || (user?.emp_id?.toUpperCase()?.startsWith("M-002") ? "MESCOM - Streetlight & Grid" : "PWD - Road & Drainage");
+
   const allAssignments = React.useMemo(() => {
-    const sortedReports = [...(reports || [])].sort((a, b) => {
+    // Filter reports by department:
+    // MESCOM handles Streetlight Hazard. PWD handles everything else.
+    const filteredReports = (reports || []).filter(r => {
+      const isStreetlight = r.category === "Streetlight Hazard";
+      if (department === "MESCOM - Streetlight & Grid") {
+        return isStreetlight;
+      } else {
+        return !isStreetlight;
+      }
+    });
+
+    const sortedReports = [...filteredReports].sort((a, b) => {
       const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
       const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
       return dateB - dateA;
@@ -21,13 +67,15 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
       summary: r.description || "Citizen complaint assigned by Admin for field inspection and repair.",
       type: r.category || "General Damage",
       surface: "Asphalt / Roadway",
-      crew: r.assigned_engineer || "Eng. Marcus Thorne (M-001-AB12)",
+      crew: r.assigned_engineer || (department === "MESCOM - Streetlight & Grid" ? "MESCOM Field Crew" : "Eng. Marcus Thorne (M-001-AB12)"),
       photos: r.evidence ? [r.evidence] : (r.report_photos ? r.report_photos.map(p => p.photo_url) : []),
       is_raw: true,
       raw_report: r
     }));
-    return [...liveItems, ...assignments];
-  }, [reports]);
+
+    const staticAssignments = department === "MESCOM - Streetlight & Grid" ? mescomAssignments : assignments;
+    return [...liveItems, ...staticAssignments];
+  }, [reports, department]);
 
   const [activeId, setActiveId] = useState("");
   const [logs, setLogs] = useState(["Crew assigned by Admin. Awaiting field repair update."]);
@@ -190,22 +238,31 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
                   onChange={(e) => setEngineerNote(e.target.value)}
                   style={{ width: "100%", padding: "12px", borderRadius: 4, border: "1px solid #ccc", minHeight: 80, fontSize: "0.9rem", marginBottom: 16 }}
                 />
-                <button
-                  onClick={() => {
-                    const note = engineerNote || "Field repair completed by engineer. Sent to Admin for final review.";
-                    if (activeItem?.raw_id && updateReportStatus) {
-                      updateReportStatus(activeItem.raw_id, "Pending Final Verification", note, activeItem.crew, note);
-                      alert("Report submitted to Admin for final resolution!");
-                      setEngineerNote("");
-                    } else {
-                      alert("Mock task updated: Status changed to 'Pending Final Verification' and sent to Admin.");
-                      setEngineerNote("");
-                    }
-                  }}
-                  style={{ backgroundColor: "#16a34a", color: "#fff", border: "none", padding: "12px 24px", borderRadius: 4, fontSize: "0.9rem", fontWeight: 700, cursor: "pointer" }}
-                >
-                  Complete Task & Report to Admin ✓
-                </button>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  <button
+                    onClick={() => {
+                      const note = engineerNote || "Field repair completed by engineer. Sent to Admin for final review.";
+                      if (activeItem?.raw_id && updateReportStatus) {
+                        updateReportStatus(activeItem.raw_id, "Pending Final Verification", note, activeItem.crew, note);
+                        alert("Report submitted to Admin for final resolution!");
+                        setEngineerNote("");
+                      } else {
+                        alert("Mock task updated: Status changed to 'Pending Final Verification' and sent to Admin.");
+                        setEngineerNote("");
+                      }
+                    }}
+                    style={{ backgroundColor: "#16a34a", color: "#fff", border: "none", padding: "12px 24px", borderRadius: 4, fontSize: "0.9rem", fontWeight: 700, cursor: "pointer" }}
+                  >
+                    Complete Task & Report to Admin ✓
+                  </button>
+
+                  <button
+                    onClick={() => setPage && setPage("approval-authority")}
+                    style={{ backgroundColor: "#0284c7", color: "#fff", border: "none", padding: "12px 24px", borderRadius: 4, fontSize: "0.9rem", fontWeight: 700, cursor: "pointer" }}
+                  >
+                    Manage Repair Budget →
+                  </button>
+                </div>
               </div>
             </div>
           )}

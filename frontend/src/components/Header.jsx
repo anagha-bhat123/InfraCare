@@ -103,11 +103,13 @@ export default function Header({ page, setPage, user, setUser, reports = [], sim
 
   let nav = ["home", "report", "track", "profile"];
   if (user?.role === "engineer") {
-    nav = ["maintenance", "tasks", "ai-verification", "team-allocation", "profile"];
+    nav = ["maintenance", "tasks", "approval-authority", "ai-verification", "team-allocation", "profile"];
   } else if (user?.role === "inspector") {
     nav = ["inspections", "profile"];
+  } else if (user?.role === "approver") {
+    nav = ["approval-authority", "dashboard", "admin-reports", "profile"];
   } else if (user?.role === "admin") {
-    nav = ["dashboard", "analysis", "admin-reports", "admin-maintenance", "admin-users", "admin-logs"];
+    nav = ["dashboard", "analysis", "admin-reports", "approval-authority", "admin-maintenance", "admin-users", "admin-logs"];
   }
 
   // Close dropdowns when clicking outside
@@ -131,6 +133,7 @@ export default function Header({ page, setPage, user, setUser, reports = [], sim
     profile: "Profile",
     maintenance: "Dashboard",
     tasks: "Scheduling",
+    "approval-authority": "Budget Approvals",
     "ai-verification": "Verification",
     "team-allocation": "Team Allocation",
     inspections: "Inspections",
