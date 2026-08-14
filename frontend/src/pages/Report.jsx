@@ -136,14 +136,20 @@ export default function Report({ addReport, setPage }) {
 
           <div className="form-row">
             <label>
-              Damage Type <span style={{ color: "#c0152a" }}>*</span>
+              Complaint Category <span style={{ color: "#c0152a" }}>*</span>
               <select required value={category} onChange={(e) => setCategory(e.target.value)}>
                 <option value="">Select category...</option>
-                <option>Pothole</option>
-                <option>Cracked Asphalt</option>
-                <option>Broken Drainage Cover</option>
-                <option>Streetlight Hazard</option>
+                <option value="Road Pothole & Surface Damage">Pothole & Surface Damage (PWD)</option>
+                <option value="Broken Drainage & Culvert Cover">Broken Drainage & Culvert Cover (PWD)</option>
+                <option value="Cracked Asphalt Roadway">Cracked Asphalt Roadway (PWD)</option>
+                <option value="Streetlight Hazard & Outage">Streetlight Hazard & Outage (MESCOM)</option>
+                <option value="Electrical Grid Pole & Cable">Electrical Grid Pole & Cable (MESCOM)</option>
               </select>
+              {category && (
+                <div style={{ fontSize: "0.78rem", fontWeight: 800, marginTop: 4, color: category.toLowerCase().includes("light") || category.toLowerCase().includes("electric") ? "#d97706" : "#2563eb" }}>
+                  📍 Assigned Department: {category.toLowerCase().includes("light") || category.toLowerCase().includes("electric") ? "MESCOM (Electricity Supply Board)" : "PWD (Public Works Department)"}
+                </div>
+              )}
             </label>
             <label>
               Urgency Level <span style={{ color: "#c0152a" }}>*</span>
@@ -151,6 +157,9 @@ export default function Report({ addReport, setPage }) {
                 {["Normal", "Urgent", "Critical"].map((v) => (
                   <button type="button" className={urgency === v ? "selected" : ""} onClick={() => setUrgency(v)} key={v}>{v}</button>
                 ))}
+              </div>
+              <div style={{ fontSize: "0.72rem", color: "#64748b", marginTop: 4 }}>
+                Timeline: {urgency === "Critical" ? "⚡ 3 Days (Critical)" : urgency === "Urgent" ? "⚡ 5 Days (Urgent)" : "⏱️ 1 Week (7 Days)"}
               </div>
             </label>
           </div>

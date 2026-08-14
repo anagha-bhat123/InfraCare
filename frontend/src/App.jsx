@@ -26,6 +26,7 @@ import AdminLogs from "./pages/AdminLogs";
 import AdminProfile from "./pages/AdminProfile";
 import TeamAllocation from "./pages/TeamAllocation";
 import ApprovalAuthority from "./pages/ApprovalAuthority";
+import EngineerBudgetProposal from "./pages/EngineerBudgetProposal";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import HelpCenter from "./pages/HelpCenter";
@@ -307,7 +308,7 @@ export default function App() {
     }
   };
 
-  const updateReportStatus = async (reportId, status, note = "", assignedEngineer = "", engineerNotes = "") => {
+  const updateReportStatus = async (reportId, status, note = "", assignedEngineer = "", engineerNotes = "", estimatedBudget = null) => {
     const cleanId = String(reportId || "").replace("#", "").trim().toLowerCase();
 
     Swal.fire({
@@ -336,6 +337,7 @@ export default function App() {
             status,
             assigned_engineer: assignedEngineer || r.assigned_engineer,
             engineer_notes: engineerNotes || r.engineer_notes,
+            estimated_budget: estimatedBudget !== null && estimatedBudget !== undefined ? Number(estimatedBudget) : r.estimated_budget,
             crew: assignedEngineer || r.crew,
             history: updatedHistory
           };
@@ -357,7 +359,8 @@ export default function App() {
         status,
         note,
         ...(assignedEngineer ? { assigned_engineer: assignedEngineer } : {}),
-        ...(engineerNotes ? { engineer_notes: engineerNotes } : {})
+        ...(engineerNotes ? { engineer_notes: engineerNotes } : {}),
+        ...(estimatedBudget !== null && estimatedBudget !== undefined ? { estimated_budget: estimatedBudget.toString() } : {})
       });
       await fetch(`${apiUrl}/reports/${reportId}/status?${queryParams.toString()}`, {
         method: "PATCH",
@@ -381,18 +384,23 @@ export default function App() {
       }
       return <Track reports={reports} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} />;
     }
-    if (page === "dashboard") return <AdminDashboard reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} />;
-    if (page === "admin-reports" || page === "resolved-reports") return <AdminReports reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} />;
-    if (page === "admin-maintenance") return <AdminMaintenance setPage={setPage} />;
-    if (page === "admin-users") return <AdminUsers setPage={setPage} />;
-    if (page === "admin-logs") return <AdminLogs setPage={setPage} />;
+    if (page === "dashboard" || page === "admin-dashboard") return <AdminDashboard reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} user={user} />;
+    if (page === "admin-reports" || page === "resolved-reports" || page === "reports") return <AdminReports reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} user={user} />;
+    if (page === "admin-maintenance" || page === "maintenance-dispatch") return <AdminMaintenance setPage={setPage} reports={reports} updateReportStatus={updateReportStatus} user={user} />;
+    if (page === "admin-users" || page === "users") return <AdminUsers setPage={setPage} user={user} reports={reports} />;
+    if (page === "admin-logs" || page === "logs") return <AdminLogs setPage={setPage} user={user} reports={reports} />;
     if (page === "admin-profile") return <AdminProfile user={user} setPage={setPage} setUser={handleSetUser} />;
-    if (page === "map") return <LiveMap reports={reports} setPage={setPage} />;
-    if (page === "analysis") return <AdminAnalysis setPage={setPage} />;
+    if (page === "map" || page === "live-map") return <LiveMap reports={reports} setPage={setPage} user={user} />;
+    if (page === "analysis" || page === "admin-analysis" || page === "analytics") return <AdminAnalysis setPage={setPage} reports={reports} user={user} />;
     if (page === "tasks") return <Tasks reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} user={user} />;
     if (page === "maintenance") return <Maintenance reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} user={user} />;
-    if (page === "team-allocation") return <TeamAllocation reports={reports} setPage={setPage} />;
-    if (page === "approval-authority") return <ApprovalAuthority user={user} reports={reports} setPage={setPage} />;
+    if (page === "team-allocation") return <TeamAllocation reports={reports} setPage={setPage} setSelectedReportId={setSelectedReportId} user={user} />;
+    if (page === "approval-authority" || page === "budget-approvals") {
+      if (user?.role === "engineer") {
+        return <EngineerBudgetProposal user={user} reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} />;
+      }
+      return <ApprovalAuthority user={user} reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} />;
+    }
     if (page === "ai-verification") return <AIVerification reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} />;
     if (page === "inspections") return <Inspections setPage={setPage} />;
     if (page === "profile") return <Profile user={user} setPage={setPage} setUser={handleSetUser} />;

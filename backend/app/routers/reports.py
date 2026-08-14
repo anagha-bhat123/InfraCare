@@ -3,7 +3,7 @@ import random
 import string
 from typing import Optional
 import math
-from fastapi import APIRouter, Form, UploadFile, File, Query
+from fastapi import APIRouter, Form, UploadFile, File, Query, HTTPException
 from app.database import supabase, create_client
 from app.schemas.report import DamageReport
 from app.utils.email import send_status_update_email, send_new_report_admin_notification, send_engineer_task_assignment_email
@@ -41,6 +41,9 @@ def create_report(report: DamageReport):
     seq = "".join(random.choices(string.digits, k=4))
     tracking_id = f"CMP-{datetime.utcnow().strftime('%Y%m%d')}-{seq}"
     
+    cat = (report.category or "").strip().lower()
+    dept = report.assigned_department or ("MESCOM - Streetlight & Grid" if "light" in cat or "electric" in cat or "lamp" in cat else "PWD - Road & Drainage")
+    
     row = {
         "tracking_id": tracking_id,
         "title": report.title,
@@ -50,7 +53,8 @@ def create_report(report: DamageReport):
         "description": report.description,
         "latitude": report.latitude,
         "longitude": report.longitude,
-        "status": report.status,
+        "status": report.status or "Submitted",
+        "assigned_department": dept,
         "evidence": report.evidence,
         "assigned_engineer": report.assigned_engineer,
         "engineer_notes": report.engineer_notes,
@@ -65,7 +69,7 @@ def create_report(report: DamageReport):
         report_id=tracking_id,
         notif_type="NEW_REPORT",
         title="New Infrastructure Report",
-        message=f"New report filed: '{report.title or report.category}' in Ward/Zone.",
+        message=f"New report filed: '{report.title or report.category}' assigned to {dept}.",
         role="admin"
     )
 
@@ -180,20 +184,23 @@ def create_notification_record(
     
     if supabase:
         try:
-            db_row = {
-                "user_id": user_id,
-                "role": role,
-                "engineer_name": engineer_name,
-                "report_id": report_id,
-                "type": notif_type,
-                "title": title,
-                "message": message,
-                "read": False
-            }
-            res = supabase.table("notifications").insert(db_row).execute()
-            if res.data:
-                print(f"[NOTIFICATION LOG] Saved notification to DB: ID {res.data[0].get('id')}", flush=True)
-                return res.data[0]
+            # Only send valid 36-char UUID to Postgres FK column if present
+            db_report_id = report_id if (report_id and len(str(report_id)) == 36) else None
+            if db_report_id:
+                db_row = {
+                    "user_id": user_id,
+                    "role": role,
+                    "engineer_name": engineer_name,
+                    "report_id": db_report_id,
+                    "type": notif_type,
+                    "title": title,
+                    "message": message,
+                    "read": False
+                }
+                res = supabase.table("notifications").insert(db_row).execute()
+                if res.data:
+                    print(f"[NOTIFICATION LOG] Saved notification to DB: ID {res.data[0].get('id')}", flush=True)
+                    return res.data[0]
         except Exception as e:
             print(f"[NOTIFICATION LOG] DB notification insert skipped (using in-memory store): {e}", flush=True)
             
@@ -220,7 +227,6 @@ def list_notifications(role: Optional[str] = None, engineer_name: Optional[str] 
     all_notifs = list(db_notifs)
     for mem in IN_MEMORY_NOTIFICATIONS:
         if not any(n.get("id") == mem.get("id") for n in all_notifs):
-            # Check matching filters
             match = True
             if engineer_name:
                 eng_target = (mem.get("engineer_name") or "").lower()
@@ -233,7 +239,6 @@ def list_notifications(role: Optional[str] = None, engineer_name: Optional[str] 
             if match:
                 all_notifs.append(mem)
                 
-    # Sort descending by created_at
     all_notifs.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     return {"notifications": all_notifs}
 
@@ -252,85 +257,207 @@ def mark_notification_read(notif_id: str):
     return {"status": "success", "id": notif_id}
 
 @router.patch("/{report_id}/status")
-def update_status(report_id: str, status: str, note: str = "", assigned_engineer: str = "", engineer_notes: str = ""):
-    update_payload = {"status": status}
-    if assigned_engineer:
-        update_payload["assigned_engineer"] = assigned_engineer
-    if engineer_notes:
-        update_payload["engineer_notes"] = engineer_notes
+def update_status(
+    report_id: str,
+    status: str,
+    note: str = "",
+    assigned_engineer: str = "",
+    engineer_notes: str = "",
+    assigned_department: str = "",
+    site_visit_crew: str = "",
+    estimated_budget: float = None,
+    approved_budget: float = None,
+    timeline_days: int = None,
+    repaired_photo_url: str = ""
+):
+    try:
+        is_uuid = len(str(report_id)) == 36 and "-" in str(report_id)
 
-    # 1. Update Database
+        # Enforce workflow rule: Cannot assign work execution crew until budget is approved by Approval Authority
+        if status in ["Work In Progress", "In Progress", "Crew Assigned"]:
+            if supabase:
+                try:
+                    query = supabase.table("damage_reports").select("*")
+                    query = query.eq("id", report_id) if is_uuid else query.eq("tracking_id", report_id)
+                    curr_res = query.execute()
+                    if curr_res.data:
+                        curr_item = curr_res.data[0]
+                        curr_status = curr_item.get("status")
+                        curr_budget = curr_item.get("approved_budget") or curr_item.get("estimated_budget")
+                        if curr_status not in ["Budget Approved", "Work In Progress", "In Progress", "Resolved"] and not curr_budget and approved_budget is None:
+                            raise HTTPException(
+                                status_code=400,
+                                detail="Cannot assign repair work crew until the Approval Authority has sanctioned the repair budget."
+                            )
+                except Exception as e:
+                    if isinstance(e, HTTPException):
+                        raise e
+                    print(f"Supabase workflow check warning: {e}")
+
+        update_payload = {"status": status}
+        if assigned_engineer:
+            update_payload["assigned_engineer"] = assigned_engineer
+        if engineer_notes:
+            update_payload["engineer_notes"] = engineer_notes
+        if assigned_department:
+            update_payload["assigned_department"] = assigned_department
+        if site_visit_crew:
+            update_payload["site_visit_crew"] = site_visit_crew
+        if estimated_budget is not None:
+            update_payload["estimated_budget"] = estimated_budget
+        if approved_budget is not None:
+            update_payload["approved_budget"] = approved_budget
+        if timeline_days is not None:
+            update_payload["timeline_days"] = timeline_days
+        if repaired_photo_url:
+            update_payload["repaired_photo_url"] = repaired_photo_url
+
+        # 1. Update Database
+        real_db_id = report_id
+        if supabase:
+            try:
+                db_query = supabase.table("damage_reports").select("id")
+                db_query = db_query.eq("id", report_id) if is_uuid else db_query.eq("tracking_id", report_id)
+                db_lookup = db_query.execute()
+                if db_lookup.data:
+                    real_db_id = db_lookup.data[0]["id"]
+            except Exception:
+                pass
+
+            try:
+                up_query = supabase.table("damage_reports").update(update_payload)
+                up_query = up_query.eq("id", report_id) if is_uuid else up_query.eq("tracking_id", report_id)
+                up_query.execute()
+            except Exception as e:
+                print(f"Failed to update damage_reports status/assignment: {e}")
+            
+            try:
+                hist_title = f"{status}"
+                hist_desc = note or (f"Assigned to {assigned_engineer or site_visit_crew}" if (assigned_engineer or site_visit_crew) else "Status updated.")
+                supabase.table("report_status_history").insert({"report_id": real_db_id, "title": hist_title, "description": hist_desc}).execute()
+            except Exception as e:
+                print(f"Failed to insert into report_status_history: {e}")
+
+        # 2. Notification Triggers
+        if assigned_engineer or site_visit_crew or status in ["Site Visit Assigned", "Crew Assigned", "Approved", "In Progress", "Work In Progress"]:
+            eng_target = assigned_engineer or site_visit_crew or "Assigned Crew"
+            notif_msg = f"You have been assigned to complaint #{report_id[:8].upper()}. Status: {status}."
+            if note:
+                notif_msg += f" Note: {note}"
+                
+            create_notification_record(
+                report_id=real_db_id,
+                notif_type="NEW_ASSIGNMENT",
+                title="New Complaint Assignment",
+                message=notif_msg,
+                role="engineer",
+                engineer_name=eng_target
+            )
+
+        if status in ["Pending Final Verification", "Completed by Engineer", "Completed", "Resolved"]:
+            create_notification_record(
+                report_id=real_db_id,
+                notif_type="COMPLAINT_COMPLETED",
+                title="Field Repair Completed",
+                message=f"Field crew completed work on complaint #{report_id[:8].upper()}. Repaired photo uploaded.",
+                role="admin"
+            )
+            create_notification_record(
+                report_id=real_db_id,
+                notif_type="REPORT_RESOLVED",
+                title="Complaint Verified & Resolved",
+                message=f"Your complaint #{report_id[:8].upper()} has been inspected, repaired, and resolved with photographic proof.",
+                role="citizen"
+            )
+
+        return {
+            "report_id": report_id,
+            "status": status,
+            "assigned_engineer": assigned_engineer,
+            "engineer_notes": engineer_notes,
+            "repaired_photo_url": repaired_photo_url,
+            "notification_sent": True
+        }
+    except Exception as exc:
+        import traceback
+        print("EXCEPTION IN UPDATE_STATUS:", exc, flush=True)
+        traceback.print_exc()
+        if isinstance(exc, HTTPException):
+            raise exc
+        raise HTTPException(status_code=500, detail=str(exc))
+
+from pydantic import BaseModel
+
+class RepairCompletionSchema(BaseModel):
+    repaired_photo_url: str
+    engineer_notes: Optional[str] = ""
+    is_delayed: Optional[bool] = False
+
+@router.post("/{report_id}/complete-repair")
+def complete_repair_with_photo(
+    report_id: str,
+    payload: Optional[RepairCompletionSchema] = None,
+    repaired_photo_url: Optional[str] = Form(None),
+    engineer_notes: Optional[str] = Form(""),
+    is_delayed: Optional[bool] = Form(False)
+):
+    final_photo_url = (payload.repaired_photo_url if payload else repaired_photo_url) or ""
+    final_notes = (payload.engineer_notes if payload else engineer_notes) or ""
+    final_is_delayed = (payload.is_delayed if payload else is_delayed) or False
+
+    is_uuid = len(str(report_id)) == 36 and "-" in str(report_id)
+    existing = None
+    real_db_id = report_id
+
     if supabase:
         try:
-            supabase.table("damage_reports").update(update_payload).eq("id", report_id).execute()
-        except Exception as e:
-            print(f"Failed to update damage_reports status/assignment: {e}")
-        
+            q = supabase.table("damage_reports").select("*")
+            q = q.eq("id", report_id) if is_uuid else q.eq("tracking_id", report_id)
+            res = q.execute()
+            if res.data:
+                existing = res.data[0]
+                real_db_id = existing.get("id", report_id)
+        except Exception:
+            pass
+
+    approved_budget = (existing.get("approved_budget") if existing else None) or 50000.0
+    delay_applied = final_is_delayed
+
+    if delay_applied:
+        final_bill = round(approved_budget * 0.9, 2) # 10% discount
+    else:
+        final_bill = approved_budget
+
+    update_payload = {
+        "status": "Resolved",
+        "repaired_photo_url": final_photo_url,
+        "engineer_notes": final_notes,
+        "delay_discount_applied": delay_applied,
+        "final_bill_amount": final_bill,
+        "updated_at": datetime.utcnow().isoformat()
+    }
+
+    if supabase:
         try:
-            hist_title = f"{status}"
-            hist_desc = note or (f"Assigned to {assigned_engineer}" if assigned_engineer else "Status updated.")
-            supabase.table("report_status_history").insert({"report_id": report_id, "title": hist_title, "description": hist_desc}).execute()
+            up_q = supabase.table("damage_reports").update(update_payload)
+            up_q = up_q.eq("id", report_id) if is_uuid else up_q.eq("tracking_id", report_id)
+            up_q.execute()
         except Exception as e:
-            print(f"Failed to insert into report_status_history (table might be missing): {e}")
+            print("Failed to update completed report in DB:", e)
 
-    # 2. Notification Triggers
-    
-    # A) Assignment -> Engineer Alert
-    if assigned_engineer or status in ["Crew Assigned", "Approved", "In Progress"]:
-        eng_target = assigned_engineer or "Assigned Engineer"
-        notif_msg = f"You have been assigned to complaint #{report_id[:8].upper()}. Status: {status}."
-        if note:
-            notif_msg += f" Note: {note}"
-            
-        create_notification_record(
-            report_id=report_id,
-            notif_type="NEW_ASSIGNMENT",
-            title="New Complaint Assignment",
-            message=notif_msg,
-            role="engineer",
-            engineer_name=eng_target
-        )
-        
-        send_engineer_task_assignment_email(
-            engineer_name=eng_target,
-            report_id=report_id[:8].upper(),
-            title="Assigned Road Damage Incident",
-            category="Infrastructure Repair",
-            note=note
-        )
-
-    # B) Completion -> Admin Alert
-    if status in ["Pending Final Verification", "Completed by Engineer", "Completed"]:
-        create_notification_record(
-            report_id=report_id,
-            notif_type="COMPLAINT_COMPLETED",
-            title="Field Repair Completed",
-            message=f"Field crew completed work on complaint #{report_id[:8].upper()}. Pending final admin verification.",
-            role="admin"
-        )
-
-    # C) Resolution -> Citizen Confirmation
-    if status == "Resolved":
-        create_notification_record(
-            report_id=report_id,
-            notif_type="REPORT_RESOLVED",
-            title="Complaint Verified & Resolved",
-            message=f"Your complaint #{report_id[:8].upper()} has been inspected, verified, and officially resolved.",
-            role="citizen"
-        )
-        
-    # Email alert to citizen
-    send_status_update_email(
-        to_email="citizen@demo.com",
-        report_id=report_id[:8].upper(),
-        new_status=status,
-        note=note or (f"Assigned to {assigned_engineer}" if assigned_engineer else "")
+    create_notification_record(
+        report_id=real_db_id,
+        notif_type="REPORT_RESOLVED",
+        title="Repair Completed & Verified",
+        message=f"Repair for complaint #{report_id[:8].upper()} completed! Repaired image uploaded. Final bill: Rs. {final_bill} ({'10% SLA Delay Discount Applied' if delay_applied else 'On-time'}).",
+        role="citizen"
     )
 
     return {
         "report_id": report_id,
-        "status": status,
-        "assigned_engineer": assigned_engineer,
-        "engineer_notes": engineer_notes,
-        "notification_sent": True
+        "status": "Resolved",
+        "repaired_photo_url": final_photo_url,
+        "delay_discount_applied": delay_applied,
+        "final_bill_amount": final_bill,
+        "report": update_payload
     }

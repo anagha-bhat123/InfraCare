@@ -160,21 +160,43 @@ export default function Register({ setPage }) {
           </p>
 
           {type === "Engineer" && (
-            <div style={{
-              display: "flex", alignItems: "flex-start", gap: 12,
-              background: "#eff6ff", border: "1px solid #bfdbfe",
-              borderRadius: 10, padding: "14px 18px", maxWidth: 340,
-              textAlign: "left", marginTop: 4,
-            }}>
-              <span style={{ fontSize: "1.3rem", lineHeight: 1 }}>📧</span>
-              <div>
-                <div style={{ fontWeight: 700, color: "#1e40af", fontSize: ".88rem", marginBottom: 3 }}>Check your inbox</div>
-                <div style={{ color: "#3b5bdb", fontSize: ".82rem", lineHeight: 1.5 }}>
-                  Your Employee ID and login instructions have been emailed to <strong>{email.trim()}</strong>. 
-                  Check your <strong>Spam</strong> folder if you don't see it within a minute.
+            <>
+              {generatedEngineerId && (
+                <div style={{
+                  background: "#1e293b",
+                  color: "#fff",
+                  borderRadius: 10,
+                  padding: "16px 20px",
+                  maxWidth: 360,
+                  width: "100%",
+                  textAlign: "center",
+                  marginTop: 6,
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
+                }}>
+                  <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1 }}>YOUR PERMANENT EMPLOYEE ID</div>
+                  <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "#38bdf8", fontFamily: "monospace", letterSpacing: 2, margin: "6px 0" }}>
+                    {generatedEngineerId}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "#cbd5e1" }}>Use this Employee ID or your Mobile Number to Log In</div>
+                </div>
+              )}
+
+              <div style={{
+                display: "flex", alignItems: "flex-start", gap: 12,
+                background: "#eff6ff", border: "1px solid #bfdbfe",
+                borderRadius: 10, padding: "14px 18px", maxWidth: 360,
+                textAlign: "left", marginTop: 4,
+              }}>
+                <span style={{ fontSize: "1.3rem", lineHeight: 1 }}>📧</span>
+                <div>
+                  <div style={{ fontWeight: 700, color: "#1e40af", fontSize: ".88rem", marginBottom: 3 }}>Credentials Emailed</div>
+                  <div style={{ color: "#3b5bdb", fontSize: ".82rem", lineHeight: 1.5 }}>
+                    Your Employee ID <strong>({generatedEngineerId || "M-001-XXXX"})</strong> and login instructions have been sent to <strong>{email.trim()}</strong>.
+                    Please check your inbox or <strong>Spam</strong> folder.
+                  </div>
                 </div>
               </div>
-            </div>
+            </>
           )}
 
           <button

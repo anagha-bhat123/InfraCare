@@ -11,7 +11,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # Demo credential store — replace with real DB lookup in production
 DEMO_USERS = {
     "citizen":  {"identifiers": ["citizen@demo.com", "anaghabhat920@gmail.com", "9876543210"], "password": "123456"},
-    "engineer": {"identifiers": ["M-001-PWD1", "m-001-pwd1", "M-002-MES1", "m-002-mes1", "M-001-AB12", "m-001-ab12"], "password": "123456"},
+    "engineer": {"identifiers": ["M-001-PWD1", "m-001-pwd1", "M-002-MES1", "m-002-mes1", "M-001-AB12", "m-001-ab12", "M-002-8LUN", "m-002-8lun"], "password": "123456"},
     "admin":    {"identifiers": ["admin@infracare.gov.in"], "password": "12345678"},
     "approver": {"identifiers": ["approver@demo.com", "approver@infracare.gov.in", "fin-001-app"], "password": "approver123"},
 }
@@ -41,6 +41,14 @@ SPECIFIC_ENGINEERS = {
         "emp_id": "M-001-AB12",
         "department": "PWD - Road & Drainage",
         "password": "123456",
+    },
+    "m-002-8lun": {
+        "id": "eng-2",
+        "name": "Eng. Kavya Rao (MESCOM Electrical)",
+        "email": "kavya.mescom@infracare.gov.in",
+        "emp_id": "M-002-8LUN",
+        "department": "MESCOM - Streetlight & Grid",
+        "password": "123456",
     }
 }
 
@@ -49,7 +57,7 @@ ENGINEER_CREDS: dict = {}
 
 def is_demo_credential(identifier: str) -> bool:
     v = identifier.strip().lower()
-    return v in ["citizen@demo.com", "anaghabhat920@gmail.com", "9876543210", "m-001-pwd1", "m-002-mes1", "m-001-ab12", "admin@infracare.gov.in", "approver@demo.com", "approver@infracare.gov.in", "fin-001-app"]
+    return v in ["citizen@demo.com", "anaghabhat920@gmail.com", "9876543210", "m-001-pwd1", "m-002-mes1", "m-001-ab12", "m-002-8lun", "admin@infracare.gov.in", "approver@demo.com", "approver@infracare.gov.in", "fin-001-app"]
 
 def generate_engineer_id(department: str = "") -> str:
     seq = "002" if department and "mescom" in department.lower() else "001"

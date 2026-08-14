@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { 
   DollarSign, CheckCircle2, XCircle, AlertCircle, Clock, FileText, Plus, Search, 
-  Filter, ShieldCheck, TrendingUp, Building2, ChevronRight, PieChart, X, Check, RotateCcw, AlertTriangle
+  Filter, ShieldCheck, TrendingUp, Building2, ChevronRight, PieChart, X, Check, RotateCcw, AlertTriangle, Download
 } from "lucide-react";
 import Swal from "sweetalert2";
 import { apiUrl } from "../services/api";
+import { generateFinalBillPDF } from "../utils/pdfGenerator";
 
-export default function ApprovalAuthority({ user, reports = [], setPage }) {
+export default function ApprovalAuthority({ user, reports = [], setPage, selectedReportId = null, setSelectedReportId = null }) {
   const INITIAL_SEED_REQUESTS = [
     {
       id: "req-101",
@@ -127,7 +128,8 @@ export default function ApprovalAuthority({ user, reports = [], setPage }) {
   const [deptFilter, setDeptFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Modal states
+  // Tab and Modal states
+  const [activeMainTab, setActiveMainTab] = useState("budget_requests"); // "budget_requests" | "final_bills"
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [decisionNotes, setDecisionNotes] = useState("");
@@ -149,7 +151,7 @@ export default function ApprovalAuthority({ user, reports = [], setPage }) {
       const res = await fetch(`${apiUrl}/budget-approvals`);
       if (res.ok) {
         const data = await res.json();
-        setRequests(data.requests || []);
+        setRequests(data.requests || data.budget_requests || []);
       }
     } catch (e) {
       console.error("Failed to fetch budget requests from API:", e);
@@ -175,13 +177,199 @@ export default function ApprovalAuthority({ user, reports = [], setPage }) {
     fetchMetrics();
   }, []);
 
+  // Helper for flexible department matching
+  const matchesDept = (deptStr, filterStr) => {
+    if (!filterStr || filterStr === "ALL") return true;
+    const d = (deptStr || "").toLowerCase();
+    const f = (filterStr || "").toLowerCase();
+    if (d === f) return true;
+    if ((f.includes("road") || f.includes("bridge") || f.includes("pwd")) && (d.includes("road") || d.includes("bridge") || d.includes("pwd"))) return true;
+    if ((f.includes("electric") || f.includes("grid") || f.includes("mescom") || f.includes("light")) && (d.includes("electric") || d.includes("grid") || d.includes("mescom") || d.includes("light"))) return true;
+    if ((f.includes("water") || f.includes("sewer")) && (d.includes("water") || d.includes("sewer"))) return true;
+    if (f.includes("infra") && d.includes("infra")) return true;
+    return false;
+  };
+
+  // Merge backend budget requests with live report estimates submitted by engineers
+  const combinedRequests = useMemo(() => {
+    // 1. Build local map from localStorage items
+    const localOverrides = new Map();
+    try {
+      const savedProps = localStorage.getItem("infracare_budget_requests");
+      if (savedProps) {
+        const parsed = JSON.parse(savedProps);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(item => {
+            if (item.id) localOverrides.set(String(item.id), item);
+            if (item.report_id) localOverrides.set(String(item.report_id), item);
+          });
+        }
+      }
+    } catch (e) {}
+
+    // 2. Start with backend/seed requests and apply local overrides
+    const list = requests.map(r => {
+      const rId = String(r.id || "");
+      const rRepId = String(r.report_id || "");
+      const override = localOverrides.get(rId) || localOverrides.get(rRepId);
+      if (override) {
+        return {
+          ...r,
+          ...override,
+          status: override.status || r.status,
+          approved_by: override.approved_by || r.approved_by,
+          decision_notes: override.decision_notes || r.decision_notes
+        };
+      }
+      return r;
+    });
+
+    // 3. Unshift any local storage items not present in backend requests
+    localOverrides.forEach(localItem => {
+      const exists = list.some(r => String(r.id) === String(localItem.id) || (localItem.report_id && String(r.report_id) === String(localItem.report_id)));
+      if (!exists) {
+        list.unshift(localItem);
+      }
+    });
+
+    // 4. Merge live reports
+    const existingReportIds = new Set(list.map(r => String(r.report_id || "")).filter(Boolean));
+
+    (reports || []).forEach(rep => {
+      const estBudget = rep.estimated_budget || rep.approved_budget;
+      const repStatus = rep.status;
+      const idStr = String(rep.id || "");
+      const trackStr = String(rep.tracking_id || "");
+
+      if (estBudget || repStatus === "Budget Submitted" || repStatus === "Pending Budget Approval" || repStatus === "Pending Financial Approval" || repStatus === "Budget Approved" || repStatus === "Site Visit Assigned" || repStatus === "Site Visit Completed") {
+        if (!existingReportIds.has(idStr) && !existingReportIds.has(trackStr)) {
+          const totalCost = Number(estBudget) || 65000.0;
+          const mat = Math.round(totalCost * 0.55);
+          const lab = Math.round(totalCost * 0.25);
+          const eq = Math.round(totalCost * 0.12);
+          const cont = Math.round(totalCost * 0.08);
+
+          const isApproved = repStatus === "Budget Approved";
+          const isRejected = repStatus === "Budget Rejected";
+          const isRevision = repStatus === "Revision Requested";
+
+          list.unshift({
+            id: `req-${idStr.substring(0, 8)}`,
+            report_id: idStr,
+            work_order_id: rep.tracking_id || `WO-2026-${idStr.substring(0, 4).toUpperCase()}`,
+            title: rep.title || rep.category || "Field Infrastructure Repair Project",
+            department: rep.assigned_department || ((rep.category || "").toLowerCase().includes("light") ? "MESCOM - Streetlight & Grid" : "PWD - Road & Drainage"),
+            urgency: rep.urgency || "Normal",
+            requested_by_name: rep.site_visit_crew || rep.assigned_engineer || "Er. Field Inspector Crew",
+            material_cost: mat,
+            labor_cost: lab,
+            equipment_cost: eq,
+            contingency_cost: cont,
+            total_estimated_cost: totalCost,
+            status: isApproved ? "Approved" : isRejected ? "Rejected" : isRevision ? "Revision Requested" : "Pending",
+            approval_level: totalCost <= 50000 ? "Level 1 (< Rs. 50,000)" : totalCost <= 250000 ? "Level 2 (Rs. 50k-Rs. 2.5L)" : "Level 3 (> Rs. 2,50,000)",
+            approved_by: isApproved ? "Approval Authority" : null,
+            decision_notes: rep.site_visit_notes || "Itemized repair estimate submitted by engineer crew after site visit.",
+            cost_breakdown: [
+              { item: "Raw Repair Materials & Asphalt/Cables", quantity: "Allocated", unit_cost: mat, total: mat },
+              { item: "Field Labor Crew Shifts & Technicians", quantity: "Allocated", unit_cost: lab, total: lab },
+              { item: "Heavy Machinery & Bucket Truck Hire", quantity: "Allocated", unit_cost: eq, total: eq },
+              { item: "Emergency Contingency & Testing Reserve", quantity: "Flat", unit_cost: cont, total: cont }
+            ],
+            created_at: rep.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [requests, reports]);
+
+  // Compute final bills list from localStorage and reports prop
+  const finalBillsList = useMemo(() => {
+    let list = [];
+    try {
+      const saved = localStorage.getItem("infracare_final_bills");
+      if (saved) {
+        list = JSON.parse(saved);
+      }
+    } catch (e) {}
+
+    (reports || []).forEach(rep => {
+      if (rep.final_bill_amount || rep.status === "Final Bill Submitted by Engineer" || rep.status === "Final Bill Sent to Approval Authority" || rep.status === "Resolved") {
+        const idStr = String(rep.id || "");
+        const trackStr = rep.tracking_id || `WO-2026-${idStr.substring(0, 4).toUpperCase()}`;
+        if (!list.some(b => b.report_id === idStr || b.work_order_id === trackStr)) {
+          const budget = rep.approved_budget || rep.estimated_budget || 64000;
+          const isDelayed = Boolean(rep.delay_discount_applied);
+          const finalAmt = rep.final_bill_amount || (isDelayed ? Math.round(budget * 0.9) : budget);
+          list.push({
+            id: `bill-${idStr.substring(0, 6)}`,
+            report_id: idStr,
+            work_order_id: trackStr,
+            title: rep.title || rep.category || "Completed Infrastructure Repair",
+            department: rep.assigned_department || "PWD - Road & Drainage",
+            engineer_name: rep.site_visit_crew || rep.assigned_engineer || "Er. Field Crew",
+            admin_name: "Municipal Works Admin",
+            approved_by: "Approval Authority Chair",
+            approved_budget: budget,
+            material_cost: Math.round(budget * 0.55),
+            labor_cost: Math.round(budget * 0.25),
+            equipment_cost: Math.round(budget * 0.12),
+            contingency_cost: Math.round(budget * 0.08),
+            delay_discount_applied: isDelayed,
+            final_bill_amount: finalAmt,
+            notes: rep.engineer_notes || "Repair execution completed on site.",
+            status: rep.status === "Resolved" ? "Sanctioned & Settled" : rep.status || "Final Bill Sent to Approval Authority",
+            created_at: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [reports]);
+
+  // Auto-open target request or final bill when selectedReportId is provided from Admin
+  useEffect(() => {
+    if (selectedReportId) {
+      const match = combinedRequests.find(r => String(r.id) === String(selectedReportId) || String(r.report_id) === String(selectedReportId) || String(r.work_order_id).includes(String(selectedReportId)));
+      if (match) {
+        setSelectedRequest(match);
+      } else {
+        const billMatch = finalBillsList.find(b => String(b.report_id) === String(selectedReportId) || String(b.id) === String(selectedReportId));
+        if (billMatch) {
+          setActiveMainTab("final_bills");
+          setSelectedRequest({
+            ...billMatch,
+            total_estimated_cost: billMatch.approved_budget,
+            requested_by_name: billMatch.engineer_name
+          });
+        }
+      }
+    }
+  }, [selectedReportId, combinedRequests, finalBillsList]);
+
   // Filtered requests calculation
   const filteredRequests = useMemo(() => {
-    return requests.filter(r => {
-      if (statusFilter !== "ALL" && r.status.toLowerCase() !== statusFilter.toLowerCase()) {
-        return false;
+    return combinedRequests.filter(r => {
+      if (statusFilter !== "ALL") {
+        const s = (r.status || "").toLowerCase();
+        const sf = statusFilter.toLowerCase();
+        if (sf === "pending") {
+          if (!s.includes("pending") && !s.includes("submitted")) return false;
+        } else if (sf === "approved") {
+          if (!s.includes("approved") && !s.includes("sanctioned")) return false;
+        } else if (sf === "rejected") {
+          if (!s.includes("reject")) return false;
+        } else if (sf === "revision requested") {
+          if (!s.includes("revision")) return false;
+        } else if (s !== sf) {
+          return false;
+        }
       }
-      if (deptFilter !== "ALL" && r.department.toLowerCase() !== deptFilter.toLowerCase()) {
+      if (!matchesDept(r.department, deptFilter)) {
         return false;
       }
       if (searchQuery.trim()) {
@@ -193,14 +381,100 @@ export default function ApprovalAuthority({ user, reports = [], setPage }) {
       }
       return true;
     });
-  }, [requests, statusFilter, deptFilter, searchQuery]);
+  }, [combinedRequests, statusFilter, deptFilter, searchQuery]);
 
   // Handle Approve / Reject / Revision
   const handleUpdateStatus = async (requestId, targetStatus) => {
     const approverName = user?.name || (user?.role === "admin" ? "Financial Officer (Admin)" : "Chief Inspector");
     
+    // Find associated report and details
+    const targetReq = combinedRequests.find(r => r.id === requestId);
+    const reportId = targetReq?.report_id || targetReq?.id;
+    const approvedBudget = targetReq?.total_estimated_cost || 0;
+    const urgency = targetReq?.urgency || "Normal";
+    const timelineDays = urgency.toLowerCase() === "critical" ? 3 : (urgency.toLowerCase() === "urgent" || urgency.toLowerCase() === "high priority") ? 5 : 7;
+    const assignedEng = targetReq?.requested_by_name || "Assigned Crew";
+
+    const isFinalBill = Boolean(targetReq?.final_bill_amount || activeMainTab === "final_bills" || targetReq?.status?.toLowerCase().includes("final bill"));
+    const reportStatus = (isFinalBill && targetStatus === "Approved") ? "Resolved" : targetStatus === "Approved" ? "Budget Approved" : targetStatus === "Rejected" ? "Budget Rejected" : "Revision Requested";
+
+    // 1. Update parent App state if linked to a report
+    if (reportId && updateReportStatus) {
+      updateReportStatus(
+        reportId, 
+        reportStatus, 
+        decisionNotes || `${targetStatus} by ${approverName}`, 
+        assignedEng,
+        "",
+        approvedBudget
+      );
+    }
+
+    // 2. Update React requests state immediately
+    setRequests(prev => {
+      const exists = prev.some(r => r.id === requestId || (reportId && r.report_id === reportId));
+      if (exists) {
+        return prev.map(r => (r.id === requestId || (reportId && r.report_id === reportId)) ? {
+          ...r,
+          status: targetStatus,
+          approved_by: approverName,
+          decision_notes: decisionNotes || `Status updated to ${targetStatus}`
+        } : r);
+      }
+      if (targetReq) {
+        return [{
+          ...targetReq,
+          status: targetStatus,
+          approved_by: approverName,
+          decision_notes: decisionNotes || `Status updated to ${targetStatus}`
+        }, ...prev];
+      }
+      return prev;
+    });
+
+    // 3. Update localStorage (infracare_budget_requests)
     try {
-      const res = await fetch(`${apiUrl}/budget-approvals/${requestId}/status`, {
+      const saved = localStorage.getItem("infracare_budget_requests");
+      let list = saved ? JSON.parse(saved) : [];
+      let found = false;
+      list = list.map(r => {
+        if (r.id === requestId || (reportId && r.report_id === reportId)) {
+          found = true;
+          return {
+            ...r,
+            status: targetStatus,
+            approved_by: approverName,
+            decision_notes: decisionNotes || `Status updated to ${targetStatus}`
+          };
+        }
+        return r;
+      });
+      if (!found && targetReq) {
+        list.unshift({
+          ...targetReq,
+          status: targetStatus,
+          approved_by: approverName,
+          decision_notes: decisionNotes || `Status updated to ${targetStatus}`
+        });
+      }
+      localStorage.setItem("infracare_budget_requests", JSON.stringify(list));
+    } catch (e) {
+      console.error("Failed to update status in localStorage:", e);
+    }
+
+    // 4. Send API calls to sync backend
+    try {
+      if (reportId) {
+        const queryParams = new URLSearchParams({
+          status: reportStatus,
+          approved_budget: approvedBudget.toString(),
+          timeline_days: timelineDays.toString(),
+          note: decisionNotes || `Sanctioned / Updated by ${approverName}`
+        });
+        fetch(`${apiUrl}/reports/${reportId}/status?${queryParams.toString()}`, { method: "PATCH" }).catch(() => {});
+      }
+
+      await fetch(`${apiUrl}/budget-approvals/${requestId}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -208,47 +482,28 @@ export default function ApprovalAuthority({ user, reports = [], setPage }) {
           approved_by: approverName,
           decision_notes: decisionNotes || `Status updated to ${targetStatus} by ${approverName}.`
         })
-      });
-
-      if (res.ok) {
-        Swal.fire({
-          icon: targetStatus === "Approved" ? "success" : targetStatus === "Rejected" ? "error" : "info",
-          title: `Budget ${targetStatus}`,
-          text: `Request #${requestId} has been marked as ${targetStatus}.`,
-          toast: true,
-          position: "top-end",
-          timer: 3000,
-          showConfirmButton: false
-        });
-        setSelectedRequest(null);
-        setDecisionNotes("");
-        fetchBudgetRequests();
-        fetchMetrics();
-      } else {
-        throw new Error("API returned failure status");
-      }
+      }).catch(() => {});
     } catch (e) {
-      console.error("Status update error:", e);
-      // Local optimistic state fallback
-      setRequests(prev => prev.map(r => r.id === requestId ? {
-        ...r,
-        status: targetStatus,
-        approved_by: approverName,
-        decision_notes: decisionNotes || `Updated to ${targetStatus}`
-      } : r));
-
-      Swal.fire({
-        icon: "success",
-        title: `Budget ${targetStatus}`,
-        text: `Request updated successfully.`,
-        toast: true,
-        position: "top-end",
-        timer: 3000,
-        showConfirmButton: false
-      });
-      setSelectedRequest(null);
-      setDecisionNotes("");
+      console.error("Backend status update sync error:", e);
     }
+
+    // 5. Toast notification & Reset Modal
+    Swal.fire({
+      icon: targetStatus === "Approved" ? "success" : targetStatus === "Rejected" ? "error" : "info",
+      title: targetStatus === "Approved" ? "Budget Sanctioned ✓" : `Budget ${targetStatus}`,
+      text: targetStatus === "Approved" 
+        ? `Approved budget Rs. ${approvedBudget.toLocaleString()} with ${timelineDays}-day completion timeline.` 
+        : `Request marked as ${targetStatus}.`,
+      toast: true,
+      position: "top-end",
+      timer: 3500,
+      showConfirmButton: false
+    });
+
+    setSelectedRequest(null);
+    setDecisionNotes("");
+    fetchBudgetRequests();
+    fetchMetrics();
   };
 
   // Create new repair budget estimate submit handler
@@ -538,8 +793,10 @@ export default function ApprovalAuthority({ user, reports = [], setPage }) {
             >
               <option value="ALL">All Departments</option>
               <option value="Roads & Bridges">Roads & Bridges</option>
+              <option value="PWD - Road & Drainage">PWD - Road & Drainage</option>
               <option value="Water & Sewerage">Water & Sewerage</option>
               <option value="Electrical Grid">Electrical Grid</option>
+              <option value="MESCOM - Streetlight & Grid">MESCOM - Streetlight & Grid</option>
               <option value="Public Infrastructure">Public Infrastructure</option>
             </select>
           </div>
@@ -553,7 +810,7 @@ export default function ApprovalAuthority({ user, reports = [], setPage }) {
                 <th style={{ padding: "12px 16px" }}>WORK ORDER & TITLE</th>
                 <th style={{ padding: "12px 16px" }}>DEPARTMENT</th>
                 <th style={{ padding: "12px 16px" }}>URGENCY</th>
-                <th style={{ padding: "12px 16px" }}>ESTIMATED COST</th>
+                <th style={{ padding: "12px 16px" }}>ENGINEER PROPOSED BUDGET</th>
                 <th style={{ padding: "12px 16px" }}>AUTHORITY LEVEL</th>
                 <th style={{ padding: "12px 16px" }}>STATUS</th>
                 <th style={{ padding: "12px 16px", textAlign: "right" }}>ACTION</th>
@@ -584,8 +841,13 @@ export default function ApprovalAuthority({ user, reports = [], setPage }) {
                       {getUrgencyBadge(r.urgency)}
                     </td>
 
-                    <td style={{ padding: "14px 16px", fontWeight: 800, color: "#0f172a", fontSize: "0.95rem" }}>
-                      {formatRupees(r.total_estimated_cost)}
+                    <td style={{ padding: "14px 16px" }}>
+                      <div style={{ fontWeight: 800, color: "#0f172a", fontSize: "0.98rem" }}>
+                        {formatRupees(r.total_estimated_cost)}
+                      </div>
+                      <div style={{ fontSize: "0.68rem", color: "#0284c7", fontWeight: 700, marginTop: 2 }}>
+                        Given by Engineer Crew
+                      </div>
                     </td>
 
                     <td style={{ padding: "14px 16px" }}>
@@ -602,20 +864,21 @@ export default function ApprovalAuthority({ user, reports = [], setPage }) {
                       <button
                         onClick={() => setSelectedRequest(r)}
                         style={{
-                          backgroundColor: "#f8fafc",
-                          border: "1px solid #cbd5e1",
-                          color: "#0f172a",
-                          padding: "6px 12px",
-                          borderRadius: 5,
+                          backgroundColor: "#0284c7",
+                          border: "none",
+                          color: "#fff",
+                          padding: "7px 14px",
+                          borderRadius: 6,
                           fontSize: "0.78rem",
-                          fontWeight: 700,
+                          fontWeight: 800,
                           cursor: "pointer",
                           display: "inline-flex",
                           alignItems: "center",
-                          gap: 4
+                          gap: 4,
+                          boxShadow: "0 2px 4px rgba(2,132,199,0.2)"
                         }}
                       >
-                        Inspect Breakdown &rarr;
+                        View Necessary Budget &rarr;
                       </button>
                     </td>
                   </tr>
@@ -642,14 +905,44 @@ export default function ApprovalAuthority({ user, reports = [], setPage }) {
             </div>
 
             {/* Total Summary Header */}
-            <div style={{ backgroundColor: "#f8fafc", border: "1.5px solid #cbd5e1", borderRadius: 8, padding: 16, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ backgroundColor: "#f8fafc", border: "1.5px solid #cbd5e1", borderRadius: 8, padding: 16, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b" }}>TOTAL ESTIMATED REPAIR BUDGET</div>
+                <div style={{ fontSize: "0.75rem", fontWeight: 800, color: "#0284c7", letterSpacing: 0.5 }}>ENGINEER PROPOSED REPAIR BUDGET</div>
                 <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "#0f172a" }}>{formatRupees(selectedRequest.total_estimated_cost)}</div>
               </div>
               <div style={{ textAlign: "right" }}>
                 {getStatusBadge(selectedRequest.status)}
                 <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: 4 }}>{selectedRequest.approval_level}</div>
+              </div>
+            </div>
+
+            {/* Engineer Site Visit & Proposal Info Card */}
+            <div style={{ backgroundColor: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 8, padding: 14, marginBottom: 16 }}>
+              <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "#0284c7", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>
+                👷 Engineer Site Visit & Proposed Budget Submission
+              </div>
+              <div style={{ fontSize: "0.88rem", fontWeight: 700, color: "#0f172a" }}>
+                Submitted By: <span style={{ color: "#0284c7" }}>{selectedRequest.requested_by_name}</span> ({selectedRequest.department})
+              </div>
+              {selectedRequest.decision_notes && (
+                <div style={{ fontSize: "0.82rem", color: "#334155", marginTop: 6, fontStyle: "italic", backgroundColor: "#fff", padding: "8px 12px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+                  "{selectedRequest.decision_notes}"
+                </div>
+              )}
+            </div>
+
+            {/* Workflow Urgency Timeline & SLA Delay Discount Banner */}
+            <div style={{ backgroundColor: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: 14, marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyBetween: "space-between", gap: 10, marginBottom: 6 }}>
+                <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "#1e40af", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <Clock size={16} /> WORK COMPLETION TIMELINE & SLA DISCOUNT
+                </span>
+              </div>
+              <div style={{ fontSize: "0.82rem", color: "#1e3a8a", lineHeight: 1.5 }}>
+                • <b>Urgency:</b> {selectedRequest.urgency || "Normal"} &rarr; Target Timeline: <b>
+                  {selectedRequest.urgency === "Critical" ? "3 Days" : selectedRequest.urgency === "Urgent" || selectedRequest.urgency === "High Priority" ? "5 Days" : "1 Week (7 Days)"}
+                </b><br />
+                • <b>SLA Delay Rule:</b> If repair work exceeds the assigned timeline, a <b>10% Discount Penalty</b> is automatically applied to the final invoice bill.
               </div>
             </div>
 
@@ -715,6 +1008,31 @@ export default function ApprovalAuthority({ user, reports = [], setPage }) {
 
             {/* Action Buttons */}
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+              <button
+                onClick={() => {
+                  generateFinalBillPDF({
+                    work_order_id: selectedRequest.work_order_id,
+                    report_id: selectedRequest.report_id || selectedRequest.id,
+                    title: selectedRequest.title,
+                    department: selectedRequest.department,
+                    engineer_name: selectedRequest.requested_by_name || "Er. Site Inspector",
+                    admin_name: "Municipal Works Admin",
+                    approved_by: selectedRequest.approved_by || user?.name || "Approval Authority Chair",
+                    approved_budget: selectedRequest.total_estimated_cost,
+                    material_cost: selectedRequest.material_cost,
+                    labor_cost: selectedRequest.labor_cost,
+                    equipment_cost: selectedRequest.equipment_cost,
+                    contingency_cost: selectedRequest.contingency_cost,
+                    delay_discount_applied: Boolean(selectedRequest.delay_discount_applied),
+                    final_bill_amount: selectedRequest.final_bill_amount || selectedRequest.total_estimated_cost,
+                    notes: selectedRequest.decision_notes || "Sanctioned municipal repair bill execution."
+                  });
+                }}
+                style={{ padding: "10px 16px", borderRadius: 6, border: "1px solid #0284c7", backgroundColor: "#f0f9ff", color: "#0284c7", fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
+              >
+                <Download size={16} /> Download PDF Bill 📥
+              </button>
+
               <button
                 onClick={() => handleUpdateStatus(selectedRequest.id, "Revision Requested")}
                 style={{ padding: "10px 16px", borderRadius: 6, border: "1px solid #d97706", backgroundColor: "#fffbebf5", color: "#b45309", fontWeight: 700, fontSize: "0.8rem", cursor: "pointer" }}

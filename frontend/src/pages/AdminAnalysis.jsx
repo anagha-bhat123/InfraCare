@@ -66,6 +66,7 @@ export default function AdminAnalysis({ setPage }) {
 
   // Edit Report Modal state
   const [editingReport, setEditingReport] = useState(null);
+  const [viewingReport, setViewingReport] = useState(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -118,7 +119,12 @@ export default function AdminAnalysis({ setPage }) {
         <head>
           <title>${report.title} - InfraCare Official Audit</title>
           <style>
-            body { font-family: 'Segoe UI', serif; padding: 40px; color: #111; max-width: 800px; margin: 0 auto; line-height: 1.6; }
+            @media print {
+              body { margin: 0; padding: 20px; font-family: 'Segoe UI', serif; color: #111; background: #fff; }
+              .no-print { display: none !important; }
+            }
+            body { font-family: 'Segoe UI', serif; padding: 40px; color: #111; max-width: 820px; margin: 0 auto; line-height: 1.6; background: #f8fafc; }
+            .preview-card { background: #fff; padding: 40px; border: 1px solid #cbd5e1; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.08); }
             .header { border-bottom: 2px solid #111; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
             .logo { font-size: 24px; font-weight: 800; font-family: Georgia, serif; letter-spacing: -0.5px; }
             .badge { font-size: 12px; font-weight: 700; background: #111; color: #fff; padding: 4px 8px; text-transform: uppercase; }
@@ -131,60 +137,66 @@ export default function AdminAnalysis({ setPage }) {
             .table th, .table td { padding: 10px; border: 1px solid #e5e7eb; text-align: left; font-size: 13px; }
             .table th { background: #fafafa; font-weight: 700; font-size: 11px; text-transform: uppercase; }
             .footer { margin-top: 50px; border-top: 1px solid #ddd; padding-top: 20px; font-size: 11px; color: #666; display: flex; justify-content: space-between; }
+            .no-print-bar { max-width: 820px; margin: 0 auto 20px auto; display: flex; justify-content: space-between; align-items: center; }
+            .btn-back { background: #0f172a; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+            .btn-print { background: #0284c7; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
           </style>
         </head>
         <body>
-          <div class="header">
-            <div>
-              <div class="logo">INFRACARE MUNICIPAL SYSTEMS</div>
-              <div style="font-size: 13px; color: #555;">Udupi & Mangalore District Infrastructure Audit</div>
+          <div class="no-print-bar no-print">
+            <button class="btn-back" onclick="window.close()">← Back to Dashboard / Close</button>
+            <button class="btn-print" onclick="window.print()">📥 Download PDF Report</button>
+          </div>
+
+          <div class="preview-card">
+            <div class="header">
+              <div>
+                <div class="logo">INFRACARE MUNICIPAL SYSTEMS</div>
+                <div style="font-size: 13px; color: #555;">Udupi & Mangalore District Infrastructure Audit</div>
+              </div>
+              <div class="badge">${report.status}</div>
             </div>
-            <div class="badge">${report.status}</div>
-          </div>
 
-          <div class="section">
-            <h1 style="font-family: Georgia, serif; font-size: 22px; margin: 0 0 12px;">${report.title}</h1>
-            <div class="meta-grid">
-              <div class="meta-item"><b>Report Identifier</b><span>#${report.id}</span></div>
-              <div class="meta-item"><b>Generation Timestamp</b><span>${report.date}</span></div>
-              <div class="meta-item"><b>Issuing Authority</b><span>${report.department}</span></div>
-              <div class="meta-item"><b>Overall Resolution Rate</b><span>${report.completionRate}</span></div>
+            <div class="section">
+              <h1 style="font-family: Georgia, serif; font-size: 22px; margin: 0 0 12px;">${report.title}</h1>
+              <div class="meta-grid">
+                <div class="meta-item"><b>Report Identifier</b><span>#${report.id}</span></div>
+                <div class="meta-item"><b>Generation Timestamp</b><span>${report.date}</span></div>
+                <div class="meta-item"><b>Issuing Authority</b><span>${report.department}</span></div>
+                <div class="meta-item"><b>Overall Resolution Rate</b><span>${report.completionRate}</span></div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-title">Audit Overview</div>
+              <p>This report documents the structural integrity, pothole remediation speed, and operational readiness metrics for municipal road networks across Udupi and Mangalore districts. All field records have been verified against citizen GPS reports and AI damage assessment models.</p>
+            </div>
+
+            <div class="section">
+              <div class="section-title">District Performance Metrics</div>
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>District Zone</th>
+                    <th>Total Incidents</th>
+                    <th>Avg Response Time</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>Udupi Central (DIST-01)</td><td>42</td><td>3.2 Days</td><td>Optimal</td></tr>
+                  <tr><td>Manipal Hub (DIST-02)</td><td>68</td><td>4.8 Days</td><td>Action Required</td></tr>
+                  <tr><td>Surathkal Highway (DIST-03)</td><td>29</td><td>2.1 Days</td><td>Optimal</td></tr>
+                  <tr><td>Hampankatta (DIST-04)</td><td>84</td><td>5.5 Days</td><td>Critical Priority</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="footer">
+              <span>OFFICIAL MUNICIPAL DOCUMENT • CONFIDENTIAL</span>
+              <span>SECURED VIA INFRACARE AES-256</span>
             </div>
           </div>
-
-          <div class="section">
-            <div class="section-title">Audit Overview</div>
-            <p>This report documents the structural integrity, pothole remediation speed, and operational readiness metrics for municipal road networks across Udupi and Mangalore districts. All field records have been verified against citizen GPS reports and AI damage assessment models.</p>
-          </div>
-
-          <div class="section">
-            <div class="section-title">District Performance Metrics</div>
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>District Zone</th>
-                  <th>Total Incidents</th>
-                  <th>Avg Response Time</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td>Udupi Central (DIST-01)</td><td>42</td><td>3.2 Days</td><td>Optimal</td></tr>
-                <tr><td>Manipal Hub (DIST-02)</td><td>68</td><td>4.8 Days</td><td>Action Required</td></tr>
-                <tr><td>Surathkal Highway (DIST-03)</td><td>29</td><td>2.1 Days</td><td>Optimal</td></tr>
-                <tr><td>Hampankatta (DIST-04)</td><td>84</td><td>5.5 Days</td><td>Critical Priority</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="footer">
-            <span>OFFICIAL MUNICIPAL DOCUMENT • CONFIDENTIAL</span>
-            <span>SECURED VIA INFRACARE AES-256</span>
-          </div>
-
-          <script>
-            window.onload = function() { window.print(); };
-          </script>
         </body>
       </html>
     `);
@@ -506,6 +518,9 @@ export default function AdminAnalysis({ setPage }) {
                       </span>
                     </td>
                     <td className="actions-col">
+                      <button onClick={() => setViewingReport(rep)} title="View Full Report Document" style={{ backgroundColor: "#0f172a", color: "#fff" }}>
+                        <FileText size={14} /> VIEW
+                      </button>
                       <button onClick={() => handleExportPDF(rep)} title="Generate PDF Document">
                         <FileText size={14} /> PDF
                       </button>
@@ -706,6 +721,111 @@ export default function AdminAnalysis({ setPage }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* In-App Audit Report Document View Modal with Back Button */}
+      {viewingReport && (
+        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(15,23,42,0.75)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, overflowY: "auto" }}>
+          <div style={{ backgroundColor: "#fff", borderRadius: 12, maxWidth: 840, width: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.3)", border: "1px solid #cbd5e1", padding: 32 }}>
+            
+            {/* Top Toolbar with Back Button */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, paddingBottom: 16, borderBottom: "2px solid #0f172a" }}>
+              <button
+                onClick={() => setViewingReport(null)}
+                style={{ backgroundColor: "#0f172a", color: "#fff", border: "none", padding: "10px 18px", borderRadius: 6, fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}
+              >
+                ← Back to Analytics & Archive
+              </button>
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  onClick={() => handleExportPDF(viewingReport)}
+                  style={{ backgroundColor: "#0284c7", color: "#fff", border: "none", padding: "10px 16px", borderRadius: 6, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
+                >
+                  <FileText size={16} /> Print / Download PDF
+                </button>
+                <button
+                  onClick={() => setViewingReport(null)}
+                  style={{ backgroundColor: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", padding: "10px 14px", borderRadius: 6, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer" }}
+                >
+                  ✕ Close
+                </button>
+              </div>
+            </div>
+
+            {/* Document Card Content */}
+            <div style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: 32, backgroundColor: "#fff" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "2px solid #111", paddingBottom: 20, marginBottom: 24 }}>
+                <div>
+                  <h1 style={{ margin: 0, fontSize: "1.4rem", fontWeight: 800, fontFamily: "Georgia, serif", color: "#0f172a" }}>INFRACARE MUNICIPAL SYSTEMS</h1>
+                  <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: 4 }}>Udupi & Mangalore District Infrastructure Audit</div>
+                </div>
+                <span style={{ fontSize: "0.75rem", fontWeight: 800, backgroundColor: "#0f172a", color: "#fff", padding: "4px 10px", borderRadius: 4, letterSpacing: 0.5 }}>
+                  {viewingReport.status}
+                </span>
+              </div>
+
+              <div style={{ marginBottom: 24 }}>
+                <h2 style={{ fontFamily: "Georgia, serif", fontSize: "1.35rem", margin: "0 0 16px 0", color: "#0f172a" }}>{viewingReport.title}</h2>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, backgroundColor: "#f8fafc", padding: 16, borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                  <div>
+                    <span style={{ display: "block", fontSize: "0.7rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Report Identifier</span>
+                    <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "#0f172a" }}>#{viewingReport.id}</span>
+                  </div>
+                  <div>
+                    <span style={{ display: "block", fontSize: "0.7rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Generation Timestamp</span>
+                    <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "#0f172a" }}>{viewingReport.date}</span>
+                  </div>
+                  <div>
+                    <span style={{ display: "block", fontSize: "0.7rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Issuing Authority</span>
+                    <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "#0f172a" }}>{viewingReport.department}</span>
+                  </div>
+                  <div>
+                    <span style={{ display: "block", fontSize: "0.7rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Overall Resolution Rate</span>
+                    <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "#16a34a" }}>{viewingReport.completionRate}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 24 }}>
+                <h4 style={{ fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8, borderBottom: "1px solid #e2e8f0", paddingBottom: 4 }}>
+                  Audit Overview
+                </h4>
+                <p style={{ fontSize: "0.88rem", color: "#334155", lineHeight: 1.6, margin: 0 }}>
+                  This report documents the structural integrity, pothole remediation speed, and operational readiness metrics for municipal road networks across Udupi and Mangalore districts. All field records have been verified against citizen GPS reports and AI damage assessment models.
+                </p>
+              </div>
+
+              <div style={{ marginBottom: 24 }}>
+                <h4 style={{ fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12, borderBottom: "1px solid #e2e8f0", paddingBottom: 4 }}>
+                  District Performance Metrics
+                </h4>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#f8fafc", borderBottom: "1px solid #cbd5e1" }}>
+                      <th style={{ padding: "8px 12px", textAlign: "left" }}>DISTRICT ZONE</th>
+                      <th style={{ padding: "8px 12px", textAlign: "left" }}>TOTAL INCIDENTS</th>
+                      <th style={{ padding: "8px 12px", textAlign: "left" }}>AVG RESPONSE TIME</th>
+                      <th style={{ padding: "8px 12px", textAlign: "left" }}>STATUS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style={{ borderBottom: "1px solid #f1f5f9" }}><td style={{ padding: "8px 12px" }}>Udupi Central (DIST-01)</td><td style={{ padding: "8px 12px" }}>42</td><td style={{ padding: "8px 12px" }}>3.2 Days</td><td style={{ padding: "8px 12px", color: "#16a34a", fontWeight: 700 }}>Optimal</td></tr>
+                    <tr style={{ borderBottom: "1px solid #f1f5f9" }}><td style={{ padding: "8px 12px" }}>Manipal Hub (DIST-02)</td><td style={{ padding: "8px 12px" }}>68</td><td style={{ padding: "8px 12px" }}>4.8 Days</td><td style={{ padding: "8px 12px", color: "#d97706", fontWeight: 700 }}>Action Required</td></tr>
+                    <tr style={{ borderBottom: "1px solid #f1f5f9" }}><td style={{ padding: "8px 12px" }}>Surathkal Highway (DIST-03)</td><td style={{ padding: "8px 12px" }}>29</td><td style={{ padding: "8px 12px" }}>2.1 Days</td><td style={{ padding: "8px 12px", color: "#16a34a", fontWeight: 700 }}>Optimal</td></tr>
+                    <tr style={{ borderBottom: "1px solid #f1f5f9" }}><td style={{ padding: "8px 12px" }}>Hampankatta (DIST-04)</td><td style={{ padding: "8px 12px" }}>84</td><td style={{ padding: "8px 12px" }}>5.5 Days</td><td style={{ padding: "8px 12px", color: "#dc2626", fontWeight: 700 }}>Critical Priority</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 16, borderTop: "1px solid #e2e8f0", fontSize: "0.72rem", color: "#64748b" }}>
+                <span>OFFICIAL MUNICIPAL DOCUMENT • CONFIDENTIAL</span>
+                <span>SECURED VIA INFRACARE AES-256</span>
+              </div>
+            </div>
+
           </div>
         </div>
       )}

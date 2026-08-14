@@ -133,7 +133,7 @@ export default function Header({ page, setPage, user, setUser, reports = [], sim
     profile: "Profile",
     maintenance: "Dashboard",
     tasks: "Scheduling",
-    "approval-authority": "Budget Approvals",
+    "approval-authority": user?.role === "engineer" ? "Budget Proposals" : "Budget Approvals",
     "ai-verification": "Verification",
     "team-allocation": "Team Allocation",
     inspections: "Inspections",

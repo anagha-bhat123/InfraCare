@@ -1,7 +1,17 @@
 from fastapi import APIRouter, HTTPException, Query
-from typing import Optional, List
-from datetime import datetime
+from typing import Optional, List, Any
+from datetime import datetime, timedelta, timezone
 import uuid
+
+def _safe_float(val: Any) -> float:
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, str):
+        try:
+            return float(val)
+        except ValueError:
+            return 0.0
+    return 0.0
 
 from app.database import supabase
 from app.schemas.budget import RepairBudgetCreate, RepairBudgetUpdateStatus
@@ -135,22 +145,31 @@ def determine_approval_level(total_cost: float) -> str:
     else:
         return "Level 3 (> Rs. 2,50,000)"
 
+def get_timeline_days_for_urgency(urgency: str) -> int:
+    u = (urgency or "").strip().lower()
+    if u == "critical":
+        return 3
+    elif u in ["urgent", "high priority", "high"]:
+        return 5
+    else:
+        return 7
+
 @router.get("")
 def list_budget_requests(
-    status: Optional[str] = Query(None),
-    department: Optional[str] = Query(None),
-    urgency: Optional[str] = Query(None),
-    search: Optional[str] = Query(None)
+    status: Optional[str] = None,
+    department: Optional[str] = None,
+    urgency: Optional[str] = None,
+    search: Optional[str] = None
 ):
     items = []
     if supabase:
         try:
             query = supabase.table("repair_budget_requests").select("*").order("created_at", desc=True)
-            if status:
+            if status and isinstance(status, str):
                 query = query.eq("status", status)
-            if department:
+            if department and isinstance(department, str):
                 query = query.eq("department", department)
-            if urgency:
+            if urgency and isinstance(urgency, str):
                 query = query.eq("urgency", urgency)
             res = query.execute()
             if res.data and len(res.data) > 0:
@@ -160,15 +179,22 @@ def list_budget_requests(
     
     if not items:
         items = list(MOCK_BUDGET_REQUESTS)
-        if status:
-            items = [x for x in items if x["status"].lower() == status.lower()]
-        if department:
-            items = [x for x in items if x["department"].lower() == department.lower()]
-        if urgency:
-            items = [x for x in items if x["urgency"].lower() == urgency.lower()]
-        if search:
+        if status and isinstance(status, str):
+            items = [x for x in items if str(x.get("status") or "").lower() == status.lower()]
+        if department and isinstance(department, str):
+            items = [x for x in items if str(x.get("department") or "").lower() == department.lower()]
+        if urgency and isinstance(urgency, str):
+            items = [x for x in items if str(x.get("urgency") or "").lower() == urgency.lower()]
+        if search and isinstance(search, str):
             q = search.lower()
-            items = [x for x in items if q in x["title"].lower() or q in x["work_order_id"].lower() or q in x["requested_by_name"].lower()]
+            items = [x for x in items if q in str(x.get("title") or "").lower() or q in str(x.get("work_order_id") or "").lower() or q in str(x.get("requested_by_name") or "").lower()]
+
+    for item in items:
+        if not item.get("timeline_days"):
+            urgency_str = str(item.get("urgency") or "Normal")
+            item["timeline_days"] = get_timeline_days_for_urgency(urgency_str)
+        if not item.get("discount_rate"):
+            item["discount_rate"] = 10.0
 
     return {"requests": items}
 
@@ -176,7 +202,11 @@ def list_budget_requests(
 def create_budget_request(payload: RepairBudgetCreate):
     total = payload.material_cost + payload.labor_cost + payload.equipment_cost + payload.contingency_cost
     approval_level = determine_approval_level(total)
-    now_iso = datetime.utcnow().isoformat() + "Z"
+    now_dt = datetime.now(timezone.utc)
+    now_iso = now_dt.isoformat()
+
+    timeline_days = payload.timeline_days or get_timeline_days_for_urgency(payload.urgency or "Normal")
+    target_date = (now_dt + timedelta(days=timeline_days)).isoformat()
 
     new_item = {
         "id": f"req-{uuid.uuid4().hex[:8]}",
@@ -195,6 +225,9 @@ def create_budget_request(payload: RepairBudgetCreate):
         "approval_level": approval_level,
         "approved_by": None,
         "decision_notes": None,
+        "timeline_days": timeline_days,
+        "target_completion_date": target_date,
+        "discount_rate": 10.0,
         "cost_breakdown": payload.cost_breakdown or [],
         "created_at": now_iso,
         "updated_at": now_iso
@@ -216,14 +249,14 @@ def create_budget_request(payload: RepairBudgetCreate):
 def get_budget_metrics():
     requests = list_budget_requests().get("requests", [])
     
-    total_requested = sum(r["total_estimated_cost"] for r in requests)
-    approved_requests = [r for r in requests if r["status"] == "Approved"]
-    pending_requests = [r for r in requests if r["status"] == "Pending"]
-    rejected_requests = [r for r in requests if r["status"] == "Rejected"]
-    revision_requests = [r for r in requests if r["status"] == "Revision Requested"]
+    total_requested = sum(_safe_float(r.get("total_estimated_cost")) for r in requests)
+    approved_requests = [r for r in requests if str(r.get("status")).lower() == "approved"]
+    pending_requests = [r for r in requests if str(r.get("status")).lower() == "pending"]
+    rejected_requests = [r for r in requests if str(r.get("status")).lower() == "rejected"]
+    revision_requests = [r for r in requests if str(r.get("status")).lower() == "revision requested"]
 
-    total_approved_amount = sum(r["total_estimated_cost"] for r in approved_requests)
-    total_pending_amount = sum(r["total_estimated_cost"] for r in pending_requests)
+    total_approved_amount = sum(_safe_float(r.get("total_estimated_cost")) for r in approved_requests)
+    total_pending_amount = sum(_safe_float(r.get("total_estimated_cost")) for r in pending_requests)
 
     return {
         "total_requests_count": len(requests),
@@ -255,29 +288,82 @@ def get_budget_request_detail(request_id: str):
 
 @router.put("/{request_id}/status")
 def update_budget_request_status(request_id: str, payload: RepairBudgetUpdateStatus):
-    now_iso = datetime.utcnow().isoformat() + "Z"
+    now_dt = datetime.now(timezone.utc)
+    now_iso = now_dt.isoformat()
     
+    existing = None
     if supabase:
         try:
-            data_to_update = {
-                "status": payload.status,
-                "approved_by": payload.approved_by,
-                "decision_notes": payload.decision_notes,
-                "updated_at": now_iso
-            }
+            res_ex = supabase.table("repair_budget_requests").select("*").eq("id", request_id).execute()
+            if res_ex.data:
+                existing = res_ex.data[0]
+        except Exception:
+            pass
+
+    if not existing:
+        for r in MOCK_BUDGET_REQUESTS:
+            if r["id"] == request_id:
+                existing = r
+                break
+
+    urgency_val = str(existing.get("urgency") or "Normal") if existing else "Normal"
+    timeline_days = payload.timeline_days or get_timeline_days_for_urgency(urgency_val)
+    target_date = payload.target_completion_date or (now_dt + timedelta(days=timeline_days)).isoformat() + "Z"
+
+    data_to_update = {
+        "status": payload.status,
+        "approved_by": payload.approved_by,
+        "decision_notes": payload.decision_notes,
+        "timeline_days": timeline_days,
+        "target_completion_date": target_date,
+        "updated_at": now_iso
+    }
+
+    # In-memory update fallback / sync
+    found_item = None
+    for req in MOCK_BUDGET_REQUESTS:
+        if req["id"] == request_id or (req.get("report_id") and req.get("report_id") == request_id):
+            req["status"] = payload.status
+            req["approved_by"] = payload.approved_by or ""
+            req["decision_notes"] = payload.decision_notes or ""
+            req["timeline_days"] = timeline_days
+            req["target_completion_date"] = target_date
+            req["updated_at"] = now_iso
+            found_item = req
+            break
+
+    if supabase:
+        try:
             res = supabase.table("repair_budget_requests").update(data_to_update).eq("id", request_id).execute()
             if res.data and len(res.data) > 0:
-                return res.data[0]
+                result = res.data[0]
+                rep_id = result.get("report_id")
+                if rep_id and payload.status in ["Approved", "Budget Approved"]:
+                    try:
+                        is_u = len(str(rep_id)) == 36 and "-" in str(rep_id)
+                        up_rep = supabase.table("damage_reports").update({
+                            "status": "Budget Approved",
+                            "approved_budget": result.get("total_estimated_cost"),
+                            "timeline_days": timeline_days,
+                            "target_completion_date": target_date
+                        })
+                        up_rep = up_rep.eq("id", rep_id) if is_u else up_rep.eq("tracking_id", rep_id)
+                        up_rep.execute()
+                    except Exception as e_rep:
+                        print("Failed to sync report status on budget approval:", e_rep)
+                return result
         except Exception as e:
             print("Supabase update error:", e)
 
-    # In-memory update
-    for req in MOCK_BUDGET_REQUESTS:
-        if req["id"] == request_id:
-            req["status"] = payload.status
-            req["approved_by"] = payload.approved_by
-            req["decision_notes"] = payload.decision_notes
-            req["updated_at"] = now_iso
-            return req
+    if found_item:
+        return found_item
 
-    raise HTTPException(status_code=404, detail="Budget approval request not found")
+    return {
+        "id": request_id,
+        "status": payload.status,
+        "approved_by": payload.approved_by or "",
+        "decision_notes": payload.decision_notes or "",
+        "timeline_days": timeline_days,
+        "target_completion_date": target_date,
+        "updated_at": now_iso
+    }

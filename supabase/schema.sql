@@ -45,6 +45,15 @@ create table public.damage_reports (
   ai_confidence numeric(5,2),
   assigned_department text,
   assigned_officer text,
+  site_visit_crew text,
+  site_visit_notes text,
+  estimated_budget numeric(12,2),
+  approved_budget numeric(12,2),
+  timeline_days integer,
+  target_completion_date timestamptz,
+  repaired_photo_url text,
+  delay_discount_applied boolean default false,
+  final_bill_amount numeric(12,2),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -280,6 +289,9 @@ create table if not exists public.repair_budget_requests (
   approval_level text not null default 'Level 1',
   approved_by text,
   decision_notes text,
+  timeline_days integer default 7,
+  target_completion_date timestamptz,
+  discount_rate numeric(5,2) default 10.00,
   cost_breakdown jsonb default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
