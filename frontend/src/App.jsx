@@ -182,7 +182,7 @@ export default function App() {
       // Logout
       setUser(null);
       localStorage.removeItem("infracare_user");
-      if (supabase) supabase.auth.signOut().catch(() => {});
+      if (supabase) supabase.auth.signOut().catch(() => { });
       setPage("home");
     } else {
       // Merge update — profile edits pass partial objects like { ...user, name: "New Name" }
@@ -208,12 +208,12 @@ export default function App() {
         const data = await res.json();
         if (data.reports) serverReports = data.reports;
       }
-      
+
       let localSaved = [];
       try {
         const saved = localStorage.getItem("infracare_local_reports");
         if (saved) localSaved = JSON.parse(saved);
-      } catch (e) {}
+      } catch (e) { }
 
       setReports((prev) => {
         const map = new Map();
@@ -261,13 +261,13 @@ export default function App() {
       const saved = localStorage.getItem("infracare_local_reports");
       const list = saved ? JSON.parse(saved) : [];
       localStorage.setItem("infracare_local_reports", JSON.stringify([newLocalReport, ...list]));
-    } catch (e) {}
+    } catch (e) { }
 
     setReports((prev) => [newLocalReport, ...prev]);
 
     try {
       const token = localStorage.getItem("infracare_token");
-      const headers = { 
+      const headers = {
         "Content-Type": "application/json",
         ...(token ? { "Authorization": `Bearer ${token}` } : {})
       };
@@ -281,14 +281,14 @@ export default function App() {
         const serverReport = data.report;
         if (serverReport) {
           setReports((prev) => prev.map((r) => (r.id === tempId ? { ...r, ...serverReport } : r)));
-          
+
           if (reportData.evidenceFile && serverReport.id) {
             const formData = new FormData();
             formData.append("photo", reportData.evidenceFile);
             formData.append("latitude", reportData.latitude);
             formData.append("longitude", reportData.longitude);
             formData.append("captured_at", reportData.capturedAt || new Date().toLocaleString());
-            
+
             const photoRes = await fetch(`${apiUrl}/reports/${serverReport.id}/photo`, {
               method: "POST",
               body: formData,
@@ -308,7 +308,7 @@ export default function App() {
     }
   };
 
-  const updateReportStatus = async (reportId, status, note = "", assignedEngineer = "", engineerNotes = "", estimatedBudget = null) => {
+  const updateReportStatus = async (reportId, status, note = "", assignedEngineer = "", engineerNotes = "", estimatedBudget = null, extraData = {}) => {
     const cleanId = String(reportId || "").replace("#", "").trim().toLowerCase();
 
     Swal.fire({
@@ -316,7 +316,7 @@ export default function App() {
       position: 'top-end',
       icon: 'info',
       title: `Status: ${status}`,
-      text: assignedEngineer ? `Assigned to ${assignedEngineer}` : (note || "Report updated"),
+      text: assignedEngineer ? `Assigned to ${assignedEngineer}` : (note || "Status updated automatically"),
       showConfirmButton: false,
       timer: 3000
     });
@@ -326,18 +326,25 @@ export default function App() {
         const rId = String(r.id || "").replace("#", "").trim().toLowerCase();
         const rTrack = String(r.tracking_id || "").replace("#", "").trim().toLowerCase();
         const isMatch = rId === cleanId || rTrack === cleanId || (rId && cleanId && (rId.includes(cleanId) || cleanId.includes(rId.substring(0, 8))));
-        
+
         if (isMatch) {
+          const timeStr = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
           const updatedHistory = [
-            [status, note || (assignedEngineer ? `Assigned to ${assignedEngineer}` : "Status updated by Admin"), new Date().toLocaleTimeString()],
+            [status, note || (assignedEngineer ? `Assigned to ${assignedEngineer}` : `Workflow stage updated to ${status}`), timeStr],
             ...(r.history || [])
           ];
           return {
             ...r,
+            ...extraData,
             status,
             assigned_engineer: assignedEngineer || r.assigned_engineer,
             engineer_notes: engineerNotes || r.engineer_notes,
             estimated_budget: estimatedBudget !== null && estimatedBudget !== undefined ? Number(estimatedBudget) : r.estimated_budget,
+            approved_budget: extraData.approved_budget || extraData.approvedBudget || r.approved_budget || (status === "Budget Approved" ? (Number(estimatedBudget) || r.estimated_budget) : r.approved_budget),
+            timeline_days: extraData.timeline_days || extraData.timelineDays || r.timeline_days || (r.urgency === "Critical" ? 3 : r.urgency === "Urgent" ? 5 : 7),
+            repaired_photo_url: extraData.repaired_photo_url || extraData.repairedPhotoUrl || r.repaired_photo_url,
+            final_bill_amount: extraData.final_bill_amount || extraData.finalBillAmount || r.final_bill_amount,
+            delay_discount_applied: extraData.delay_discount_applied !== undefined ? extraData.delay_discount_applied : r.delay_discount_applied,
             crew: assignedEngineer || r.crew,
             history: updatedHistory
           };
@@ -346,11 +353,52 @@ export default function App() {
       });
 
       try {
+        localStorage.setItem("infracare_reports", JSON.stringify(updatedList));
         localStorage.setItem("infracare_local_reports", JSON.stringify(updatedList));
-      } catch (e) {}
+      } catch (e) { }
 
       return updatedList;
     });
+
+    // Auto-sync local storage budget requests
+    try {
+      const bSaved = localStorage.getItem("infracare_budget_requests");
+      if (bSaved) {
+        const bList = JSON.parse(bSaved);
+        const updatedBList = bList.map(item => {
+          const itemRepId = String(item.report_id || item.id || "").replace("#", "").trim().toLowerCase();
+          if (itemRepId === cleanId || itemRepId.includes(cleanId) || cleanId.includes(itemRepId)) {
+            return {
+              ...item,
+              ...extraData,
+              status: status === "Budget Approved" ? "Approved" : status === "Budget Rejected" ? "Rejected" : status === "Revision Requested" ? "Revision Requested" : status
+            };
+          }
+          return item;
+        });
+        localStorage.setItem("infracare_budget_requests", JSON.stringify(updatedBList));
+      }
+    } catch (e) { }
+
+    // Auto-sync local storage final bills
+    try {
+      const fSaved = localStorage.getItem("infracare_final_bills");
+      if (fSaved) {
+        const fList = JSON.parse(fSaved);
+        const updatedFList = fList.map(item => {
+          const itemRepId = String(item.report_id || item.id || "").replace("#", "").trim().toLowerCase();
+          if (itemRepId === cleanId || itemRepId.includes(cleanId) || cleanId.includes(itemRepId)) {
+            return {
+              ...item,
+              ...extraData,
+              status: status === "Resolved" ? "Sanctioned & Settled" : status
+            };
+          }
+          return item;
+        });
+        localStorage.setItem("infracare_final_bills", JSON.stringify(updatedFList));
+      }
+    } catch (e) { }
 
     try {
       const token = localStorage.getItem("infracare_token");
