@@ -6,7 +6,7 @@ export default function HelpCenter() {
     <main style={{ backgroundColor: "#fafafa", minHeight: "100vh", fontFamily: "sans-serif", paddingBottom: 80 }}>
       {/* Black Header */}
       <div style={{ backgroundColor: "#000", color: "#fff", padding: "64px 48px" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+        <div style={{ maxWidth: "100%", margin: "0 auto", padding: "0 40px" }}>
           <div style={{ display: "inline-block", backgroundColor: "#27272a", color: "#d4d4d8", padding: "6px 12px", fontSize: "0.7rem", fontWeight: 700, letterSpacing: 1, marginBottom: 24, borderRadius: 2 }}>
             SUPPORT
           </div>
@@ -19,7 +19,7 @@ export default function HelpCenter() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "64px 48px", display: "flex", gap: 64, alignItems: "flex-start" }}>
+      <div style={{ maxWidth: "100%", margin: "0 auto", padding: "64px 48px", display: "flex", gap: 64, alignItems: "flex-start" }}>
         
         {/* Left Sidebar */}
         <div style={{ width: 240, flexShrink: 0, position: "sticky", top: 40 }}>

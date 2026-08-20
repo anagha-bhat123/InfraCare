@@ -55,7 +55,7 @@ export default function TeamAllocation({ reports = [], setPage, setSelectedRepor
   }, [allocatedTasks]);
 
   return (
-    <main className="page" style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 20px" }}>
+    <main className="page" style={{ maxWidth: "100%", margin: "0 auto", padding: "24px 40px" }}>
       {/* Header Banner */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 16, marginBottom: 28 }}>
         <div>

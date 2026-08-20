@@ -7,7 +7,7 @@ import Swal from "sweetalert2";
 import { apiUrl } from "../services/api";
 import { generateFinalBillPDF } from "../utils/pdfGenerator";
 
-export default function ApprovalAuthority({ user, reports = [], setPage, selectedReportId = null, setSelectedReportId = null }) {
+export default function ApprovalAuthority({ user, reports = [], updateReportStatus, setPage, selectedReportId = null, setSelectedReportId = null }) {
   const INITIAL_SEED_REQUESTS = [
     {
       id: "req-101",
@@ -202,6 +202,7 @@ export default function ApprovalAuthority({ user, reports = [], setPage, selecte
           parsed.forEach(item => {
             if (item.id) localOverrides.set(String(item.id), item);
             if (item.report_id) localOverrides.set(String(item.report_id), item);
+            if (item.work_order_id) localOverrides.set(String(item.work_order_id), item);
           });
         }
       }
@@ -211,7 +212,8 @@ export default function ApprovalAuthority({ user, reports = [], setPage, selecte
     const list = requests.map(r => {
       const rId = String(r.id || "");
       const rRepId = String(r.report_id || "");
-      const override = localOverrides.get(rId) || localOverrides.get(rRepId);
+      const rWoId = String(r.work_order_id || "");
+      const override = localOverrides.get(rId) || localOverrides.get(rRepId) || localOverrides.get(rWoId);
       if (override) {
         return {
           ...r,
@@ -226,35 +228,49 @@ export default function ApprovalAuthority({ user, reports = [], setPage, selecte
 
     // 3. Unshift any local storage items not present in backend requests
     localOverrides.forEach(localItem => {
-      const exists = list.some(r => String(r.id) === String(localItem.id) || (localItem.report_id && String(r.report_id) === String(localItem.report_id)));
+      const exists = list.some(r => 
+        String(r.id) === String(localItem.id) || 
+        (localItem.report_id && String(r.report_id) === String(localItem.report_id)) ||
+        (localItem.work_order_id && String(r.work_order_id) === String(localItem.work_order_id))
+      );
       if (!exists) {
         list.unshift(localItem);
       }
     });
 
-    // 4. Merge live reports
-    const existingReportIds = new Set(list.map(r => String(r.report_id || "")).filter(Boolean));
+    // 4. Track all existing IDs to avoid duplicate unshifting
+    const existingIds = new Set();
+    list.forEach(r => {
+      if (r.id) existingIds.add(String(r.id));
+      if (r.report_id) existingIds.add(String(r.report_id));
+      if (r.work_order_id) existingIds.add(String(r.work_order_id));
+    });
 
+    // 5. Merge live reports without creating duplicate "Pending" entries for overridden items
     (reports || []).forEach(rep => {
-      const estBudget = rep.estimated_budget || rep.approved_budget;
-      const repStatus = rep.status;
       const idStr = String(rep.id || "");
       const trackStr = String(rep.tracking_id || "");
+      const reqIdStr = `req-${idStr.substring(0, 8)}`;
 
-      if (estBudget || repStatus === "Budget Submitted" || repStatus === "Pending Budget Approval" || repStatus === "Pending Financial Approval" || repStatus === "Budget Approved" || repStatus === "Site Visit Assigned" || repStatus === "Site Visit Completed") {
-        if (!existingReportIds.has(idStr) && !existingReportIds.has(trackStr)) {
+      const isAlreadyAdded = existingIds.has(idStr) || existingIds.has(trackStr) || existingIds.has(reqIdStr) || localOverrides.has(idStr) || localOverrides.has(trackStr) || localOverrides.has(reqIdStr);
+
+      if (!isAlreadyAdded) {
+        const estBudget = rep.estimated_budget || rep.approved_budget;
+        const repStatus = rep.status;
+
+        if (estBudget || repStatus === "Budget Submitted" || repStatus === "Pending Budget Approval" || repStatus === "Pending Financial Approval" || repStatus === "Budget Approved" || repStatus === "Site Visit Assigned" || repStatus === "Site Visit Completed") {
           const totalCost = Number(estBudget) || 65000.0;
           const mat = Math.round(totalCost * 0.55);
           const lab = Math.round(totalCost * 0.25);
           const eq = Math.round(totalCost * 0.12);
           const cont = Math.round(totalCost * 0.08);
 
-          const isApproved = repStatus === "Budget Approved";
-          const isRejected = repStatus === "Budget Rejected";
+          const isApproved = repStatus === "Budget Approved" || repStatus === "Approved" || repStatus === "Resolved";
+          const isRejected = repStatus === "Budget Rejected" || repStatus === "Rejected";
           const isRevision = repStatus === "Revision Requested";
 
           list.unshift({
-            id: `req-${idStr.substring(0, 8)}`,
+            id: reqIdStr,
             report_id: idStr,
             work_order_id: rep.tracking_id || `WO-2026-${idStr.substring(0, 4).toUpperCase()}`,
             title: rep.title || rep.category || "Field Infrastructure Repair Project",
@@ -279,10 +295,13 @@ export default function ApprovalAuthority({ user, reports = [], setPage, selecte
             created_at: rep.created_at || new Date().toISOString(),
             updated_at: new Date().toISOString()
           });
+
+          existingIds.add(idStr);
+          existingIds.add(trackStr);
+          existingIds.add(reqIdStr);
         }
       }
     });
-
     return list;
   }, [requests, reports]);
 
@@ -388,18 +407,19 @@ export default function ApprovalAuthority({ user, reports = [], setPage, selecte
     const approverName = user?.name || (user?.role === "admin" ? "Financial Officer (Admin)" : "Chief Inspector");
     
     // Find associated report and details
-    const targetReq = combinedRequests.find(r => r.id === requestId);
-    const reportId = targetReq?.report_id || targetReq?.id;
-    const approvedBudget = targetReq?.total_estimated_cost || 0;
-    const urgency = targetReq?.urgency || "Normal";
+    const targetReq = combinedRequests.find(r => String(r.id) === String(requestId) || (r.report_id && String(r.report_id) === String(requestId))) || selectedRequest || {};
+    const reqId = targetReq.id || requestId;
+    const reportId = targetReq.report_id || targetReq.id || requestId;
+    const approvedBudget = targetReq.total_estimated_cost || targetReq.approved_budget || targetReq.estimated_budget || 50000;
+    const urgency = targetReq.urgency || "Normal";
     const timelineDays = urgency.toLowerCase() === "critical" ? 3 : (urgency.toLowerCase() === "urgent" || urgency.toLowerCase() === "high priority") ? 5 : 7;
-    const assignedEng = targetReq?.requested_by_name || "Assigned Crew";
+    const assignedEng = targetReq.requested_by_name || targetReq.engineer_name || "Assigned Crew";
 
-    const isFinalBill = Boolean(targetReq?.final_bill_amount || activeMainTab === "final_bills" || targetReq?.status?.toLowerCase().includes("final bill"));
+    const isFinalBill = Boolean(targetReq.final_bill_amount || activeMainTab === "final_bills" || (targetReq.status && String(targetReq.status).toLowerCase().includes("final bill")));
     const reportStatus = (isFinalBill && targetStatus === "Approved") ? "Resolved" : targetStatus === "Approved" ? "Budget Approved" : targetStatus === "Rejected" ? "Budget Rejected" : "Revision Requested";
 
     // 1. Update parent App state if linked to a report
-    if (reportId && updateReportStatus) {
+    if (updateReportStatus) {
       updateReportStatus(
         reportId, 
         reportStatus, 
@@ -412,16 +432,16 @@ export default function ApprovalAuthority({ user, reports = [], setPage, selecte
 
     // 2. Update React requests state immediately
     setRequests(prev => {
-      const exists = prev.some(r => r.id === requestId || (reportId && r.report_id === reportId));
+      const exists = prev.some(r => String(r.id) === String(requestId) || (reportId && String(r.report_id) === String(reportId)));
       if (exists) {
-        return prev.map(r => (r.id === requestId || (reportId && r.report_id === reportId)) ? {
+        return prev.map(r => (String(r.id) === String(requestId) || (reportId && String(r.report_id) === String(reportId))) ? {
           ...r,
           status: targetStatus,
           approved_by: approverName,
           decision_notes: decisionNotes || `Status updated to ${targetStatus}`
         } : r);
       }
-      if (targetReq) {
+      if (targetReq && targetReq.id) {
         return [{
           ...targetReq,
           status: targetStatus,
@@ -612,7 +632,7 @@ export default function ApprovalAuthority({ user, reports = [], setPage, selecte
   };
 
   return (
-    <main className="page" style={{ maxWidth: 1240, margin: "0 auto", padding: "24px 20px" }}>
+    <main className="page" style={{ maxWidth: "100%", margin: "0 auto", padding: "24px 40px" }}>
       {/* Header Banner */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16, marginBottom: 28 }}>
         <div>
@@ -1011,21 +1031,21 @@ export default function ApprovalAuthority({ user, reports = [], setPage, selecte
               <button
                 onClick={() => {
                   generateFinalBillPDF({
-                    work_order_id: selectedRequest.work_order_id,
-                    report_id: selectedRequest.report_id || selectedRequest.id,
-                    title: selectedRequest.title,
-                    department: selectedRequest.department,
-                    engineer_name: selectedRequest.requested_by_name || "Er. Site Inspector",
+                    work_order_id: selectedRequest.work_order_id || selectedRequest.tracking_id || `WO-2026-${String(selectedRequest.id || "101").substring(0, 5).toUpperCase()}`,
+                    report_id: selectedRequest.report_id || selectedRequest.id || "REP-101",
+                    title: selectedRequest.title || selectedRequest.summary || "Infrastructure Repair Execution",
+                    department: selectedRequest.department || "PWD - Road & Drainage",
+                    engineer_name: selectedRequest.requested_by_name || selectedRequest.engineer_name || "Er. Site Inspector",
                     admin_name: "Municipal Works Admin",
                     approved_by: selectedRequest.approved_by || user?.name || "Approval Authority Chair",
-                    approved_budget: selectedRequest.total_estimated_cost,
-                    material_cost: selectedRequest.material_cost,
-                    labor_cost: selectedRequest.labor_cost,
-                    equipment_cost: selectedRequest.equipment_cost,
-                    contingency_cost: selectedRequest.contingency_cost,
+                    approved_budget: selectedRequest.total_estimated_cost || selectedRequest.approved_budget || 50000,
+                    material_cost: selectedRequest.material_cost || Math.round((selectedRequest.total_estimated_cost || 50000) * 0.55),
+                    labor_cost: selectedRequest.labor_cost || Math.round((selectedRequest.total_estimated_cost || 50000) * 0.25),
+                    equipment_cost: selectedRequest.equipment_cost || Math.round((selectedRequest.total_estimated_cost || 50000) * 0.12),
+                    contingency_cost: selectedRequest.contingency_cost || Math.round((selectedRequest.total_estimated_cost || 50000) * 0.08),
                     delay_discount_applied: Boolean(selectedRequest.delay_discount_applied),
-                    final_bill_amount: selectedRequest.final_bill_amount || selectedRequest.total_estimated_cost,
-                    notes: selectedRequest.decision_notes || "Sanctioned municipal repair bill execution."
+                    final_bill_amount: selectedRequest.final_bill_amount || selectedRequest.total_estimated_cost || 50000,
+                    notes: selectedRequest.decision_notes || selectedRequest.justification || "Sanctioned municipal repair bill execution."
                   });
                 }}
                 style={{ padding: "10px 16px", borderRadius: 6, border: "1px solid #0284c7", backgroundColor: "#f0f9ff", color: "#0284c7", fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
@@ -1034,19 +1054,19 @@ export default function ApprovalAuthority({ user, reports = [], setPage, selecte
               </button>
 
               <button
-                onClick={() => handleUpdateStatus(selectedRequest.id, "Revision Requested")}
+                onClick={() => handleUpdateStatus(selectedRequest.id || selectedRequest.report_id || selectedRequest.work_order_id, "Revision Requested")}
                 style={{ padding: "10px 16px", borderRadius: 6, border: "1px solid #d97706", backgroundColor: "#fffbebf5", color: "#b45309", fontWeight: 700, fontSize: "0.8rem", cursor: "pointer" }}
               >
                 Request Revision
               </button>
               <button
-                onClick={() => handleUpdateStatus(selectedRequest.id, "Rejected")}
+                onClick={() => handleUpdateStatus(selectedRequest.id || selectedRequest.report_id || selectedRequest.work_order_id, "Rejected")}
                 style={{ padding: "10px 16px", borderRadius: 6, border: "1px solid #dc2626", backgroundColor: "#fef2f2", color: "#b91c1c", fontWeight: 700, fontSize: "0.8rem", cursor: "pointer" }}
               >
                 Reject Budget
               </button>
               <button
-                onClick={() => handleUpdateStatus(selectedRequest.id, "Approved")}
+                onClick={() => handleUpdateStatus(selectedRequest.id || selectedRequest.report_id || selectedRequest.work_order_id, "Approved")}
                 style={{ padding: "10px 18px", borderRadius: 6, border: "none", backgroundColor: "#16a34a", color: "#fff", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
               >
                 <CheckCircle2 size={16} /> Authorize & Approve Budget

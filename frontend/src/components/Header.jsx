@@ -9,12 +9,17 @@ export default function Header({ page, setPage, user, setUser, reports = [], sim
   const [notifOpen, setNotifOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [fetchedNotifs, setFetchedNotifs] = useState([]);
+  const [hasFetchedNotifs, setHasFetchedNotifs] = useState(false);
   const dropdownRef = useRef(null);
   const notifRef = useRef(null);
 
   useEffect(() => {
     async function loadNotifications() {
-      if (!user) return;
+      if (!user) {
+        setFetchedNotifs([]);
+        setHasFetchedNotifs(true);
+        return;
+      }
       try {
         const query = new URLSearchParams();
         if (user.role === "engineer") {
@@ -31,10 +36,14 @@ export default function Header({ page, setPage, user, setUser, reports = [], sim
           const data = await res.json();
           if (data.notifications) {
             setFetchedNotifs(data.notifications);
+          } else {
+            setFetchedNotifs([]);
           }
         }
       } catch (e) {
         console.error("Failed to fetch notifications:", e);
+      } finally {
+        setHasFetchedNotifs(true);
       }
     }
     loadNotifications();
@@ -52,11 +61,10 @@ export default function Header({ page, setPage, user, setUser, reports = [], sim
   };
 
   const notifications = React.useMemo(() => {
-    const list = reports || [];
-    let items = [];
+    if (!user) return [];
 
-    if (fetchedNotifs.length > 0) {
-      items = fetchedNotifs.map(n => ({
+    if (hasFetchedNotifs) {
+      return fetchedNotifs.map(n => ({
         id: n.id,
         report_id: n.report_id,
         tracking_id: n.report_id ? n.report_id.substring(0, 8).toUpperCase() : "ALERT",
@@ -67,23 +75,25 @@ export default function Header({ page, setPage, user, setUser, reports = [], sim
         read: n.read,
         created_at: n.created_at
       }));
+    }
+
+    const list = reports || [];
+    let items = [];
+    if (user?.role === "engineer") {
+      const engName = (user?.name || "").toLowerCase();
+      items = list.filter(r => {
+        const assigned = (r.assigned_engineer || r.crew || "").toLowerCase();
+        return (engName && (assigned.includes(engName) || engName.includes(assigned))) ||
+               ["Crew Assigned", "In Progress", "Approved", "Pending Final Verification"].includes(r.status);
+      });
+    } else if (user?.role === "admin") {
+      items = list.filter(r => r.status === "Pending" || r.status === "Submitted" || !r.status || r.status === "Pending Final Verification");
     } else {
-      if (user?.role === "engineer") {
-        const engName = (user?.name || "").toLowerCase();
-        items = list.filter(r => {
-          const assigned = (r.assigned_engineer || r.crew || "").toLowerCase();
-          return (engName && (assigned.includes(engName) || engName.includes(assigned))) ||
-                 ["Crew Assigned", "In Progress", "Approved", "Pending Final Verification"].includes(r.status);
-        });
-      } else if (user?.role === "admin") {
-        items = list.filter(r => r.status === "Pending" || r.status === "Submitted" || !r.status || r.status === "Pending Final Verification");
-      } else {
-        items = list.filter(r => r.assigned_engineer || r.status !== "Resolved");
-      }
+      items = list.filter(r => r.assigned_engineer || r.status !== "Resolved");
     }
 
     return items;
-  }, [reports, user, fetchedNotifs]);
+  }, [reports, user, fetchedNotifs, hasFetchedNotifs]);
 
   const notifHeaderTitle = 
     user?.role === "engineer" ? "Assigned Task Alerts" :

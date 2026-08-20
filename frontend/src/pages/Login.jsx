@@ -159,17 +159,18 @@ export default function Login({ setUser, setPage }) {
         .from("profiles")
         .select("role, full_name")
         .eq("id", data.session.user.id)
-        .single();
+        .maybeSingle();
         
-      const meta = data.session.user.user_metadata || {};
-      const userRole = profile?.role || meta.role || "citizen";
-      const role_home = { citizen: "home", engineer: "maintenance", inspector: "inspections", admin: "dashboard" };
+      const metadata = data.session.user?.user_metadata || {};
+      const userRole = profile?.role || metadata.role || "citizen";
+      const userName = profile?.full_name || metadata.full_name || data.session.user.email;
+      const role_home = { citizen: "home", engineer: "maintenance", inspector: "inspections", admin: "dashboard", approver: "approval-authority" };
       
       return {
         user: {
           id: data.session.user.id,
           role: userRole,
-          name: profile?.full_name || meta.full_name || data.session.user.email,
+          name: userName,
           email: data.session.user.email,
         },
         access_token: data.session.access_token,

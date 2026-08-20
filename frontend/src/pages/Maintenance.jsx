@@ -16,7 +16,12 @@ export default function Maintenance({ reports = [], setPage, user }) {
     }
   });
 
-  const assignedReports = filteredReports.filter(r => r.assigned_engineer || ["Crew Assigned", "In Progress", "Pending Final Verification", "Approved"].includes(r.status));
+  const assignedReports = filteredReports.filter(r => {
+    const statusLower = (r.status || "").toLowerCase();
+    const isCompleted = statusLower.includes("final bill") || statusLower.includes("resolved") || statusLower.includes("completed");
+    const isAssigned = Boolean(r.assigned_engineer || ["crew assigned", "in progress", "pending final verification", "approved", "budget approved", "site visit assigned", "site visit completed"].includes(statusLower));
+    return isAssigned && !isCompleted;
+  });
 
   return (
     <main className="page">

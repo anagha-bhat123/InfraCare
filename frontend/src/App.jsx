@@ -102,31 +102,50 @@ export default function App() {
             .from("profiles")
             .select("role, full_name, phone, ward_zone, zone")
             .eq("id", session.user.id)
-            .single();
-          // Priority: profiles table → user_metadata (set at signup) → email
-          const meta = session.user.user_metadata || {};
+            .maybeSingle();
+
+          const metadata = session.user.user_metadata || {};
+          const userRole = profile?.role || metadata.role || "citizen";
+          const userName = profile?.full_name || metadata.full_name || session.user.email;
+
           const userData = {
             id: session.user.id,
-            role: profile?.role || meta.role || "citizen",
-            name: profile?.full_name || meta.full_name || session.user.email,
+            role: userRole,
+            name: userName,
             email: session.user.email,
-            phone: profile?.phone || "",
-            ward: profile?.ward_zone || "",
-            zone: profile?.zone || "",
+            phone: profile?.phone || metadata.phone || "",
+            ward: profile?.ward_zone || metadata.ward_zone || "",
+            zone: profile?.zone || metadata.zone || "",
           };
           restoreFromParsed(userData);
           return;
         }
-
       }
 
       // 2️⃣ Fall back to localStorage (demo users with "Remember Me")
-      const savedUser = localStorage.getItem("infracare_user");
-      if (savedUser) {
+      const savedUserStr = localStorage.getItem("infracare_user");
+      if (savedUserStr) {
         try {
-          restoreFromParsed(JSON.parse(savedUser));
+          const parsed = JSON.parse(savedUserStr);
+          const isDemoUser = parsed.id && (String(parsed.id).startsWith("demo-") || String(parsed.id).startsWith("eng-"));
+          if (!isDemoUser && supabase) {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("id")
+              .eq("id", parsed.id)
+              .maybeSingle();
+            if (!profile) {
+              localStorage.removeItem("infracare_user");
+              localStorage.removeItem("infracare_token");
+              setUser(null);
+              setPage("login");
+              return;
+            }
+          }
+          restoreFromParsed(parsed);
         } catch {
           localStorage.removeItem("infracare_user");
+          localStorage.removeItem("infracare_token");
         }
       }
     };
@@ -198,7 +217,10 @@ export default function App() {
   };
 
 
+  const [reportsCleared, setReportsCleared] = useState(false);
+
   const fetchReports = async () => {
+    if (reportsCleared) return;
     try {
       const token = localStorage.getItem("infracare_token");
       const headers = token ? { "Authorization": `Bearer ${token}` } : {};
@@ -233,6 +255,33 @@ export default function App() {
     } catch (e) {
       console.error("Failed to fetch reports:", e);
     }
+  };
+
+  const clearAllReports = () => {
+    localStorage.removeItem("infracare_local_reports");
+    setReportsCleared(true);
+    setReports([]);
+  };
+
+  const deleteReport = (reportId) => {
+    const cleanId = String(reportId || "").replace("#", "").trim().toLowerCase();
+    setReports((prev) => prev.filter((r) => {
+      const rId = String(r.id || "").replace("#", "").trim().toLowerCase();
+      const rTrack = String(r.tracking_id || "").replace("#", "").trim().toLowerCase();
+      return rId !== cleanId && rTrack !== cleanId;
+    }));
+    try {
+      const saved = localStorage.getItem("infracare_local_reports");
+      if (saved) {
+        const list = JSON.parse(saved);
+        const updated = list.filter((r) => {
+          const rId = String(r.id || "").replace("#", "").trim().toLowerCase();
+          const rTrack = String(r.tracking_id || "").replace("#", "").trim().toLowerCase();
+          return rId !== cleanId && rTrack !== cleanId;
+        });
+        localStorage.setItem("infracare_local_reports", JSON.stringify(updated));
+      }
+    } catch (e) { }
   };
 
   useEffect(() => {
@@ -430,7 +479,7 @@ export default function App() {
       if (user?.role === "admin") {
         return <AdminReports reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} />;
       }
-      return <Track reports={reports} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} />;
+      return <Track reports={reports} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} user={user} clearAllReports={clearAllReports} deleteReport={deleteReport} />;
     }
     if (page === "dashboard" || page === "admin-dashboard") return <AdminDashboard reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} user={user} />;
     if (page === "admin-reports" || page === "resolved-reports" || page === "reports") return <AdminReports reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} user={user} />;

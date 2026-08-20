@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { MapPin, Navigation, FileText, Download } from "lucide-react";
+import Swal from "sweetalert2";
 import MapPanel from "../components/MapPanel";
 import { reportsSeed, assignments } from "../data/seedData";
 import { generateFinalBillPDF } from "../utils/pdfGenerator";
@@ -58,23 +59,55 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
       return timeB - timeA;
     });
 
-    const liveItems = sortedReports.map(r => ({
-      id: (r.tracking_id || (r.id ? (String(r.id).startsWith("CMP") ? r.id : r.id.substring(0, 8)) : "REP")).toUpperCase(),
-      raw_id: r.id,
-      state: (r.status || "CREW ASSIGNED").toUpperCase(),
-      title: r.title || r.category || "Road Damage Incident",
-      place: `Lat: ${r.latitude}, Lng: ${r.longitude}`,
-      coords: [r.latitude || 13.3409, r.longitude || 74.7421],
-      summary: r.description || "Citizen complaint assigned by Admin for field inspection and repair.",
-      type: r.category || "General Damage",
-      surface: "Asphalt / Roadway",
-      crew: r.assigned_engineer || r.site_visit_crew || r.crew || "Field Engineer Crew",
-      photos: r.evidence ? [r.evidence] : (r.report_photos ? r.report_photos.map(p => p.photo_url) : []),
-      is_raw: true,
-      raw_report: r
-    }));
+    const budgetMap = new Map();
+    try {
+      const savedBudgets = localStorage.getItem("infracare_budget_requests");
+      if (savedBudgets) {
+        const parsed = JSON.parse(savedBudgets);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(b => {
+            const cost = Number(b.total_estimated_cost || b.approved_budget || b.estimated_budget);
+            if (b.id && cost) budgetMap.set(String(b.id), cost);
+            if (b.report_id && cost) budgetMap.set(String(b.report_id), cost);
+            if (b.work_order_id && cost) budgetMap.set(String(b.work_order_id), cost);
+          });
+        }
+      }
+    } catch (e) {}
 
-    const staticAssignments = department === "MESCOM - Streetlight & Grid" ? mescomAssignments : assignments;
+    const liveItems = sortedReports.map(r => {
+      const rId = String(r.id || "");
+      const rTrack = String(r.tracking_id || "");
+      const approvedCost = budgetMap.get(rId) || budgetMap.get(rTrack) || Number(r.approved_budget) || Number(r.estimated_budget) || 90000;
+
+      return {
+        id: (r.tracking_id || (r.id ? (String(r.id).startsWith("CMP") ? r.id : r.id.substring(0, 8)) : "REP")).toUpperCase(),
+        raw_id: r.id,
+        state: (r.status || "CREW ASSIGNED").toUpperCase(),
+        title: r.title || r.category || "Road Damage Incident",
+        place: `Lat: ${r.latitude}, Lng: ${r.longitude}`,
+        coords: [r.latitude || 13.3409, r.longitude || 74.7421],
+        summary: r.description || "Citizen complaint assigned by Admin for field inspection and repair.",
+        type: r.category || "General Damage",
+        surface: "Asphalt / Roadway",
+        crew: r.assigned_engineer || r.site_visit_crew || r.crew || "Field Engineer Crew",
+        photos: r.evidence ? [r.evidence] : (r.report_photos ? r.report_photos.map(p => p.photo_url) : []),
+        approved_budget: approvedCost,
+        estimated_budget: approvedCost,
+        is_raw: true,
+        raw_report: { ...r, approved_budget: approvedCost }
+      };
+    });
+
+    const staticAssignments = (department === "MESCOM - Streetlight & Grid" ? mescomAssignments : assignments).map(s => {
+      const approvedCost = budgetMap.get(String(s.id)) || 90000;
+      return {
+        ...s,
+        approved_budget: approvedCost,
+        estimated_budget: approvedCost
+      };
+    });
+
     const combined = [...liveItems];
     
     // Append static assignments if not already present
@@ -210,7 +243,7 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
                 </div>
               </div>
 
-              <div className="three" style={{ display: "grid", gap: 24, marginBottom: 48, paddingBottom: 48, borderBottom: "1px solid #e5e7eb" }}>
+              <div className="three" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 24, marginBottom: 48, paddingBottom: 48, borderBottom: "1px solid #e5e7eb" }}>
                 <div>
                   <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#6b7280", letterSpacing: 1, marginBottom: 8 }}>TYPE</div>
                   <div style={{ fontSize: "1.05rem", color: "#111" }}>{activeItem.type}</div>
@@ -222,6 +255,12 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
                 <div>
                   <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#6b7280", letterSpacing: 1, marginBottom: 8 }}>ASSIGNED TO</div>
                   <div style={{ fontSize: "1.05rem", color: "#111" }}>{activeItem.crew}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "0.75rem", fontWeight: 800, color: "#0284c7", letterSpacing: 1, marginBottom: 8 }}>SANCTIONED / APPROVED BUDGET</div>
+                  <div style={{ fontSize: "1.15rem", fontWeight: 800, color: "#16a34a" }}>
+                    ₹ {Number(activeItem.approved_budget || activeItem.estimated_budget || 90000).toLocaleString("en-IN")}
+                  </div>
                 </div>
               </div>
 
@@ -384,7 +423,13 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
                         updateReportStatus(activeItem.raw_id, "Final Bill Submitted by Engineer", note, activeItem.crew, note, photoUrl);
                       }
                       
-                      alert(`Final Bill of Rs. ${finalBillAmount.toLocaleString()} generated & submitted to Admin! ${isWorkDelayed ? '10% SLA Delay Penalty applied.' : 'Completed on-time.'}`);
+                      Swal.fire({
+                        icon: "success",
+                        title: "Final Bill Submitted ✓",
+                        text: `Final Bill of ₹ ${finalBillAmount.toLocaleString("en-IN")} generated & submitted to Admin! ${isWorkDelayed ? '10% SLA Delay Penalty applied.' : 'Completed on-time.'}`,
+                        confirmButtonColor: "#16a34a",
+                        confirmButtonText: "OK"
+                      });
                       
                       // Trigger PDF bill download preview
                       generateFinalBillPDF(finalBillObj);

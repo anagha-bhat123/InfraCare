@@ -289,7 +289,7 @@ export default function EngineerBudgetProposal({ user, reports = [], updateRepor
   };
 
   return (
-    <main className="page" style={{ maxWidth: 1240, margin: "0 auto", padding: "24px 20px" }}>
+    <main className="page" style={{ maxWidth: "100%", margin: "0 auto", padding: "24px 40px" }}>
       {/* Engineer Workspace Header */}
       <div style={{ backgroundColor: "#0f172a", color: "#fff", borderRadius: 12, padding: "24px 28px", marginBottom: 28, boxShadow: "0 10px 25px -5px rgba(15,23,42,0.3)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>

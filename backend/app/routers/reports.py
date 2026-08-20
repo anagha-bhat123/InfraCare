@@ -208,7 +208,6 @@ def create_notification_record(
 
 @router.get("/notifications")
 def list_notifications(role: Optional[str] = None, engineer_name: Optional[str] = None, user_id: Optional[str] = None):
-    db_notifs = []
     if supabase:
         try:
             query = supabase.table("notifications").select("*").order("created_at", desc=True)
@@ -219,25 +218,24 @@ def list_notifications(role: Optional[str] = None, engineer_name: Optional[str] 
             elif user_id:
                 query = query.eq("user_id", user_id)
             res = query.execute()
-            db_notifs = res.data or []
+            return {"notifications": res.data or []}
         except Exception as e:
             print(f"[NOTIFICATION LOG] DB fetch notifications error: {e}", flush=True)
             
-    # Combine DB and in-memory notifications
-    all_notifs = list(db_notifs)
+    # Fallback to in-memory notifications if DB fails or is unconfigured
+    all_notifs = []
     for mem in IN_MEMORY_NOTIFICATIONS:
-        if not any(n.get("id") == mem.get("id") for n in all_notifs):
-            match = True
-            if engineer_name:
-                eng_target = (mem.get("engineer_name") or "").lower()
-                req_eng = engineer_name.lower()
-                match = req_eng in eng_target or eng_target in req_eng or mem.get("role") == "engineer"
-            elif role:
-                match = mem.get("role") == role
-            elif user_id:
-                match = mem.get("user_id") == user_id
-            if match:
-                all_notifs.append(mem)
+        match = True
+        if engineer_name:
+            eng_target = (mem.get("engineer_name") or "").lower()
+            req_eng = engineer_name.lower()
+            match = req_eng in eng_target or eng_target in req_eng or mem.get("role") == "engineer"
+        elif role:
+            match = mem.get("role") == role
+        elif user_id:
+            match = mem.get("user_id") == user_id
+        if match:
+            all_notifs.append(mem)
                 
     all_notifs.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     return {"notifications": all_notifs}
