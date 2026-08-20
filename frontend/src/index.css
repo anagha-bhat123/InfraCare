@@ -301,7 +301,7 @@ textarea { min-height: 160px; padding: 22px !important; resize: vertical; }
 
 /* --- Admin Complaints Reports --- */
 .admin-reports-page { padding: 40px 48px; background: #f8f9fa; min-height: 100vh; font-family: Inter, sans-serif; }
-.reports-container { max-width: 1400px; margin: 0 auto; }
+.reports-container { max-width: 100%; margin: 0 auto; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
 .header-left { max-width: 600px; }
 .breadcrumbs { display: flex; gap: 8px; font-size: .85rem; color: #64748b; margin-bottom: 12px; }
@@ -599,7 +599,7 @@ textarea { min-height: 160px; padding: 22px !important; resize: vertical; }
 
 /* --- Admin Complaints Reports --- */
 .admin-reports-page { padding: 40px 48px; background: #f8f9fa; min-height: 100vh; font-family: Inter, sans-serif; }
-.reports-container { max-width: 1400px; margin: 0 auto; }
+.reports-container { max-width: 100%; margin: 0 auto; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
 .header-left { max-width: 600px; }
 .breadcrumbs { display: flex; gap: 8px; font-size: .85rem; color: #64748b; margin-bottom: 12px; }
@@ -798,7 +798,7 @@ textarea { min-height: 160px; padding: 22px !important; resize: vertical; }
 
 /* --- Admin Complaints Reports --- */
 .admin-reports-page { padding: 40px 48px; background: #f8f9fa; min-height: 100vh; font-family: Inter, sans-serif; }
-.reports-container { max-width: 1400px; margin: 0 auto; }
+.reports-container { max-width: 100%; margin: 0 auto; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
 .header-left { max-width: 600px; }
 .breadcrumbs { display: flex; gap: 8px; font-size: .85rem; color: #64748b; margin-bottom: 12px; }
@@ -1122,7 +1122,7 @@ textarea { min-height: 160px; padding: 22px !important; resize: vertical; }
 .text-\[10px\] { font-size: 10px; }
 
 /* --- Admin Logs (System Logs) --- */
-.max-w-6xl { max-width: 72rem; }
+.max-w-6xl { max-width: 100%; }
 .mx-auto { margin-left: auto; margin-right: auto; }
 .bg-gradient-to-l { background-image: linear-gradient(to left, var(--tw-gradient-stops)); }
 .from-black { --tw-gradient-from: #000; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(0, 0, 0, 0)); }

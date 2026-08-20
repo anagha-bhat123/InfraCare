@@ -476,7 +476,7 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
             <button onClick={() => setIsPhotoModalOpen(false)} style={{ backgroundColor: "transparent", color: "#fff", border: "none", fontSize: "1.2rem", fontWeight: 700, cursor: "pointer" }}>Close </button>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24, maxWidth: 1000, margin: "0 auto", width: "100%" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24, margin: "0 auto", width: "100%" }}>
             {activePhotos.map((photo, idx) => (
               <div key={idx} style={{ borderRadius: 8, overflow: "hidden", border: "2px solid #444", background: "#222", height: 240 }}>
                 <img

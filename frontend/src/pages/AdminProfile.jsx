@@ -251,7 +251,7 @@ export default function AdminProfile({ user, setPage, setUser }) {
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       <div style={{ width: "100%" }}>
-        <div className="admin-scroll-content p-8 max-w-6xl mx-auto">
+        <div className="admin-scroll-content p-8 mx-auto">
           <div style={{ width: "100%" }}>
 
             {/* Banner */}
