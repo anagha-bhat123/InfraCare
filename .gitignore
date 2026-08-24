@@ -68,3 +68,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# ─── Build Artifacts ──────────────────────────────────────────────
+# Built frontend that FastAPI serves as static files
+backend/static/
