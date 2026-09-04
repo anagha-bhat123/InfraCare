@@ -3,7 +3,8 @@ import {
   LayoutDashboard, BarChart3, AlertTriangle, 
   Wrench, Users, FileText, Search, Bell, Settings,
   Calendar, Download, ChevronDown, ChevronLeft, ChevronRight,
-  Droplet, Car, Lightbulb, Grid, PenTool, X, Trash2
+  Droplet, Car, Lightbulb, Grid, PenTool, X, Trash2,
+  TrendingUp, ShieldAlert, CheckCircle2, RefreshCw, Plus, Clock, Activity, ShieldCheck
 } from "lucide-react";
 import Swal from "sweetalert2";
 import { reportsSeed } from "../data/seedData";
@@ -107,26 +108,34 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
   }, [selectedReportId]);
 
   useEffect(() => {
-    async function fetchEngineers() {
+    const fetchEngineers = async () => {
       try {
-        const res = await fetch(`${apiUrl}/auth/engineers`);
+        const token = localStorage.getItem("infracare_token");
+        const headers = token ? { "Authorization": `Bearer ${token}` } : {};
+        const res = await fetch(`${apiUrl}/admin/engineers`, { headers });
         if (res.ok) {
           const data = await res.json();
-          if (data.engineers && data.engineers.length > 0) {
-            setEngineersList(data.engineers);
+          if (Array.isArray(data)) {
+            setEngineersList(data);
           }
         }
-      } catch (e) {
-        console.error("Failed to fetch engineers:", e);
+      } catch (err) {
+        console.warn("Failed to fetch engineers:", err);
       }
-    }
+    };
     fetchEngineers();
   }, []);
 
-  const updateReportPriority = async (id, priority) => {
+  const handleStatusChange = (id, newStatus, currentNotes, currentEng) => {
+    if (updateReportStatus) {
+      updateReportStatus(id, newStatus, currentNotes, currentEng);
+    }
+  };
+
+  const handlePriorityChange = async (id, priority) => {
     try {
       const token = localStorage.getItem("infracare_token");
-      const headers = { 
+      const headers = {
         "Content-Type": "application/json",
         ...(token ? { "Authorization": `Bearer ${token}` } : {})
       };
@@ -159,31 +168,6 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  const today = new Date().toISOString().split('T')[0];
-  const reportsToday = reports.filter(r => r.created_at && r.created_at.startsWith(today)).length;
-  
-  const criticalReports = reports.filter(r => {
-    const u = (r.urgency || "").toLowerCase();
-    return u === "critical" || u === "urgent" || u === "high priority";
-  }).slice(0, 3); // top 3 for queue
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "N/A";
-    const d = new Date(dateStr);
-    const datePart = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    const timePart = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
-    return <>{datePart},<br/>{timePart}</>;
-  };
-
-  const getTimeAgo = (dateStr) => {
-    if (!dateStr) return "";
-    const diff = Math.floor((new Date() - new Date(dateStr)) / 60000); // mins
-    if (diff < 60) return `${diff}m ago`;
-    const hrs = Math.floor(diff / 60);
-    if (hrs < 24) return `${hrs}h ${diff % 60}m ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
   };
 
   const displayReports = useMemo(() => {
@@ -223,6 +207,51 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
 
     return list;
   }, [reports, selectedReportId]);
+
+  const today = new Date().toISOString().split('T')[0];
+  const reportsToday = useMemo(() => {
+    return displayReports.filter(r => r.created_at && r.created_at.startsWith(today)).length;
+  }, [displayReports, today]);
+  
+  const criticalReports = useMemo(() => {
+    return displayReports.filter(r => {
+      const u = (r.urgency || "").toLowerCase();
+      return u === "critical" || u === "urgent" || u === "high priority";
+    });
+  }, [displayReports]);
+
+  const inProgressReports = useMemo(() => {
+    return displayReports.filter(r => {
+      const s = (r.status || "").toLowerCase();
+      return s === "in progress" || s === "assigned" || s === "site visit assigned" || s === "work in progress";
+    });
+  }, [displayReports]);
+
+  const resolvedReports = useMemo(() => {
+    return displayReports.filter(r => {
+      const s = (r.status || "").toLowerCase();
+      return s === "resolved" || s === "completed" || s === "verified";
+    });
+  }, [displayReports]);
+
+  const resolutionRate = displayReports.length > 0 ? Math.round((resolvedReports.length / displayReports.length) * 100) : 0;
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "N/A";
+    const d = new Date(dateStr);
+    const datePart = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const timePart = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+    return <>{datePart},<br/>{timePart}</>;
+  };
+
+  const getTimeAgo = (dateStr) => {
+    if (!dateStr) return "";
+    const diff = Math.floor((new Date() - new Date(dateStr)) / 60000); // mins
+    if (diff < 60) return `${diff}m ago`;
+    const hrs = Math.floor(diff / 60);
+    if (hrs < 24) return `${hrs}h ${diff % 60}m ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  };
   
   const categoriesList = useMemo(() => {
     const set = new Set();
@@ -353,62 +382,328 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
     <div style={{ backgroundColor: "#fafafa", minHeight: "100vh", padding: "20px 40px" }}>
       <div style={{ width: "100%" }}>
         <div className="admin-scroll-content pt-4">
-          <div className="admin-page-header border-bottom pb-4 mb-8">
-            <div className="admin-header-text">
-              <h2 className="serif-title large mb-2">Citizen Reports</h2>
-              <p>Manage and audit infrastructure damage reports submitted via the civic portal. High-priority<br/>items require immediate dispatch.</p>
-            </div>
-            <div className="admin-header-actions">
-              <button className="admin-btn-black" onClick={() => setPage("report")}>NEW REPORT <span>+</span></button>
+          {/* MODERN EXECUTIVE COMMAND HERO BANNER (LIGHT THEME) */}
+          <div style={{
+            background: "#ffffff",
+            color: "#0f172a",
+            padding: "28px 32px",
+            borderRadius: "12px",
+            position: "relative",
+            overflow: "hidden",
+            marginBottom: "24px",
+            boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02)",
+            border: "1px solid #e2e8f0"
+          }}>
+            {/* Subtle light background ambient accents */}
+            <div style={{
+              position: "absolute",
+              top: "-60px",
+              right: "-60px",
+              width: "280px",
+              height: "280px",
+              borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(37, 99, 235, 0.05) 0%, rgba(37, 99, 235, 0) 70%)",
+              pointerEvents: "none"
+            }} />
+            <div style={{
+              position: "absolute",
+              bottom: "-40px",
+              left: "20%",
+              width: "200px",
+              height: "200px",
+              borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(16, 185, 129, 0.04) 0%, rgba(16, 185, 129, 0) 70%)",
+              pointerEvents: "none"
+            }} />
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "24px", position: "relative", zIndex: 2 }}>
+              
+              {/* Left Details */}
+              <div style={{ maxWidth: "760px", flex: "1 1 500px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px", flexWrap: "wrap" }}>
+                  <span style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    background: "#ecfdf5",
+                    border: "1px solid #a7f3d0",
+                    color: "#059669",
+                    fontSize: "0.7rem",
+                    fontWeight: 800,
+                    padding: "4px 11px",
+                    borderRadius: "20px",
+                    letterSpacing: "0.8px",
+                    textTransform: "uppercase"
+                  }}>
+                    <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#10b981", display: "inline-block", boxShadow: "0 0 6px rgba(16, 185, 129, 0.6)" }}></span>
+                    Live Intake & Audit
+                  </span>
+
+                  <span style={{
+                    background: "#f1f5f9",
+                    border: "1px solid #e2e8f0",
+                    color: "#475569",
+                    fontSize: "0.7rem",
+                    fontWeight: 700,
+                    padding: "4px 11px",
+                    borderRadius: "20px",
+                    letterSpacing: "0.5px"
+                  }}>
+                    Udupi & Mangalore Municipal Regions
+                  </span>
+
+                  <span style={{
+                    background: "#eff6ff",
+                    border: "1px solid #bfdbfe",
+                    color: "#2563eb",
+                    fontSize: "0.7rem",
+                    fontWeight: 700,
+                    padding: "4px 11px",
+                    borderRadius: "20px"
+                  }}>
+                    Auto-Triage Active
+                  </span>
+                </div>
+
+                <h1 style={{
+                  fontFamily: "'Outfit', Georgia, serif",
+                  fontSize: "2.1rem",
+                  fontWeight: 800,
+                  margin: "0 0 8px 0",
+                  color: "#0f172a",
+                  letterSpacing: "-0.5px",
+                  lineHeight: 1.15
+                }}>
+                  Citizen Incident Reports Hub
+                </h1>
+                
+                <p style={{
+                  fontSize: "0.88rem",
+                  lineHeight: 1.55,
+                  color: "#64748b",
+                  margin: "0 0 20px 0",
+                  maxWidth: "680px"
+                }}>
+                  Centralized audit, triage, and work order dispatch for damage reports submitted via the civic portal. High-priority incidents trigger fast-track engineering alerts.
+                </p>
+
+                {/* Embedded Live Metric Badges */}
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                  <div style={{
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "8px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.02)"
+                  }}>
+                    <span style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase" }}>Total Intake</span>
+                    <span style={{ fontSize: "1.1rem", fontWeight: 800, color: "#0f172a" }}>{displayReports.length}</span>
+                  </div>
+
+                  <div style={{
+                    background: criticalReports.length > 0 ? "#fef2f2" : "#f8fafc",
+                    border: criticalReports.length > 0 ? "1px solid #fecaca" : "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "8px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.02)"
+                  }}>
+                    <span style={{ fontSize: "0.72rem", color: criticalReports.length > 0 ? "#b91c1c" : "#64748b", fontWeight: 700, textTransform: "uppercase" }}>Critical Escalations</span>
+                    <span style={{ fontSize: "1.1rem", fontWeight: 800, color: criticalReports.length > 0 ? "#dc2626" : "#0f172a" }}>{criticalReports.length}</span>
+                  </div>
+
+                  <div style={{
+                    background: "#eff6ff",
+                    border: "1px solid #bfdbfe",
+                    borderRadius: "8px",
+                    padding: "8px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.02)"
+                  }}>
+                    <span style={{ fontSize: "0.72rem", color: "#1d4ed8", fontWeight: 700, textTransform: "uppercase" }}>In Progress</span>
+                    <span style={{ fontSize: "1.1rem", fontWeight: 800, color: "#2563eb" }}>{inProgressReports.length}</span>
+                  </div>
+
+                  <div style={{
+                    background: "#f0fdf4",
+                    border: "1px solid #bbf7d0",
+                    borderRadius: "8px",
+                    padding: "8px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.02)"
+                  }}>
+                    <span style={{ fontSize: "0.72rem", color: "#15803d", fontWeight: 700, textTransform: "uppercase" }}>Resolved Rate</span>
+                    <span style={{ fontSize: "1.1rem", fontWeight: 800, color: "#16a34a" }}>{resolutionRate}%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Action Button Group */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", alignItems: "flex-end", alignSelf: "center", flexShrink: 0 }}>
+                <button 
+                  onClick={() => setPage("report")}
+                  style={{
+                    background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "12px 22px",
+                    fontWeight: 800,
+                    fontSize: "0.82rem",
+                    letterSpacing: "0.6px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    boxShadow: "0 4px 14px rgba(37, 99, 235, 0.35)",
+                    transition: "all 0.2s ease"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-1px)";
+                    e.currentTarget.style.boxShadow = "0 6px 20px rgba(37, 99, 235, 0.45)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = "0 4px 14px rgba(37, 99, 235, 0.35)";
+                  }}
+                >
+                  <Plus size={16} strokeWidth={3} /> NEW CITIZEN REPORT
+                </button>
+
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    onClick={exportToCSV}
+                    style={{
+                      background: "#ffffff",
+                      border: "1px solid #cbd5e1",
+                      color: "#334155",
+                      borderRadius: "6px",
+                      padding: "8px 14px",
+                      fontSize: "0.75rem",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                      transition: "all 0.2s"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#f8fafc";
+                      e.currentTarget.style.borderColor = "#94a3b8";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "#ffffff";
+                      e.currentTarget.style.borderColor = "#cbd5e1";
+                    }}
+                  >
+                    <Download size={13} color="#0284c7" /> Export CSV
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
           <div className="complaints-layout">
             <div className="complaints-left">
               {/* QUICK STATS */}
-              <div className="quick-stats-card">
-                <h4 className="stats-header">QUICK STATS</h4>
+              <div className="quick-stats-card" style={{
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: "10px",
+                padding: "20px 22px",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #f1f5f9", paddingBottom: "12px", marginBottom: "16px" }}>
+                  <h4 style={{ margin: 0, fontSize: "0.78rem", fontWeight: 800, color: "#475569", letterSpacing: "1px", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <Activity size={15} color="#2563eb" /> Quick Metrics
+                  </h4>
+                  <span style={{ fontSize: "0.68rem", fontWeight: 800, color: "#16a34a", background: "#dcfce7", padding: "2px 8px", borderRadius: "12px" }}>
+                    LIVE
+                  </span>
+                </div>
+                
                 <div className="stat-group">
                   <span className="stat-label">Reports Today</span>
                   <div className="stat-value">
                     <span className="number serif-title">{reportsToday}</span>
-                    <span className="trend text-red">+12%<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1 inline"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span>
+                    <span className="trend text-green">+12% <TrendingUp size={13} className="ml-1 inline" /></span>
                   </div>
                 </div>
-                <div className="stat-group">
+
+                <div className="stat-group" style={{ marginTop: "12px" }}>
                   <span className="stat-label">Avg. Resolution Time</span>
                   <div className="stat-value">
                     <span className="number serif-title">4.2</span>
                     <span className="unit">hrs</span>
                   </div>
                 </div>
-                <div className="stat-progress">
-                  <div className="progress-bar"><div className="fill black" style={{width: '65%'}}></div></div>
-                  <span className="progress-label">65% OF WEEKLY QUOTA MET</span>
+
+                <div className="stat-progress" style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid #f1f5f9" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                    <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#64748b" }}>Weekly Resolution Target</span>
+                    <span style={{ fontSize: "0.72rem", fontWeight: 800, color: "#0f172a" }}>65%</span>
+                  </div>
+                  <div className="progress-bar" style={{ height: "6px", background: "#e2e8f0", borderRadius: "4px" }}>
+                    <div style={{ width: "65%", height: "100%", background: "linear-gradient(90deg, #2563eb, #38bdf8)", borderRadius: "4px" }}></div>
+                  </div>
                 </div>
               </div>
 
               {/* ESCALATION QUEUE */}
-              <div className="escalation-queue">
-                <div className="queue-header">
-                  <h4>ESCALATION QUEUE</h4>
-                  <span className="queue-badge">{criticalReports.length} PRIORITY</span>
+              <div className="escalation-queue" style={{
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: "10px",
+                overflow: "hidden",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
+              }}>
+                <div className="queue-header" style={{ background: "#0f172a", color: "#fff", padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <h4 style={{ margin: 0, fontSize: "0.78rem", fontWeight: 800, letterSpacing: "1px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <ShieldAlert size={14} color="#f87171" /> ESCALATION QUEUE
+                  </h4>
+                  <span className="queue-badge" style={{ background: criticalReports.length > 0 ? "#dc2626" : "#475569", color: "#fff", fontSize: "0.65rem", fontWeight: 800, padding: "2px 8px", borderRadius: "4px" }}>
+                    {criticalReports.length} PRIORITY
+                  </span>
                 </div>
                 <div className="queue-list">
-                  {criticalReports.length > 0 ? criticalReports.map(r => (
-                    <div className="queue-item" key={r.id}>
-                      <div className="queue-item-top">
-                        <span className="queue-critical">CRITICAL</span>
-                        <span className="queue-time">{getTimeAgo(r.created_at)}</span>
+                  {criticalReports.length > 0 ? criticalReports.slice(0, 3).map(r => (
+                    <div className="queue-item" key={r.id} style={{ padding: "14px 18px", borderBottom: "1px solid #f1f5f9" }}>
+                      <div className="queue-item-top" style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", fontSize: "0.7rem", fontWeight: 700 }}>
+                        <span className="queue-critical" style={{ color: "#dc2626", fontWeight: 800, display: "flex", alignItems: "center", gap: "4px" }}>
+                          <AlertTriangle size={12} /> CRITICAL
+                        </span>
+                        <span className="queue-time" style={{ color: "#94a3b8" }}>{getTimeAgo(r.created_at)}</span>
                       </div>
-                      <h5>{r.title || r.category || "Untitled Report"}</h5>
-                      <span className="queue-id">ID: #{r.id.substring(0, 8)}</span>
+                      <h5 style={{ fontSize: "0.85rem", fontWeight: 700, margin: "0 0 4px 0", color: "#0f172a" }}>{r.title || r.category || "Untitled Report"}</h5>
+                      <span className="queue-id" style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 600 }}>ID: #{r.id.substring(0, 8).toUpperCase()}</span>
                     </div>
                   )) : (
-                    <div style={{padding: "20px 0", color: "#666", fontSize: "0.85rem"}}>No critical escalations at this time.</div>
+                    <div style={{ padding: "24px 18px", color: "#64748b", fontSize: "0.82rem", textAlign: "center" }}>
+                      <CheckCircle2 size={24} color="#22c55e" style={{ margin: "0 auto 8px", display: "block" }} />
+                      No critical escalations at this time.
+                    </div>
                   )}
                 </div>
-                {criticalReports.length > 0 && <button className="view-all-btn">VIEW ALL ESCALATIONS</button>}
+                {criticalReports.length > 3 && (
+                  <button 
+                    className="view-all-btn"
+                    onClick={() => {
+                      handleUrgencyChange("CRITICAL");
+                    }}
+                  >
+                    FILTER BY CRITICAL ({criticalReports.length})
+                  </button>
+                )}
               </div>
             </div>
 
