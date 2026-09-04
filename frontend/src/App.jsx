@@ -189,7 +189,7 @@ export default function App() {
           setPage("approval-authority");
         }
       } else if (user.role === "admin") {
-        if (!["dashboard", "admin-reports", "tasks", "profile", "analysis", "admin-maintenance", "admin-users", "admin-logs", "admin-profile", "approval-authority"].includes(page)) {
+        if (!["dashboard", "admin-reports", "tasks", "profile", "analysis", "admin-maintenance", "admin-users", "admin-logs", "admin-profile"].includes(page)) {
           setPage("dashboard");
         }
       }
@@ -257,13 +257,21 @@ export default function App() {
     }
   };
 
-  const clearAllReports = () => {
+  const clearAllReports = async () => {
     localStorage.removeItem("infracare_local_reports");
+    localStorage.removeItem("infracare_reports");
     setReportsCleared(true);
     setReports([]);
+    try {
+      const token = localStorage.getItem("infracare_token");
+      const headers = token ? { "Authorization": `Bearer ${token}` } : {};
+      await fetch(`${apiUrl}/reports`, { method: "DELETE", headers });
+    } catch (e) {
+      console.error("Failed to clear reports on backend:", e);
+    }
   };
 
-  const deleteReport = (reportId) => {
+  const deleteReport = async (reportId) => {
     const cleanId = String(reportId || "").replace("#", "").trim().toLowerCase();
     setReports((prev) => prev.filter((r) => {
       const rId = String(r.id || "").replace("#", "").trim().toLowerCase();
@@ -282,6 +290,14 @@ export default function App() {
         localStorage.setItem("infracare_local_reports", JSON.stringify(updated));
       }
     } catch (e) { }
+
+    try {
+      const token = localStorage.getItem("infracare_token");
+      const headers = token ? { "Authorization": `Bearer ${token}` } : {};
+      await fetch(`${apiUrl}/reports/${reportId}`, { method: "DELETE", headers });
+    } catch (e) {
+      console.error("Failed to delete report on backend:", e);
+    }
   };
 
   useEffect(() => {
@@ -477,12 +493,12 @@ export default function App() {
     if (page === "report") return <Report addReport={addReport} setPage={setPage} />;
     if (page === "track" || page === "resolved" || page === "Resolved") {
       if (user?.role === "admin") {
-        return <AdminReports reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} />;
+        return <AdminReports reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} user={user} clearAllReports={clearAllReports} deleteReport={deleteReport} />;
       }
-      return <Track reports={reports} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} user={user} clearAllReports={clearAllReports} deleteReport={deleteReport} />;
+      return <Track reports={reports} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} user={user} />;
     }
     if (page === "dashboard" || page === "admin-dashboard") return <AdminDashboard reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} user={user} />;
-    if (page === "admin-reports" || page === "resolved-reports" || page === "reports") return <AdminReports reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} user={user} />;
+    if (page === "admin-reports" || page === "resolved-reports" || page === "reports") return <AdminReports reports={reports} updateReportStatus={updateReportStatus} setPage={setPage} selectedReportId={selectedReportId} setSelectedReportId={setSelectedReportId} user={user} clearAllReports={clearAllReports} deleteReport={deleteReport} />;
     if (page === "admin-maintenance" || page === "maintenance-dispatch") return <AdminMaintenance setPage={setPage} reports={reports} updateReportStatus={updateReportStatus} user={user} />;
     if (page === "admin-users" || page === "users") return <AdminUsers setPage={setPage} user={user} reports={reports} />;
     if (page === "admin-logs" || page === "logs") return <AdminLogs setPage={setPage} user={user} reports={reports} />;

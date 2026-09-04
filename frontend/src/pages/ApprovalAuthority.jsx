@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { 
   DollarSign, CheckCircle2, XCircle, AlertCircle, Clock, FileText, Plus, Search, 
-  Filter, ShieldCheck, TrendingUp, Building2, ChevronRight, PieChart, X, Check, RotateCcw, AlertTriangle, Download
+  Filter, ShieldCheck, TrendingUp, Building2, ChevronRight, PieChart, X, Check, RotateCcw, AlertTriangle, Download, ShieldAlert, Lock
 } from "lucide-react";
 import Swal from "sweetalert2";
 import { apiUrl } from "../services/api";
@@ -402,9 +402,21 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
     });
   }, [combinedRequests, statusFilter, deptFilter, searchQuery]);
 
+  const isAuthorizedApprover = user?.role === "approver";
+
   // Handle Approve / Reject / Revision
   const handleUpdateStatus = async (requestId, targetStatus) => {
-    const approverName = user?.name || (user?.role === "admin" ? "Financial Officer (Admin)" : "Chief Inspector");
+    if (!isAuthorizedApprover) {
+      Swal.fire({
+        icon: "error",
+        title: "Access Restricted",
+        text: "Only the designated Approval Authority (role: 'approver') has the right to approve, reject, or revise repair budgets.",
+        confirmButtonColor: "#0f172a"
+      });
+      return;
+    }
+
+    const approverName = user?.name || "Approval Authority Officer";
     
     // Find associated report and details
     const targetReq = combinedRequests.find(r => String(r.id) === String(requestId) || (r.report_id && String(r.report_id) === String(requestId))) || selectedRequest || {};
@@ -634,7 +646,7 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
   return (
     <main className="page" style={{ maxWidth: "100%", margin: "0 auto", padding: "24px 40px" }}>
       {/* Header Banner */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16, marginBottom: 28 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16, marginBottom: 20 }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
             <div style={{ backgroundColor: "#1e293b", color: "#38bdf8", padding: 8, borderRadius: 8, display: "flex" }}>
@@ -643,6 +655,15 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
             <h1 style={{ margin: 0, fontSize: "1.75rem", fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em" }}>
               Approval Authority
             </h1>
+            {isAuthorizedApprover ? (
+              <span style={{ backgroundColor: "#f3e8ff", color: "#7c3aed", border: "1px solid #d8b4fe", padding: "4px 10px", borderRadius: 20, fontSize: "0.75rem", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <ShieldCheck size={14} /> Authorized Approver ({user?.name || user?.email || "Financial Officer"})
+              </span>
+            ) : (
+              <span style={{ backgroundColor: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", padding: "4px 10px", borderRadius: 20, fontSize: "0.75rem", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <Lock size={14} /> Read-Only Audit Mode
+              </span>
+            )}
           </div>
           <p className="lead" style={{ margin: 0, color: "#64748b", fontSize: "0.95rem" }}>
             FINANCIAL GOVERNANCE HUB — Review, authorize, and track municipal repair budgets and cost allocation.
@@ -669,6 +690,15 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
           <Plus size={18} /> Submit Budget Estimate
         </button>
       </div>
+
+      {!isAuthorizedApprover && (
+        <div style={{ backgroundColor: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 8, padding: "12px 18px", marginBottom: 24, display: "flex", alignItems: "center", gap: 12, color: "#92400e" }}>
+          <ShieldAlert size={20} color="#d97706" style={{ flexShrink: 0 }} />
+          <div style={{ fontSize: "0.85rem", lineHeight: 1.4 }}>
+            <strong>AUDIT / VIEW-ONLY ACCESS:</strong> You are logged in with role <code>{user?.role || 'Guest'}</code>. Budget authorization, rejection, and final sanction rights belong <strong>exclusively to the Approval Authority</strong> (role: <code>approver</code>). Other modules and users cannot approve budgets.
+          </div>
+        </div>
+      )}
 
       {/* Financial Metrics Cards */}
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18, marginBottom: 32 }}>
@@ -1027,7 +1057,7 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
             </div>
 
             {/* Action Buttons */}
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap" }}>
               <button
                 onClick={() => {
                   generateFinalBillPDF({
@@ -1053,24 +1083,32 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
                 <Download size={16} /> Download PDF Bill 📥
               </button>
 
-              <button
-                onClick={() => handleUpdateStatus(selectedRequest.id || selectedRequest.report_id || selectedRequest.work_order_id, "Revision Requested")}
-                style={{ padding: "10px 16px", borderRadius: 6, border: "1px solid #d97706", backgroundColor: "#fffbebf5", color: "#b45309", fontWeight: 700, fontSize: "0.8rem", cursor: "pointer" }}
-              >
-                Request Revision
-              </button>
-              <button
-                onClick={() => handleUpdateStatus(selectedRequest.id || selectedRequest.report_id || selectedRequest.work_order_id, "Rejected")}
-                style={{ padding: "10px 16px", borderRadius: 6, border: "1px solid #dc2626", backgroundColor: "#fef2f2", color: "#b91c1c", fontWeight: 700, fontSize: "0.8rem", cursor: "pointer" }}
-              >
-                Reject Budget
-              </button>
-              <button
-                onClick={() => handleUpdateStatus(selectedRequest.id || selectedRequest.report_id || selectedRequest.work_order_id, "Approved")}
-                style={{ padding: "10px 18px", borderRadius: 6, border: "none", backgroundColor: "#16a34a", color: "#fff", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
-              >
-                <CheckCircle2 size={16} /> Authorize & Approve Budget
-              </button>
+              {isAuthorizedApprover ? (
+                <>
+                  <button
+                    onClick={() => handleUpdateStatus(selectedRequest.id || selectedRequest.report_id || selectedRequest.work_order_id, "Revision Requested")}
+                    style={{ padding: "10px 16px", borderRadius: 6, border: "1px solid #d97706", backgroundColor: "#fffbebf5", color: "#b45309", fontWeight: 700, fontSize: "0.8rem", cursor: "pointer" }}
+                  >
+                    Request Revision
+                  </button>
+                  <button
+                    onClick={() => handleUpdateStatus(selectedRequest.id || selectedRequest.report_id || selectedRequest.work_order_id, "Rejected")}
+                    style={{ padding: "10px 16px", borderRadius: 6, border: "1px solid #dc2626", backgroundColor: "#fef2f2", color: "#b91c1c", fontWeight: 700, fontSize: "0.8rem", cursor: "pointer" }}
+                  >
+                    Reject Budget
+                  </button>
+                  <button
+                    onClick={() => handleUpdateStatus(selectedRequest.id || selectedRequest.report_id || selectedRequest.work_order_id, "Approved")}
+                    style={{ padding: "10px 18px", borderRadius: 6, border: "none", backgroundColor: "#16a34a", color: "#fff", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
+                  >
+                    <CheckCircle2 size={16} /> Authorize & Approve Budget
+                  </button>
+                </>
+              ) : (
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 14px", backgroundColor: "#fef2f2", border: "1px solid #fecaca", borderRadius: 6, color: "#991b1b", fontSize: "0.78rem", fontWeight: 700 }}>
+                  <Lock size={15} /> Approval Authority Rights Required
+                </div>
+              )}
             </div>
           </div>
         </div>

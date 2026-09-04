@@ -119,7 +119,7 @@ export default function Header({ page, setPage, user, setUser, reports = [], sim
   } else if (user?.role === "approver") {
     nav = ["approval-authority", "dashboard", "admin-reports", "profile"];
   } else if (user?.role === "admin") {
-    nav = ["dashboard", "analysis", "admin-reports", "approval-authority", "admin-maintenance", "admin-users", "admin-logs"];
+    nav = ["dashboard", "analysis", "admin-reports", "admin-maintenance", "admin-users", "admin-logs"];
   }
 
   // Close dropdowns when clicking outside

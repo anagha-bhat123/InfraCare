@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { Search, ChevronDown, Check, FileText, Trash2 } from "lucide-react";
-import Swal from "sweetalert2";
+import { Search, ChevronDown, Check, FileText } from "lucide-react";
 
 const STEPS = ["Submitted", "Site Visit", "Budget Approved", "In Progress", "Resolved"];
 
@@ -30,45 +29,13 @@ function getUrgencyStyle(urgency, status) {
   return { bg: "#f3f4f6", color: "#4b5563", text: "PENDING REVIEW" };
 }
 
-export default function Track({ reports, setPage, selectedReportId, setSelectedReportId, user, clearAllReports, deleteReport }) {
+export default function Track({ reports, setPage, selectedReportId, setSelectedReportId, user }) {
   const [tab, setTab] = useState("All Reports");
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
   const [expandedReportId, setExpandedReportId] = useState(null);
-
-  const handleClearAll = async () => {
-    const res = await Swal.fire({
-      title: "Remove All Reports?",
-      text: "Are you sure you want to remove all reports data from the track portal?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#dc2626",
-      confirmButtonText: "Yes, Clear All",
-      cancelButtonText: "Cancel"
-    });
-    if (res.isConfirmed && clearAllReports) {
-      clearAllReports();
-      Swal.fire("Cleared!", "All reports data has been removed.", "success");
-    }
-  };
-
-  const handleDeleteOne = async (reportId) => {
-    const res = await Swal.fire({
-      title: "Delete Report?",
-      text: `Remove report #${reportId}?`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#dc2626",
-      confirmButtonText: "Delete",
-      cancelButtonText: "Cancel"
-    });
-    if (res.isConfirmed && deleteReport) {
-      deleteReport(reportId);
-      Swal.fire("Deleted", `Report #${reportId} has been removed.`, "success");
-    }
-  };
 
   React.useEffect(() => {
     if (selectedReportId) {
@@ -140,33 +107,11 @@ export default function Track({ reports, setPage, selectedReportId, setSelectedR
       <div style={{ width: "100%" }}>
 
         {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 40, flexWrap: "wrap", gap: 16 }}>
-          <div>
-            <h1 style={{ fontSize: "2.4rem", fontFamily: "serif", marginBottom: 12, color: "#111" }}>My Submissions</h1>
-            <p style={{ color: "#555", fontSize: "1rem" }}>
-              Track the status of your reported infrastructure issues and communicate with city officials.
-            </p>
-          </div>
-          {displayReports.length > 0 && (
-            <button
-              onClick={handleClearAll}
-              style={{
-                background: "#fef2f2",
-                color: "#dc2626",
-                border: "1px solid #fecdd3",
-                padding: "8px 16px",
-                borderRadius: 6,
-                fontSize: "0.85rem",
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6
-              }}
-            >
-              <Trash2 size={16} /> Clear All Reports Data
-            </button>
-          )}
+        <div style={{ marginBottom: 40 }}>
+          <h1 style={{ fontSize: "2.4rem", fontFamily: "serif", marginBottom: 12, color: "#111" }}>My Submissions</h1>
+          <p style={{ color: "#555", fontSize: "1rem" }}>
+            Track the status of your reported infrastructure issues and communicate with city officials.
+          </p>
         </div>
 
         {/* Filters and Search */}
@@ -275,29 +220,9 @@ export default function Track({ reports, setPage, selectedReportId, setSelectedR
                           {badge.text}
                         </span>
                       </div>
-                      <div style={{ textAlign: "right", display: "flex", alignItems: "center", gap: 12 }}>
-                        <div>
-                          <div style={{ fontSize: "0.65rem", color: "#666", fontWeight: 700, letterSpacing: 0.5 }}>SUBMITTED ON</div>
-                          <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "#111", marginTop: 2 }}>{report.date}</div>
-                        </div>
-                        {deleteReport && (
-                          <button
-                            onClick={() => handleDeleteOne(report.id)}
-                            title="Delete Report"
-                            style={{
-                              background: "#fef2f2",
-                              border: "1px solid #fecdd3",
-                              color: "#ef4444",
-                              padding: "6px 8px",
-                              borderRadius: 4,
-                              cursor: "pointer",
-                              display: "flex",
-                              alignItems: "center"
-                            }}
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        )}
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: "0.65rem", color: "#666", fontWeight: 700, letterSpacing: 0.5 }}>SUBMITTED ON</div>
+                        <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "#111", marginTop: 2 }}>{report.date}</div>
                       </div>
                     </div>
 

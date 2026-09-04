@@ -459,3 +459,25 @@ def complete_repair_with_photo(
         "final_bill_amount": final_bill,
         "report": update_payload
     }
+
+@router.delete("/{report_id}")
+def delete_report(report_id: str):
+    is_uuid = len(str(report_id)) == 36 and "-" in str(report_id)
+    if supabase:
+        try:
+            q = supabase.table("damage_reports").delete()
+            q = q.eq("id", report_id) if is_uuid else q.eq("tracking_id", report_id)
+            q.execute()
+        except Exception as e:
+            print(f"Failed to delete report from DB: {e}")
+    return {"status": "success", "deleted_id": report_id}
+
+@router.delete("")
+def clear_all_reports():
+    if supabase:
+        try:
+            supabase.table("damage_reports").delete().neq("status", "non_existent_status_to_match_all").execute()
+        except Exception as e:
+            print(f"Failed to clear all reports from DB: {e}")
+    return {"status": "success", "message": "All reports deleted"}
+

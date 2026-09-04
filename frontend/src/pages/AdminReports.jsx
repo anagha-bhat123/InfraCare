@@ -3,8 +3,9 @@ import {
   LayoutDashboard, BarChart3, AlertTriangle, 
   Wrench, Users, FileText, Search, Bell, Settings,
   Calendar, Download, ChevronDown, ChevronLeft, ChevronRight,
-  Droplet, Car, Lightbulb, Grid, PenTool, X
+  Droplet, Car, Lightbulb, Grid, PenTool, X, Trash2
 } from "lucide-react";
+import Swal from "sweetalert2";
 import { reportsSeed } from "../data/seedData";
 
 const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
@@ -37,7 +38,7 @@ const StatusBadge = ({ status }) => {
   return <><span className="dot line"></span> Pending</>;
 };
 
-export default function AdminReports({ reports = [], updateReportStatus, setPage, selectedReportId, setSelectedReportId }) {
+export default function AdminReports({ reports = [], updateReportStatus, setPage, selectedReportId, setSelectedReportId, user, clearAllReports, deleteReport }) {
   const [urgencyFilter, setUrgencyFilter] = useState("ALL");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
@@ -46,6 +47,55 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
 
   const [selectedEng, setSelectedEng] = useState({});
   const [engineersList, setEngineersList] = useState([]);
+
+  const handleClearAll = async () => {
+    const res = await Swal.fire({
+      title: "Clear All Reports Data?",
+      text: "Are you sure you want to permanently delete all reports data from the system? This action cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      confirmButtonText: "Yes, Clear All Data",
+      cancelButtonText: "Cancel"
+    });
+    if (res.isConfirmed && clearAllReports) {
+      clearAllReports();
+      Swal.fire({
+        icon: "success",
+        title: "All Reports Cleared",
+        text: "All report entries have been successfully removed.",
+        toast: true,
+        position: "top-end",
+        timer: 3000,
+        showConfirmButton: false
+      });
+    }
+  };
+
+  const handleDeleteOne = async (reportId) => {
+    const cleanId = String(reportId).substring(0, 8).toUpperCase();
+    const res = await Swal.fire({
+      title: "Delete Report?",
+      text: `Are you sure you want to delete report #${cleanId}?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      confirmButtonText: "Delete",
+      cancelButtonText: "Cancel"
+    });
+    if (res.isConfirmed && deleteReport) {
+      deleteReport(reportId);
+      Swal.fire({
+        icon: "success",
+        title: "Report Deleted",
+        text: `Report #${cleanId} has been deleted.`,
+        toast: true,
+        position: "top-end",
+        timer: 3000,
+        showConfirmButton: false
+      });
+    }
+  };
 
   useEffect(() => {
     if (selectedReportId) {
@@ -380,83 +430,173 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
                 </div>
               )}
 
-              {/* SEARCH PANEL */}
-              <div className="bg-white p-4 mb-4" style={{ display: "flex", alignItems: "center", gap: "12px", borderRadius: "8px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-                <div style={{ position: "relative", flex: 1, display: "flex", alignItems: "center" }}>
-                  <Search size={18} style={{ position: "absolute", left: "14px", color: "#64748b" }} />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    placeholder="Search reports by ID, type, title, description, engineer, or status..."
-                    style={{
-                      width: "100%",
-                      padding: "10px 40px 10px 42px",
-                      fontSize: "0.88rem",
-                      fontWeight: "600",
-                      color: "#0f172a",
-                      border: "1px solid #cbd5e1",
-                      borderRadius: "6px",
-                      outline: "none",
-                      backgroundColor: "#f8fafc",
-                      transition: "all 0.15s"
-                    }}
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => handleSearchChange("")}
+              {/* UNIFIED COMMAND & FILTER TOOLBAR */}
+              <div style={{
+                backgroundColor: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px 8px 0 0",
+                padding: "16px 20px",
+                marginTop: "12px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "14px",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.03)"
+              }}>
+                {/* TOP ROW: Search & Primary Action Buttons */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "14px", flexWrap: "wrap" }}>
+                  {/* Search Box */}
+                  <div style={{ position: "relative", flex: 1, minWidth: "280px" }}>
+                    <Search size={17} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#64748b" }} />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => handleSearchChange(e.target.value)}
+                      placeholder="Search by ID, title, type, engineer, or status..."
                       style={{
-                        position: "absolute",
-                        right: "12px",
-                        background: "none",
-                        border: "none",
-                        color: "#64748b",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "4px"
+                        width: "100%",
+                        padding: "9px 36px 9px 38px",
+                        fontSize: "0.85rem",
+                        fontWeight: "600",
+                        color: "#0f172a",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "6px",
+                        outline: "none",
+                        backgroundColor: "#f8fafc",
+                        transition: "all 0.15s",
+                        boxSizing: "border-box"
                       }}
-                      title="Clear Search"
-                    >
-                      <X size={16} />
-                    </button>
-                  )}
-                </div>
-                {searchQuery && (
-                  <button
-                    onClick={() => handleSearchChange("")}
-                    className="admin-btn-text"
-                    style={{ fontSize: "0.75rem", fontWeight: 800, whiteSpace: "nowrap", padding: "8px 14px", background: "#f1f5f9", borderRadius: "6px", border: "1px solid #cbd5e1", color: "#0f172a", cursor: "pointer" }}
-                  >
-                    RESET SEARCH
-                  </button>
-                )}
-              </div>
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => handleSearchChange("")}
+                        style={{
+                          position: "absolute",
+                          right: "10px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          background: "none",
+                          border: "none",
+                          color: "#64748b",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          padding: "2px"
+                        }}
+                        title="Clear Search"
+                      >
+                        <X size={15} />
+                      </button>
+                    )}
+                  </div>
 
-              <div className="table-filters border-all">
-                <div className="filter-group select-group">
-                  <span className="filter-label">FILTER BY:</span>
-                  <select 
-                    value={categoryFilter}
-                    onChange={(e) => handleCategoryChange(e.target.value)}
-                  >
-                    <option value="ALL">All Types</option>
-                    {categoriesList.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="filter-group">
-                  <span className="filter-label">URGENCY:</span>
-                  <div className="urgency-toggles">
-                    <button className={urgencyFilter === "ALL" ? "active" : ""} onClick={() => handleUrgencyChange("ALL")}>ALL</button>
-                    <button className={urgencyFilter === "CRITICAL" ? "active" : ""} onClick={() => handleUrgencyChange("CRITICAL")}>CRITICAL</button>
-                    <button className={urgencyFilter === "MEDIUM" ? "active" : ""} onClick={() => handleUrgencyChange("MEDIUM")}>MEDIUM</button>
+                  {/* Primary Action Buttons */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "nowrap" }}>
+                    <button 
+                      onClick={exportToCSV}
+                      style={{
+                        backgroundColor: "#fff",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "6px",
+                        padding: "8px 14px",
+                        fontSize: "0.8rem",
+                        fontWeight: 700,
+                        color: "#334155",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        transition: "all 0.15s",
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      <Download size={14} color="#0284c7" /> Export CSV
+                    </button>
+
+                    {clearAllReports && (
+                      <button 
+                        onClick={handleClearAll}
+                        style={{
+                          backgroundColor: "#fff5f5",
+                          border: "1px solid #fecaca",
+                          borderRadius: "6px",
+                          padding: "8px 14px",
+                          fontSize: "0.8rem",
+                          fontWeight: 700,
+                          color: "#dc2626",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          transition: "all 0.15s",
+                          whiteSpace: "nowrap",
+                          boxShadow: "0 1px 2px rgba(220,38,38,0.06)"
+                        }}
+                      >
+                        <Trash2 size={14} color="#dc2626" /> Clear All Data
+                      </button>
+                    )}
                   </div>
                 </div>
-                <div className="filter-group date-export">
-                  <button className="admin-btn-text"><Calendar size={14} className="mr-2 inline" /> LAST 24H</button>
-                  <button className="admin-btn-text" onClick={exportToCSV}><Download size={14} className="mr-2 inline" /> EXPORT CSV</button>
+
+                {/* BOTTOM ROW: Filters & Toggles */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", flexWrap: "wrap", paddingTop: "10px", borderTop: "1px solid #f1f5f9" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                    {/* Category Filter */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "0.72rem", fontWeight: 800, color: "#64748b", letterSpacing: "0.5px" }}>TYPE:</span>
+                      <select 
+                        value={categoryFilter}
+                        onChange={(e) => handleCategoryChange(e.target.value)}
+                        style={{
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "6px",
+                          padding: "5px 10px",
+                          fontSize: "0.8rem",
+                          fontWeight: 700,
+                          color: "#0f172a",
+                          backgroundColor: "#fff",
+                          cursor: "pointer",
+                          outline: "none"
+                        }}
+                      >
+                        <option value="ALL">All Categories ({reports.length})</option>
+                        {categoriesList.map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Urgency Filter */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "0.72rem", fontWeight: 800, color: "#64748b", letterSpacing: "0.5px" }}>URGENCY:</span>
+                      <div style={{ display: "flex", border: "1px solid #cbd5e1", borderRadius: "6px", overflow: "hidden" }}>
+                        {["ALL", "CRITICAL", "MEDIUM"].map(u => (
+                          <button
+                            key={u}
+                            onClick={() => handleUrgencyChange(u)}
+                            style={{
+                              border: "none",
+                              padding: "5px 12px",
+                              fontSize: "0.72rem",
+                              fontWeight: 800,
+                              cursor: "pointer",
+                              backgroundColor: urgencyFilter === u ? "#0f172a" : "#fff",
+                              color: urgencyFilter === u ? "#fff" : "#475569",
+                              borderRight: u !== "MEDIUM" ? "1px solid #cbd5e1" : "none",
+                              transition: "all 0.15s"
+                            }}
+                          >
+                            {u}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Result Count Indicator */}
+                  <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b" }}>
+                    Showing <span style={{ color: "#0f172a", fontWeight: 800 }}>{paginatedReports.length}</span> of <span style={{ color: "#0f172a", fontWeight: 800 }}>{totalReports}</span> reports
+                  </div>
                 </div>
               </div>
 
@@ -507,8 +647,29 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
                       return (
                       <tr key={r.id} style={isSelected ? { backgroundColor: "#eff6ff", borderLeft: "4px solid #2563eb" } : {}}>
                         <td className="id-cell">
-                          #{r.id.substring(0, 8).toUpperCase()}
-                          {isSelected && <span style={{ background: "#2563eb", color: "#fff", fontSize: "0.6rem", fontWeight: 800, padding: "2px 6px", borderRadius: 4, marginLeft: 6, display: "inline-block" }}>SELECTED</span>}
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span>#{r.id.substring(0, 8).toUpperCase()}</span>
+                            {isSelected && <span style={{ background: "#2563eb", color: "#fff", fontSize: "0.6rem", fontWeight: 800, padding: "2px 6px", borderRadius: 4, display: "inline-block" }}>SELECTED</span>}
+                            {deleteReport && (
+                              <button
+                                onClick={() => handleDeleteOne(r.id)}
+                                title={`Delete Report #${r.id.substring(0, 8).toUpperCase()}`}
+                                style={{
+                                  background: "#fef2f2",
+                                  border: "1px solid #fecdd3",
+                                  color: "#ef4444",
+                                  padding: "3px 6px",
+                                  borderRadius: 4,
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  marginLeft: "auto"
+                                }}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
                         </td>
                         <td className="type-cell">
                           <CategoryIcon category={r.category} />
@@ -568,6 +729,17 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
                             value={r.status || "Submitted"}
                             onChange={(e) => {
                               const newStatus = e.target.value;
+                              
+                              if (newStatus === "Budget Approved") {
+                                Swal.fire({
+                                  icon: "warning",
+                                  title: "Approval Authority Exclusive",
+                                  html: "<strong>Only the Approval Authority has the right to approve repair budgets.</strong><br/><br/>The Admin cannot manually approve budgets. Once the official Approval Authority reviews and sanctions the estimate, the repair crew can be dispatched.",
+                                  confirmButtonColor: "#0f172a"
+                                });
+                                return;
+                              }
+
                               const isBudgetApproved = r.status === "Budget Approved" || Boolean(r.approved_budget);
                               
                               if ((newStatus === "Work In Progress" || newStatus === "Crew Assigned") && !isBudgetApproved) {
@@ -599,7 +771,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
                             <option value="Site Visit Assigned">1. Site Visit Assigned</option>
                             <option value="Budget Submitted">2. Budget Submitted</option>
                             <option value="Pending Budget Approval">3. Pending Budget Approval</option>
-                            <option value="Budget Approved">3. Budget Approved ✓</option>
+                            <option value="Budget Approved" disabled>3. Budget Approved (Approval Authority Only)</option>
                             <option value="Work In Progress" disabled={r.status !== "Budget Approved" && !r.approved_budget}>4. Work In Progress {!r.approved_budget && r.status !== "Budget Approved" ? "(Requires Approval)" : ""}</option>
                             <option value="Final Bill Submitted by Engineer">5. Final Bill Submitted by Engineer</option>
                             <option value="Final Bill Sent to Approval Authority">6. Final Bill Sent to Approval Authority</option>
@@ -622,16 +794,10 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
                             </button>
                           ) : r.status === "Site Visit Assigned" || r.status === "Budget Submitted" || r.status === "Pending Budget Approval" ? (
                             <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
-                              <button
-                                onClick={() => {
-                                  if (setSelectedReportId) setSelectedReportId(r.id);
-                                  if (setPage) setPage("approval-authority");
-                                }}
-                                style={{ background: "#7c3aed", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "0.72rem", fontWeight: 700, cursor: "pointer" }}
-                              >
-                                Forward to Authority →
-                              </button>
-                              <span style={{ fontSize: "0.65rem", color: "#d97706", fontWeight: 700 }}>🔒 Crew Locked Until Approved</span>
+                              <span style={{ background: "#fef3c7", color: "#b45309", border: "1px solid #fde68a", padding: "4px 8px", borderRadius: "4px", fontSize: "0.7rem", fontWeight: 700 }}>
+                                ⏳ Awaiting Approval Authority
+                              </span>
+                              <span style={{ fontSize: "0.65rem", color: "#6b7280", fontWeight: 600 }}>🔒 Crew Locked Until Approved</span>
                             </div>
                           ) : r.status === "Budget Approved" ? (
                             <button
