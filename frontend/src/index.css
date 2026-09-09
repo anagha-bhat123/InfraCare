@@ -1286,3 +1286,73 @@ a {
   text-decoration: none !important;
 }
 
+/* SweetAlert2 Modern Theme Enhancements */
+div:where(.swal2-container) {
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 99999 !important;
+}
+
+div:where(.swal2-container) .swal2-popup {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  padding: 28px 24px !important;
+}
+
+div:where(.swal2-container) .swal2-title {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif !important;
+  font-weight: 700 !important;
+  font-size: 1.35rem !important;
+  color: #0f172a !important;
+  padding: 0.5em 1em 0 !important;
+}
+
+div:where(.swal2-container) .swal2-html-container {
+  color: #475569 !important;
+  font-size: 0.95rem !important;
+  line-height: 1.6 !important;
+  margin: 1em 1.2em 0.5em !important;
+}
+
+div:where(.swal2-container) .swal2-actions {
+  gap: 10px !important;
+  margin-top: 1.5em !important;
+}
+
+div:where(.swal2-container) button.swal2-styled {
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  font-size: 0.92rem !important;
+  padding: 10px 22px !important;
+  transition: all 0.15s ease-in-out !important;
+}
+
+div:where(.swal2-container) button.swal2-styled:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+div:where(.swal2-container) .swal2-input {
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 6px !important;
+  font-size: 0.95rem !important;
+  padding: 10px 14px !important;
+  height: 44px !important;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.04) !important;
+}
+
+div:where(.swal2-container) .swal2-input:focus {
+  border-color: #0f172a !important;
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.12) !important;
+}
+
+div:where(.swal2-container).swal2-toast-shown .swal2-popup {
+  border-radius: 8px !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15) !important;
+  padding: 14px 18px !important;
+}
+
+

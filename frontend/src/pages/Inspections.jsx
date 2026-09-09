@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { MapPin, CheckCircle, Navigation, ArrowLeft, PenTool, Camera } from "lucide-react";
+import Swal from "sweetalert2";
 import MapPanel from "../components/MapPanel";
 import { inspections } from "../data/seedData";
 
@@ -12,7 +13,14 @@ export default function Inspections({ setPage }) {
 
   const submitSignOff = async (e) => {
     e.preventDefault();
-    if (!data.signature.trim()) return alert("Digital signature is required.");
+    if (!data.signature.trim()) {
+      return Swal.fire({
+        icon: "warning",
+        title: "Signature Required",
+        text: "Digital signature is required before submitting the inspection verification.",
+        confirmButtonColor: "#0f172a"
+      });
+    }
     
     try {
       const token = localStorage.getItem("infracare_token");
@@ -27,17 +35,34 @@ export default function Inspections({ setPage }) {
       });
       if (res.ok) {
         setSubmitted(true);
+        Swal.fire({
+          icon: "success",
+          title: "Inspection Submitted",
+          text: `Inspection #${activeId} verified and signed off successfully.`,
+          confirmButtonColor: "#0f172a",
+          timer: 2500,
+          timerProgressBar: true
+        });
         setTimeout(() => {
-          alert(`Inspection ${activeId} submitted successfully.`);
           setSubmitted(false);
           setData({ severity: "Moderate", notes: "", signature: "" });
         }, 1000);
       } else {
-        alert("Failed to submit inspection.");
+        Swal.fire({
+          icon: "error",
+          title: "Submission Failed",
+          text: "Failed to submit inspection verification to the server.",
+          confirmButtonColor: "#0f172a"
+        });
       }
     } catch (err) {
       console.error(err);
-      alert("Error submitting inspection.");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "An unexpected error occurred while submitting the inspection.",
+        confirmButtonColor: "#0f172a"
+      });
     }
   };
 

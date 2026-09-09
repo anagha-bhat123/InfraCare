@@ -139,16 +139,31 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
         "Content-Type": "application/json",
         ...(token ? { "Authorization": `Bearer ${token}` } : {})
       };
-      // For now, we mock the priority update in DB, just show alert
-      // In real backend, we'd add an endpoint PATCH /reports/{id}/priority
-      alert(`Priority updated to ${priority}`);
+      // For now, we mock the priority update in DB, show toast
+      Swal.fire({
+        icon: "success",
+        title: "Priority Updated",
+        text: `Report priority updated to ${priority}`,
+        toast: true,
+        position: "top-end",
+        timer: 2500,
+        showConfirmButton: false,
+        timerProgressBar: true
+      });
     } catch (e) {
       console.error(e);
     }
   };
 
   const exportToCSV = () => {
-    if (!filteredReports || filteredReports.length === 0) return alert("No data to export");
+    if (!filteredReports || filteredReports.length === 0) {
+      return Swal.fire({
+        icon: "info",
+        title: "No Data",
+        text: "No reports found to export for the selected filters.",
+        confirmButtonColor: "#0f172a"
+      });
+    }
     const headers = ["REPORT ID", "TYPE", "URGENCY", "PRIORITY", "STATUS", "DATE"];
     const rows = filteredReports.map(r => [
       r.id.substring(0, 8).toUpperCase(),

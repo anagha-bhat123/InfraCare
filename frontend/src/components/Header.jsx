@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Search, Bell, ArrowRight, LogOut, User, Menu, X, ArrowLeft } from "lucide-react";
+import Swal from "sweetalert2";
 import Brand from "./Brand";
 
 const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
@@ -195,7 +196,27 @@ export default function Header({ page, setPage, user, setUser, reports = [], sim
         )}
         <div className="top-actions">
           {!simple && (
-            <button className="icon-button" onClick={() => alert("Search panel opened")}>
+            <button
+              className="icon-button"
+              title="Search Reports & Records"
+              onClick={() => {
+                Swal.fire({
+                  title: "Search Infrastructure Records",
+                  input: "text",
+                  inputLabel: "Quick search by Report ID, Area, or Category",
+                  inputPlaceholder: "e.g. 8842-X, Udupi, Pothole...",
+                  showCancelButton: true,
+                  confirmButtonText: "Search System",
+                  cancelButtonText: "Cancel",
+                  confirmButtonColor: "#0f172a",
+                  cancelButtonColor: "#64748b"
+                }).then((result) => {
+                  if (result.isConfirmed && result.value?.trim()) {
+                    setPage("track");
+                  }
+                });
+              }}
+            >
               <Search />
             </button>
           )}

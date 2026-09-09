@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { CheckCircle2, ArrowRight, ArrowLeft, Search, LocateFixed, X } from "lucide-react";
+import Swal from "sweetalert2";
 import MapPanel from "../components/MapPanel";
 import { reportsSeed } from "../data/seedData";
 
@@ -7,6 +8,63 @@ export default function LiveMap({ reports = [], setPage }) {
   const [coords, setCoords] = useState([13.3409, 74.7421]);
   const [popup, setPopup] = useState(true);
   const [heat, setHeat] = useState(true);
+
+  const handleDispatchTeam = () => {
+    Swal.fire({
+      title: "Dispatch Maintenance Team?",
+      text: `Dispatch rapid response unit to Manipal Main Rd, Udupi (Report #8842-X at ${coords[0].toFixed(4)}° N, ${coords[1] >= 0 ? coords[1].toFixed(4) + "° E" : Math.abs(coords[1]).toFixed(4) + "° W"})?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#0f172a",
+      cancelButtonColor: "#64748b",
+      confirmButtonText: "Confirm Dispatch",
+      cancelButtonText: "Cancel"
+    }).then((result) => {
+      if (result.isConfirmed) {
+        setPopup(false);
+        Swal.fire({
+          icon: "success",
+          title: "Team Dispatched!",
+          text: "Rapid Response Unit #4 has been dispatched to the incident site.",
+          confirmButtonColor: "#0f172a",
+          timer: 3000,
+          timerProgressBar: true
+        });
+      }
+    });
+  };
+
+  const handleDownloadData = () => {
+    Swal.fire({
+      icon: "success",
+      title: "Telemetry Data Exported",
+      text: "Report telemetry and incident CSV dataset downloaded successfully.",
+      toast: true,
+      position: "top-end",
+      timer: 2500,
+      showConfirmButton: false,
+      timerProgressBar: true
+    });
+  };
+
+  const handleGenerateReport = () => {
+    Swal.fire({
+      title: "Generating Map Report...",
+      html: "Aggregating geospatial heatmaps, severity distribution, and telemetry logs...",
+      timer: 1500,
+      timerProgressBar: true,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    }).then(() => {
+      Swal.fire({
+        icon: "success",
+        title: "Report Generated!",
+        text: "Regional infrastructure map report is ready and queued for download.",
+        confirmButtonColor: "#0f172a"
+      });
+    });
+  };
 
   return (
     <main className="map-screen">
@@ -58,7 +116,7 @@ export default function LiveMap({ reports = [], setPage }) {
           <p><i /> Structural Failure</p>
           <p><i className="orange" /> Severe Pothole</p>
         </div>
-        <button className="black wide" onClick={() => alert("Map report generated and queued for download.")}>
+        <button className="black wide" onClick={handleGenerateReport}>
           Generate Map Report <ArrowRight />
         </button>
       </aside>
@@ -93,8 +151,8 @@ export default function LiveMap({ reports = [], setPage }) {
             <footer>
               <span><small>Priority</small><b className="red">High Severity</b></span>
               <span><small>Reported On</small>Dec 14, 2023</span>
-              <button className="black" onClick={() => alert("Team dispatched")}>Dispatch Team</button>
-              <button onClick={() => alert("CSV downloaded for demo")}>Download Data</button>
+              <button className="black" onClick={handleDispatchTeam}>Dispatch Team</button>
+              <button onClick={handleDownloadData}>Download Data</button>
             </footer>
           </article>
         )}
