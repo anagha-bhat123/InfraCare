@@ -1,0 +1,11 @@
+[tool.pyrefly]
+# Exclude the virtual environment from type checking
+exclude = [
+    ".venv",
+    ".venv/**",
+    "__pycache__",
+    "**/__pycache__/**",
+]
+
+[tool.pyrefly.python_environment]
+venv = ".venv"
