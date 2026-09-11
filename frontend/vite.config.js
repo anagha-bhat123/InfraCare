@@ -6,9 +6,9 @@ import path from "path";
 export default defineConfig({
   plugins: [react()],
 
-  // Build directly into the backend's static folder so FastAPI can serve it
+  // Build to dist on Vercel or backend static directory locally
   build: {
-    outDir: path.resolve(__dirname, "../backend/static"),
+    outDir: process.env.VERCEL ? "dist" : path.resolve(__dirname, "../backend/static"),
     emptyOutDir: true,
   },
 
