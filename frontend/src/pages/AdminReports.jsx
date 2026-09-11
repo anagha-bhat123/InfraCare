@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { 
-  LayoutDashboard, BarChart3, AlertTriangle, 
+import {
+  LayoutDashboard, BarChart3, AlertTriangle,
   Wrench, Users, FileText, Search, Bell, Settings,
   Calendar, Download, ChevronDown, ChevronLeft, ChevronRight,
   Droplet, Car, Lightbulb, Grid, PenTool, X, Trash2,
@@ -35,7 +35,7 @@ const StatusBadge = ({ status }) => {
   const s = (status || "Pending").toLowerCase();
   if (s === "verified") return <><span className="dot solid"></span> Verified</>;
   if (s === "in progress" || s === "assigned") return <><span className="dot gray"></span> In Progress</>;
-  if (s === "resolved" || s === "completed") return <><span className="dot solid" style={{background: "#2e7d32"}}></span> Resolved</>;
+  if (s === "resolved" || s === "completed") return <><span className="dot solid" style={{ background: "#2e7d32" }}></span> Resolved</>;
   return <><span className="dot line"></span> Pending</>;
 };
 
@@ -189,7 +189,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
     const list = [...(reports || [])];
     const existingIds = new Set(list.map(r => String(r.id || "")));
     const existingTrack = new Set(list.map(r => String(r.tracking_id || "")).filter(Boolean));
-    
+
     reportsSeed.forEach(s => {
       if (!existingIds.has(String(s.id)) && !existingTrack.has(String(s.tracking_id))) {
         list.push(s);
@@ -227,7 +227,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
   const reportsToday = useMemo(() => {
     return displayReports.filter(r => r.created_at && r.created_at.startsWith(today)).length;
   }, [displayReports, today]);
-  
+
   const criticalReports = useMemo(() => {
     return displayReports.filter(r => {
       const u = (r.urgency || "").toLowerCase();
@@ -256,7 +256,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
     const d = new Date(dateStr);
     const datePart = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
     const timePart = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
-    return <>{datePart},<br/>{timePart}</>;
+    return <>{datePart},<br />{timePart}</>;
   };
 
   const getTimeAgo = (dateStr) => {
@@ -267,7 +267,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
     if (hrs < 24) return `${hrs}h ${diff % 60}m ago`;
     return `${Math.floor(hrs / 24)}d ago`;
   };
-  
+
   const categoriesList = useMemo(() => {
     const set = new Set();
     displayReports.forEach(r => {
@@ -309,7 +309,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
         const sTarget = String(selectedReportId).toLowerCase().replace("#", "").trim();
         const rId = String(r.id || "").toLowerCase().replace("#", "").trim();
         const rTrack = String(r.tracking_id || "").toLowerCase().replace("#", "").trim();
-        
+
         if (rId === sTarget || rTrack === sTarget || rId.includes(sTarget) || rTrack.includes(sTarget) || sTarget.includes(rId.substring(0, 8)) || sTarget.includes(rTrack.substring(0, 8))) {
           return true;
         }
@@ -317,7 +317,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
 
       // Category filter
       if (categoryFilter !== "ALL" && r.category !== categoryFilter) return false;
-      
+
       // Urgency filter
       const u = (r.urgency || "").toLowerCase();
       if (urgencyFilter === "CRITICAL" && !(u === "critical" || u === "urgent" || u === "high priority")) return false;
@@ -432,7 +432,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
             }} />
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "24px", position: "relative", zIndex: 2 }}>
-              
+
               {/* Left Details */}
               <div style={{ maxWidth: "760px", flex: "1 1 500px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px", flexWrap: "wrap" }}>
@@ -491,7 +491,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
                 }}>
                   Citizen Incident Reports Hub
                 </h1>
-                
+
                 <p style={{
                   fontSize: "0.88rem",
                   lineHeight: 1.55,
@@ -564,7 +564,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
 
               {/* Right Action Button Group */}
               <div style={{ display: "flex", flexDirection: "column", gap: "12px", alignItems: "flex-end", alignSelf: "center", flexShrink: 0 }}>
-                <button 
+                <button
                   onClick={() => setPage("report")}
                   style={{
                     background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
@@ -646,7 +646,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
                     LIVE
                   </span>
                 </div>
-                
+
                 <div className="stat-group">
                   <span className="stat-label">Reports Today</span>
                   <div className="stat-value">
@@ -710,7 +710,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
                   )}
                 </div>
                 {criticalReports.length > 3 && (
-                  <button 
+                  <button
                     className="view-all-btn"
                     onClick={() => {
                       handleUrgencyChange("CRITICAL");
@@ -801,7 +801,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
 
                   {/* Primary Action Buttons */}
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "nowrap" }}>
-                    <button 
+                    <button
                       onClick={exportToCSV}
                       style={{
                         backgroundColor: "#fff",
@@ -823,7 +823,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
                     </button>
 
                     {clearAllReports && (
-                      <button 
+                      <button
                         onClick={handleClearAll}
                         style={{
                           backgroundColor: "#fff5f5",
@@ -854,7 +854,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
                     {/* Category Filter */}
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       <span style={{ fontSize: "0.72rem", fontWeight: 800, color: "#64748b", letterSpacing: "0.5px" }}>TYPE:</span>
-                      <select 
+                      <select
                         value={categoryFilter}
                         onChange={(e) => handleCategoryChange(e.target.value)}
                         style={{
@@ -955,215 +955,215 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
                       const dept = r.assigned_department || (isStreetlight ? "MESCOM (Streetlight)" : "PWD (Road & Drainage)");
 
                       return (
-                      <tr key={r.id} style={isSelected ? { backgroundColor: "#eff6ff", borderLeft: "4px solid #2563eb" } : {}}>
-                        <td className="id-cell">
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span>#{r.id.substring(0, 8).toUpperCase()}</span>
-                            {isSelected && <span style={{ background: "#2563eb", color: "#fff", fontSize: "0.6rem", fontWeight: 800, padding: "2px 6px", borderRadius: 4, display: "inline-block" }}>SELECTED</span>}
-                            {deleteReport && (
-                              <button
-                                onClick={() => handleDeleteOne(r.id)}
-                                title={`Delete Report #${r.id.substring(0, 8).toUpperCase()}`}
-                                style={{
-                                  background: "#fef2f2",
-                                  border: "1px solid #fecdd3",
-                                  color: "#ef4444",
-                                  padding: "3px 6px",
-                                  borderRadius: 4,
-                                  cursor: "pointer",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  marginLeft: "auto"
-                                }}
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                        <td className="type-cell">
-                          <CategoryIcon category={r.category} />
-                          <div>
-                            <span>{r.category || "General Incident"}</span>
-                            <div style={{ fontSize: "0.68rem", fontWeight: 800, color: isStreetlight ? "#d97706" : "#2563eb", marginTop: 2 }}>
-                              {dept}
+                        <tr key={r.id} style={isSelected ? { backgroundColor: "#eff6ff", borderLeft: "4px solid #2563eb" } : {}}>
+                          <td className="id-cell">
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span>#{r.id.substring(0, 8).toUpperCase()}</span>
+                              {isSelected && <span style={{ background: "#2563eb", color: "#fff", fontSize: "0.6rem", fontWeight: 800, padding: "2px 6px", borderRadius: 4, display: "inline-block" }}>SELECTED</span>}
+                              {deleteReport && (
+                                <button
+                                  onClick={() => handleDeleteOne(r.id)}
+                                  title={`Delete Report #${r.id.substring(0, 8).toUpperCase()}`}
+                                  style={{
+                                    background: "#fef2f2",
+                                    border: "1px solid #fecdd3",
+                                    color: "#ef4444",
+                                    padding: "3px 6px",
+                                    borderRadius: 4,
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    marginLeft: "auto"
+                                  }}
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              )}
                             </div>
-                          </div>
-                        </td>
-                        <td><UrgencyBadge urgency={r.urgency} /></td>
-                        <td>
-                          <select
-                            value={r.assigned_engineer || r.crew || selectedEng[r.id] || (isStreetlight ? "MESCOM Field Crew #09-E" : "PWD Engineering Crew #01-A")}
-                            onChange={(e) => {
-                              const newEng = e.target.value;
-                              setSelectedEng({ ...selectedEng, [r.id]: newEng });
-                              if (updateReportStatus) {
-                                updateReportStatus(r.id, r.status || "Site Visit Assigned", r.engineer_notes || "Assigned for site visit", newEng);
-                              }
-                            }}
-                            style={{ padding: "6px", borderRadius: "4px", border: "1px solid #ddd", maxWidth: "180px", fontSize: "0.75rem" }}
-                          >
-                            {isStreetlight ? (
-                              <>
-                                <option value="MESCOM Field Crew #09-E">MESCOM Field Crew #09-E</option>
-                                <option value="MESCOM Grid Supervisor #05-F">MESCOM Grid Supervisor #05-F</option>
-                              </>
-                            ) : (
-                              <>
-                                <option value="PWD Engineering Crew #01-A">PWD Engineering Crew #01-A</option>
-                                <option value="PWD Highway Repair Team #03-B">PWD Highway Repair Team #03-B</option>
-                                <option value="PWD Drainage Unit #02-C">PWD Drainage Unit #02-C</option>
-                              </>
-                            )}
-                          </select>
-                        </td>
-                        <td style={{ fontSize: "0.75rem" }}>
-                          {r.approved_budget ? (
+                          </td>
+                          <td className="type-cell">
+                            <CategoryIcon category={r.category} />
                             <div>
-                              <b style={{ color: "#16a34a" }}>Rs. {r.approved_budget.toLocaleString()}</b>
-                              <div style={{ fontSize: "0.68rem", color: "#6b7280" }}>
-                                Timeline: <b>{r.timeline_days || (r.urgency === "Critical" ? 3 : r.urgency === "Urgent" ? 5 : 7)} Days</b>
+                              <span>{r.category || "General Incident"}</span>
+                              <div style={{ fontSize: "0.68rem", fontWeight: 800, color: isStreetlight ? "#d97706" : "#2563eb", marginTop: 2 }}>
+                                {dept}
                               </div>
                             </div>
-                          ) : r.estimated_budget ? (
-                            <div>
-                              <b style={{ color: "#d97706" }}>Est: Rs. {r.estimated_budget.toLocaleString()}</b>
-                              <div style={{ fontSize: "0.68rem", color: "#6b7280" }}>Awaiting Approval</div>
-                            </div>
-                          ) : (
-                            <span style={{ color: "#9ca3af" }}>Pending Site Visit</span>
-                          )}
-                        </td>
-                        <td>
-                          <select
-                            value={r.status || "Submitted"}
-                            onChange={(e) => {
-                              const newStatus = e.target.value;
-                              
-                              if (newStatus === "Budget Approved") {
-                                Swal.fire({
-                                  icon: "warning",
-                                  title: "Approval Authority Exclusive",
-                                  html: "<strong>Only the Approval Authority has the right to approve repair budgets.</strong><br/><br/>The Admin cannot manually approve budgets. Once the official Approval Authority reviews and sanctions the estimate, the repair crew can be dispatched.",
-                                  confirmButtonColor: "#0f172a"
-                                });
-                                return;
-                              }
-
-                              const isBudgetApproved = r.status === "Budget Approved" || Boolean(r.approved_budget);
-                              
-                              if ((newStatus === "Work In Progress" || newStatus === "Crew Assigned") && !isBudgetApproved) {
-                                Swal.fire({
-                                  icon: "warning",
-                                  title: "Budget Approval Required",
-                                  html: "<strong>Cannot assign repair work crew yet.</strong><br/><br/>The Approval Authority must first inspect and approve the estimated repair budget before the Admin can dispatch the work execution crew.",
-                                  confirmButtonColor: "#0f172a"
-                                });
-                                return;
-                              }
-
-                              const eng = selectedEng[r.id] || r.assigned_engineer || (isStreetlight ? "MESCOM Field Crew #09-E" : "PWD Engineering Crew #01-A");
-                              if (updateReportStatus) {
-                                updateReportStatus(r.id, newStatus, `Status updated to ${newStatus} by Admin`, eng);
-                              }
-                            }}
-                            style={{ 
-                              padding: "4px 8px", 
-                              borderRadius: "4px", 
-                              border: "1px solid #ddd",
-                              fontWeight: 700,
-                              fontSize: "0.75rem",
-                              backgroundColor: r.status === "Resolved" ? "#e6f4ea" : r.status === "Work In Progress" || r.status === "In Progress" ? "#fff7ed" : r.status === "Budget Approved" ? "#dbeafe" : "#fff",
-                              color: r.status === "Resolved" ? "#137333" : r.status === "Work In Progress" || r.status === "In Progress" ? "#c2410c" : r.status === "Budget Approved" ? "#1d4ed8" : "#111"
-                            }}
-                          >
-                            <option value="Submitted">1. Submitted</option>
-                            <option value="Site Visit Assigned">1. Site Visit Assigned</option>
-                            <option value="Budget Submitted">2. Budget Submitted</option>
-                            <option value="Pending Budget Approval">3. Pending Budget Approval</option>
-                            <option value="Budget Approved" disabled>3. Budget Approved (Approval Authority Only)</option>
-                            <option value="Work In Progress" disabled={r.status !== "Budget Approved" && !r.approved_budget}>4. Work In Progress {!r.approved_budget && r.status !== "Budget Approved" ? "(Requires Approval)" : ""}</option>
-                            <option value="Final Bill Submitted by Engineer">5. Final Bill Submitted by Engineer</option>
-                            <option value="Final Bill Sent to Approval Authority">6. Final Bill Sent to Approval Authority</option>
-                            <option value="Pending Final Verification">7. Pending Final Verification</option>
-                            <option value="Resolved">8. Resolved</option>
-                          </select>
-                        </td>
-                        <td>
-                          {r.status === "Pending" || r.status === "Submitted" || !r.status ? (
-                            <button
-                              onClick={() => {
-                                const eng = selectedEng[r.id] || r.assigned_engineer || (isStreetlight ? "MESCOM Field Crew #09-E" : "PWD Engineering Crew #01-A");
+                          </td>
+                          <td><UrgencyBadge urgency={r.urgency} /></td>
+                          <td>
+                            <select
+                              value={r.assigned_engineer || r.crew || selectedEng[r.id] || (isStreetlight ? "MESCOM Field Crew #09-E" : "PWD Engineering Crew #01-A")}
+                              onChange={(e) => {
+                                const newEng = e.target.value;
+                                setSelectedEng({ ...selectedEng, [r.id]: newEng });
                                 if (updateReportStatus) {
-                                  updateReportStatus(r.id, "Site Visit Assigned", `Admin assigned ${eng} for initial site visit inspection`, eng);
+                                  updateReportStatus(r.id, r.status || "Site Visit Assigned", r.engineer_notes || "Assigned for site visit", newEng);
                                 }
                               }}
-                              style={{ background: "#2563eb", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "0.72rem", fontWeight: 700, cursor: "pointer" }}
+                              style={{ padding: "6px", borderRadius: "4px", border: "1px solid #ddd", maxWidth: "180px", fontSize: "0.75rem" }}
                             >
-                              Assign Site Visit
-                            </button>
-                          ) : r.status === "Site Visit Assigned" || r.status === "Budget Submitted" || r.status === "Pending Budget Approval" ? (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
-                              <span style={{ background: "#fef3c7", color: "#b45309", border: "1px solid #fde68a", padding: "4px 8px", borderRadius: "4px", fontSize: "0.7rem", fontWeight: 700 }}>
-                                ⏳ Awaiting Approval Authority
-                              </span>
-                              <span style={{ fontSize: "0.65rem", color: "#6b7280", fontWeight: 600 }}>🔒 Crew Locked Until Approved</span>
-                            </div>
-                          ) : r.status === "Budget Approved" ? (
-                            <button
-                              onClick={() => {
+                              {isStreetlight ? (
+                                <>
+                                  <option value="MESCOM Field Crew #09-E">MESCOM Field Crew #09-E</option>
+                                  <option value="MESCOM Grid Supervisor #05-F">MESCOM Grid Supervisor #05-F</option>
+                                </>
+                              ) : (
+                                <>
+                                  <option value="PWD Engineering Crew #01-A">PWD Engineering Crew #01-A</option>
+                                  <option value="PWD Highway Repair Team #03-B">PWD Highway Repair Team #03-B</option>
+                                  <option value="PWD Drainage Unit #02-C">PWD Drainage Unit #02-C</option>
+                                </>
+                              )}
+                            </select>
+                          </td>
+                          <td style={{ fontSize: "0.75rem" }}>
+                            {r.approved_budget ? (
+                              <div>
+                                <b style={{ color: "#16a34a" }}>Rs. {r.approved_budget.toLocaleString()}</b>
+                                <div style={{ fontSize: "0.68rem", color: "#6b7280" }}>
+                                  Timeline: <b>{r.timeline_days || (r.urgency === "Critical" ? 3 : r.urgency === "Urgent" ? 5 : 7)} Days</b>
+                                </div>
+                              </div>
+                            ) : r.estimated_budget ? (
+                              <div>
+                                <b style={{ color: "#d97706" }}>Est: Rs. {r.estimated_budget.toLocaleString()}</b>
+                                <div style={{ fontSize: "0.68rem", color: "#6b7280" }}>Awaiting Approval</div>
+                              </div>
+                            ) : (
+                              <span style={{ color: "#9ca3af" }}>Pending Site Visit</span>
+                            )}
+                          </td>
+                          <td>
+                            <select
+                              value={r.status || "Submitted"}
+                              onChange={(e) => {
+                                const newStatus = e.target.value;
+
+                                if (newStatus === "Budget Approved") {
+                                  Swal.fire({
+                                    icon: "warning",
+                                    title: "Approval Authority Exclusive",
+                                    html: "<strong>Only the Approval Authority has the right to approve repair budgets.</strong><br/><br/>The Admin cannot manually approve budgets. Once the official Approval Authority reviews and sanctions the estimate, the repair crew can be dispatched.",
+                                    confirmButtonColor: "#0f172a"
+                                  });
+                                  return;
+                                }
+
+                                const isBudgetApproved = r.status === "Budget Approved" || Boolean(r.approved_budget);
+
+                                if ((newStatus === "Work In Progress" || newStatus === "Crew Assigned") && !isBudgetApproved) {
+                                  Swal.fire({
+                                    icon: "warning",
+                                    title: "Budget Approval Required",
+                                    html: "<strong>Cannot assign repair work crew yet.</strong><br/><br/>The Approval Authority must first inspect and approve the estimated repair budget before the Admin can dispatch the work execution crew.",
+                                    confirmButtonColor: "#0f172a"
+                                  });
+                                  return;
+                                }
+
                                 const eng = selectedEng[r.id] || r.assigned_engineer || (isStreetlight ? "MESCOM Field Crew #09-E" : "PWD Engineering Crew #01-A");
                                 if (updateReportStatus) {
-                                  updateReportStatus(r.id, "Work In Progress", `Admin assigned ${eng} for repair execution within deadline`, eng);
+                                  updateReportStatus(r.id, newStatus, `Status updated to ${newStatus} by Admin`, eng);
                                 }
                               }}
-                              style={{ background: "#059669", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "0.72rem", fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 4px rgba(5,150,105,0.25)" }}
+                              style={{
+                                padding: "4px 8px",
+                                borderRadius: "4px",
+                                border: "1px solid #ddd",
+                                fontWeight: 700,
+                                fontSize: "0.75rem",
+                                backgroundColor: r.status === "Resolved" ? "#e6f4ea" : r.status === "Work In Progress" || r.status === "In Progress" ? "#fff7ed" : r.status === "Budget Approved" ? "#dbeafe" : "#fff",
+                                color: r.status === "Resolved" ? "#137333" : r.status === "Work In Progress" || r.status === "In Progress" ? "#c2410c" : r.status === "Budget Approved" ? "#1d4ed8" : "#111"
+                              }}
                             >
-                              Assign Work Crew ✓
-                            </button>
-                          ) : r.status === "Final Bill Submitted by Engineer" || r.status === "Final Bill Sent to Approval Authority" ? (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                              <option value="Submitted">1. Submitted</option>
+                              <option value="Site Visit Assigned">1. Site Visit Assigned</option>
+                              <option value="Budget Submitted">2. Budget Submitted</option>
+                              <option value="Pending Budget Approval">3. Pending Budget Approval</option>
+                              <option value="Budget Approved" disabled>3. Budget Approved (Approval Authority Only)</option>
+                              <option value="Work In Progress" disabled={r.status !== "Budget Approved" && !r.approved_budget}>4. Work In Progress {!r.approved_budget && r.status !== "Budget Approved" ? "(Requires Approval)" : ""}</option>
+                              <option value="Final Bill Submitted by Engineer">5. Final Bill Submitted by Engineer</option>
+                              <option value="Final Bill Sent to Approval Authority">6. Final Bill Sent to Approval Authority</option>
+                              <option value="Pending Final Verification">7. Pending Final Verification</option>
+                              <option value="Resolved">8. Resolved</option>
+                            </select>
+                          </td>
+                          <td>
+                            {r.status === "Pending" || r.status === "Submitted" || !r.status ? (
                               <button
                                 onClick={() => {
-                                  const eng = selectedEng[r.id] || r.assigned_engineer || "PWD Field Crew";
+                                  const eng = selectedEng[r.id] || r.assigned_engineer || (isStreetlight ? "MESCOM Field Crew #09-E" : "PWD Engineering Crew #01-A");
                                   if (updateReportStatus) {
-                                    updateReportStatus(r.id, "Final Bill Sent to Approval Authority", "Admin audited final bill & sent to Approval Authority for final sanction", eng);
+                                    updateReportStatus(r.id, "Site Visit Assigned", `Admin assigned ${eng} for initial site visit inspection`, eng);
                                   }
-                                  try {
-                                    const saved = localStorage.getItem("infracare_final_bills");
-                                    if (saved) {
-                                      let parsed = JSON.parse(saved);
-                                      parsed = parsed.map(b => (b.report_id === String(r.id) || b.work_order_id === r.tracking_id) ? { ...b, status: "Final Bill Sent to Approval Authority" } : b);
-                                      localStorage.setItem("infracare_final_bills", JSON.stringify(parsed));
-                                    }
-                                  } catch (e) {}
-
-                                  if (setSelectedReportId) setSelectedReportId(r.id);
-                                  if (setPage) setPage("approval-authority");
                                 }}
-                                style={{ background: "#0284c7", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "0.72rem", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
+                                style={{ background: "#2563eb", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "0.72rem", fontWeight: 700, cursor: "pointer" }}
                               >
-                                Send Final Bill to Authority →
+                                Assign Site Visit
                               </button>
-                            </div>
-                          ) : r.status === "Pending Final Verification" || r.status === "Work In Progress" || r.status === "In Progress" ? (
-                            <button
-                              onClick={() => {
-                                const eng = selectedEng[r.id] || r.assigned_engineer || (isStreetlight ? "MESCOM Field Crew #09-E" : "PWD Engineering Crew #01-A");
-                                if (updateReportStatus) {
-                                  updateReportStatus(r.id, "Resolved", "Admin verified repaired image proof and resolved complaint.", eng);
-                                }
-                              }}
-                              style={{ background: "#16a34a", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "0.72rem", fontWeight: 700, cursor: "pointer" }}
-                            >
-                              Verify & Resolve ✓
-                            </button>
-                          ) : (
-                            <span style={{ fontSize: "0.75rem", color: "#16a34a", fontWeight: 700 }}>Resolved ✓</span>
-                          )}
-                        </td>
-                        <td className="date-cell">{formatDate(r.created_at)}</td>
-                      </tr>
+                            ) : r.status === "Site Visit Assigned" || r.status === "Budget Submitted" || r.status === "Pending Budget Approval" ? (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
+                                <span style={{ background: "#fef3c7", color: "#b45309", border: "1px solid #fde68a", padding: "4px 8px", borderRadius: "4px", fontSize: "0.7rem", fontWeight: 700 }}>
+                                  ⏳ Awaiting Approval Authority
+                                </span>
+                                <span style={{ fontSize: "0.65rem", color: "#6b7280", fontWeight: 600 }}>🔒 Crew Locked Until Approved</span>
+                              </div>
+                            ) : r.status === "Budget Approved" ? (
+                              <button
+                                onClick={() => {
+                                  const eng = selectedEng[r.id] || r.assigned_engineer || (isStreetlight ? "MESCOM Field Crew #09-E" : "PWD Engineering Crew #01-A");
+                                  if (updateReportStatus) {
+                                    updateReportStatus(r.id, "Work In Progress", `Admin assigned ${eng} for repair execution within deadline`, eng);
+                                  }
+                                }}
+                                style={{ background: "#059669", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "0.72rem", fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 4px rgba(5,150,105,0.25)" }}
+                              >
+                                Assign Work Crew ✓
+                              </button>
+                            ) : r.status === "Final Bill Submitted by Engineer" || r.status === "Final Bill Sent to Approval Authority" ? (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                <button
+                                  onClick={() => {
+                                    const eng = selectedEng[r.id] || r.assigned_engineer || "PWD Field Crew";
+                                    if (updateReportStatus) {
+                                      updateReportStatus(r.id, "Final Bill Sent to Approval Authority", "Admin audited final bill & sent to Approval Authority for final sanction", eng);
+                                    }
+                                    try {
+                                      const saved = localStorage.getItem("infracare_final_bills");
+                                      if (saved) {
+                                        let parsed = JSON.parse(saved);
+                                        parsed = parsed.map(b => (b.report_id === String(r.id) || b.work_order_id === r.tracking_id) ? { ...b, status: "Final Bill Sent to Approval Authority" } : b);
+                                        localStorage.setItem("infracare_final_bills", JSON.stringify(parsed));
+                                      }
+                                    } catch (e) { }
+
+                                    if (setSelectedReportId) setSelectedReportId(r.id);
+                                    if (setPage) setPage("approval-authority");
+                                  }}
+                                  style={{ background: "#0284c7", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "0.72rem", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
+                                >
+                                  Send Final Bill to Authority →
+                                </button>
+                              </div>
+                            ) : r.status === "Pending Final Verification" || r.status === "Work In Progress" || r.status === "In Progress" ? (
+                              <button
+                                onClick={() => {
+                                  const eng = selectedEng[r.id] || r.assigned_engineer || (isStreetlight ? "MESCOM Field Crew #09-E" : "PWD Engineering Crew #01-A");
+                                  if (updateReportStatus) {
+                                    updateReportStatus(r.id, "Resolved", "Admin verified repaired image proof and resolved complaint.", eng);
+                                  }
+                                }}
+                                style={{ background: "#16a34a", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "0.72rem", fontWeight: 700, cursor: "pointer" }}
+                              >
+                                Verify & Resolve ✓
+                              </button>
+                            ) : (
+                              <span style={{ fontSize: "0.75rem", color: "#16a34a", fontWeight: 700 }}>Resolved ✓</span>
+                            )}
+                          </td>
+                          <td className="date-cell">{formatDate(r.created_at)}</td>
+                        </tr>
                       );
                     })}
                   </tbody>
@@ -1201,7 +1201,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
                     >
                       <ChevronLeft size={16} />
                     </button>
-                    {getPageNumbers().map((p, idx) => 
+                    {getPageNumbers().map((p, idx) =>
                       p === "..." ? (
                         <span key={`ellipsis-${idx}`} className="ellipsis" style={{ padding: "0 6px", color: "#888", fontSize: "0.85rem" }}>...</span>
                       ) : (

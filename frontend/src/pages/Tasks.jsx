@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { MapPin, Navigation, FileText, Download } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { MapPin, Navigation, FileText, Download, Upload, Camera, X, CheckCircle2 } from "lucide-react";
 import Swal from "sweetalert2";
 import MapPanel from "../components/MapPanel";
 import { reportsSeed, assignments } from "../data/seedData";
@@ -125,7 +125,35 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [engineerNote, setEngineerNote] = useState("");
   const [repairedPhotoUrl, setRepairedPhotoUrl] = useState("");
+  const [repairedFileName, setRepairedFileName] = useState("");
   const [isWorkDelayed, setIsWorkDelayed] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleImageFileUpload = (file) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      Swal.fire({
+        icon: "warning",
+        title: "Invalid File Type",
+        text: "Please select an image file (e.g. JPG, PNG, WEBP, JPEG)."
+      });
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      Swal.fire({
+        icon: "warning",
+        title: "File Too Large",
+        text: "Image file size should be less than 15MB."
+      });
+      return;
+    }
+    setRepairedFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setRepairedPhotoUrl(e.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
 
   React.useEffect(() => {
     if (selectedReportId) {
@@ -296,33 +324,59 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
                   Upload photographic proof of the repaired road, drainage, or streetlight. This proof will be made visible to the citizen who filed the complaint.
                 </p>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 16, marginBottom: 16 }}>
                   <div>
                     <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: "#374151", marginBottom: 6 }}>
-                      Repaired Photo URL (Proof for Citizen):
+                      Upload Repaired Photo Proof (for Citizen):
                     </label>
+
                     <input
-                      type="text"
-                      placeholder="https://images.unsplash.com/photo-1541888946425-d0fbb186a5b7..."
-                      value={repairedPhotoUrl}
-                      onChange={(e) => setRepairedPhotoUrl(e.target.value)}
-                      style={{ width: "100%", padding: "10px", borderRadius: 4, border: "1px solid #d1d5db", fontSize: "0.85rem" }}
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          handleImageFileUpload(e.target.files[0]);
+                        }
+                      }}
                     />
-                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                      <button
-                        type="button"
-                        onClick={() => setRepairedPhotoUrl("https://images.unsplash.com/photo-1541888946425-d0fbb186a5b7?auto=format&fit=crop&w=800&q=80")}
-                        style={{ fontSize: "0.7rem", backgroundColor: "#f3f4f6", border: "1px solid #ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}
-                      >
-                        Sample Fixed Road Photo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRepairedPhotoUrl("https://images.unsplash.com/photo-1509395062183-67c5ad6faff9?auto=format&fit=crop&w=800&q=80")}
-                        style={{ fontSize: "0.7rem", backgroundColor: "#f3f4f6", border: "1px solid #ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}
-                      >
-                        Sample Fixed Streetlight Photo
-                      </button>
+
+                    {/* Interactive Dropzone / Upload Trigger */}
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                          handleImageFileUpload(e.dataTransfer.files[0]);
+                        }
+                      }}
+                      style={{
+                        border: "2px dashed #0284c7",
+                        borderRadius: 8,
+                        padding: "16px 14px",
+                        backgroundColor: "#f0f9ff",
+                        textAlign: "center",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 6
+                      }}
+                    >
+                      <div style={{ backgroundColor: "#e0f2fe", color: "#0284c7", padding: 8, borderRadius: "50%", display: "inline-flex" }}>
+                        <Upload size={20} />
+                      </div>
+                      <div style={{ fontSize: "0.86rem", fontWeight: 700, color: "#0f172a" }}>
+                        Click to Browse & Upload Image from Files
+                      </div>
+                      <div style={{ fontSize: "0.72rem", color: "#64748b" }}>
+                        Supports JPEG, PNG, JPG, WEBP from camera or local drive (max 15MB)
+                      </div>
                     </div>
                   </div>
 
@@ -330,7 +384,7 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
                     <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: "#374151", marginBottom: 6 }}>
                       SLA Work Timeline Status:
                     </label>
-                    <div style={{ padding: "10px", backgroundColor: isWorkDelayed ? "#fef2f2" : "#f0fdf4", border: isWorkDelayed ? "1px solid #fecdd3" : "1px solid #bbf7d0", borderRadius: 4 }}>
+                    <div style={{ padding: "12px", backgroundColor: isWorkDelayed ? "#fef2f2" : "#f0fdf4", border: isWorkDelayed ? "1px solid #fecdd3" : "1px solid #bbf7d0", borderRadius: 6 }}>
                       <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.82rem", fontWeight: 700, color: isWorkDelayed ? "#b91c1c" : "#166534" }}>
                         <input
                           type="checkbox"
@@ -349,9 +403,42 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
                 </div>
 
                 {repairedPhotoUrl && (
-                  <div style={{ marginBottom: 16, border: "1px solid #e5e7eb", borderRadius: 4, padding: 8, backgroundColor: "#fff", display: "flex", alignItems: "center", gap: 12 }}>
-                    <img src={repairedPhotoUrl} alt="Repaired preview" style={{ width: 80, height: 60, objectFit: "cover", borderRadius: 4 }} />
-                    <span style={{ fontSize: "0.8rem", color: "#16a34a", fontWeight: 700 }}>✓ Repaired Image Ready to display for Citizen</span>
+                  <div style={{ marginBottom: 16, border: "1.5px solid #86efac", borderRadius: 8, padding: "12px 16px", backgroundColor: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 14, overflow: "hidden" }}>
+                      <img
+                        src={repairedPhotoUrl}
+                        alt="Repaired proof"
+                        style={{ width: 84, height: 64, objectFit: "cover", borderRadius: 6, border: "1px solid #bbf7d0", flexShrink: 0, boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}
+                      />
+                      <div>
+                        <div style={{ fontSize: "0.85rem", color: "#15803d", fontWeight: 800, display: "flex", alignItems: "center", gap: 6 }}>
+                          <CheckCircle2 size={16} /> Repaired Image Ready to display for Citizen
+                        </div>
+                        <div style={{ fontSize: "0.75rem", color: "#4b5563", marginTop: 3, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {repairedFileName ? `File: ${repairedFileName}` : "Image uploaded from file"}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        style={{ fontSize: "0.75rem", padding: "6px 12px", backgroundColor: "#fff", border: "1px solid #86efac", color: "#166534", borderRadius: 5, fontWeight: 700, cursor: "pointer" }}
+                      >
+                        Change Photo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRepairedPhotoUrl("");
+                          setRepairedFileName("");
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }}
+                        style={{ fontSize: "0.75rem", padding: "6px 12px", backgroundColor: "#fee2e2", border: "1px solid #fca5a5", color: "#991b1b", borderRadius: 5, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
+                      >
+                        <X size={14} /> Remove
+                      </button>
+                    </div>
                   </div>
                 )}
 

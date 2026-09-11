@@ -8,7 +8,7 @@ from app.utils.email import send_engineer_welcome_email, send_password_reset_ema
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# Demo credential store — replace with real DB lookup in production
+# Demo credential store — fallback store when DB migration or demo credentials are used
 DEMO_USERS = {
     "citizen":  {"identifiers": ["citizen@demo.com", "anaghabhat920@gmail.com", "9876543210"], "passwords": ["Citizen@123", "123456"]},
     "engineer": {"identifiers": ["M-001-PWD1", "m-001-pwd1", "M-002-MES1", "m-002-mes1", "M-001-AB12", "m-001-ab12", "M-002-8LUN", "m-002-8lun"], "passwords": ["Engineer@123", "Pwd@1234", "Mescom@123", "123456"]},
@@ -169,6 +169,7 @@ def register_engineer(payload: RegisterEngineerRequest):
             # Save to local credential memory so login works immediately
             if emp_id not in DEMO_USERS["engineer"]["identifiers"]:
                 DEMO_USERS["engineer"]["identifiers"].append(emp_id)
+                DEMO_USERS["engineer"]["identifiers"].append(emp_id.lower())
 
         except Exception as e:
             if user_id:
@@ -182,12 +183,20 @@ def register_engineer(payload: RegisterEngineerRequest):
     else:
         if emp_id not in DEMO_USERS["engineer"]["identifiers"]:
             DEMO_USERS["engineer"]["identifiers"].append(emp_id)
+            DEMO_USERS["engineer"]["identifiers"].append(emp_id.lower())
 
-    # Always store the individual password hash so fallback login works
+    # Store credentials locally as fallback
     ENGINEER_CREDS[emp_id.lower()] = password_hash
+    SPECIFIC_ENGINEERS[emp_id.lower()] = {
+        "id": user_id or f"eng-{emp_id}",
+        "name": payload.full_name,
+        "email": payload.email,
+        "emp_id": emp_id,
+        "department": payload.department or ("MESCOM - Streetlight & Grid" if "002" in emp_id else "PWD - Road & Drainage"),
+        "passwords": [default_password]
+    }
 
-    # ── Send welcome email SYNCHRONOUSLY so it always reaches the inbox ──────
-    # This runs before returning the response — no daemon threads, no skipping.
+    # Send welcome email synchronously
     send_engineer_welcome_email(
         to_email=payload.email,
         full_name=payload.full_name,
@@ -204,6 +213,8 @@ def register_engineer(payload: RegisterEngineerRequest):
 @router.post("/login")
 def login(payload: LoginRequest):
     """Validate credentials and return user session data."""
+    role_home = {"citizen": "home", "engineer": "maintenance", "approver": "approval-authority", "admin": "dashboard"}
+
     # Engineers cannot log in with email addresses
     if payload.role == "engineer" and "@" in payload.identifier:
         raise HTTPException(
@@ -238,7 +249,6 @@ def login(payload: LoginRequest):
                 if not verify_password(payload.password, user["password_hash"]):
                     raise HTTPException(status_code=401, detail="Incorrect password.")
                     
-                role_home = {"citizen": "home", "engineer": "maintenance", "approver": "approval-authority", "admin": "map"}
                 emp_id = profile.get("emp_id") or ""
                 dept = "MESCOM - Streetlight & Grid" if (emp_id.upper().startswith("M-002") or "MES" in emp_id.upper()) else "PWD - Road & Drainage"
                 return {
@@ -253,20 +263,51 @@ def login(payload: LoginRequest):
                     "must_change_password": profile.get("must_change_password", True),
                     "redirect": role_home["engineer"]
                 }
+            else:
+                # Citizen / Admin / Approver database login
+                identifier = payload.identifier.strip().lower()
+                user_res = supabase.table("users").select("*").eq("email", identifier).execute()
+                if not user_res.data and MOBILE_RE.match(identifier):
+                    p_res = supabase.table("profiles").select("*").eq("phone", identifier).execute()
+                    if p_res.data:
+                        user_res = supabase.table("users").select("*").eq("id", p_res.data[0]["id"]).execute()
+                
+                if user_res.data:
+                    db_user = user_res.data[0]
+                    if not verify_password(payload.password, db_user["password_hash"]):
+                        raise HTTPException(status_code=401, detail="Incorrect password.")
+                    p_res = supabase.table("profiles").select("*").eq("id", db_user["id"]).execute()
+                    db_profile = p_res.data[0] if p_res.data else {}
+                    user_role = db_user.get("role") or db_profile.get("role") or payload.role
+                    return {
+                        "user": {
+                            "id": db_user["id"],
+                            "role": user_role,
+                            "name": db_profile.get("full_name") or db_user.get("email") or payload.role.title(),
+                            "email": db_user.get("email"),
+                            "phone": db_profile.get("phone")
+                        },
+                        "must_change_password": db_profile.get("must_change_password", False),
+                        "redirect": role_home.get(user_role, "home")
+                    }
         except HTTPException as e:
             raise e
         except Exception as e:
             error_str = str(e)
-            # If Supabase column doesn't exist yet (code 42703), fall through to
-            # the in-memory DEMO_USERS store so engineers can still log in while
-            # the database migration is pending.
             if "42703" in error_str or "does not exist" in error_str.lower():
-                pass  # fall through to DEMO_USERS below
+                pass  # fall through to demo store
             else:
                 raise HTTPException(status_code=500, detail=f"Database lookup failed: {error_str}")
 
+    # Fallback store (Demo credentials)
     store = DEMO_USERS.get(payload.role, {})
     valid_identifiers = [i.lower() for i in store.get("identifiers", [])]
+
+    # Include specific engineers in valid identifiers for engineer role
+    if payload.role == "engineer":
+        for spec_k in SPECIFIC_ENGINEERS.keys():
+            if spec_k not in valid_identifiers:
+                valid_identifiers.append(spec_k)
 
     if payload.identifier.lower() not in valid_identifiers:
         raise HTTPException(
@@ -274,17 +315,24 @@ def login(payload: LoginRequest):
             detail="Identifier not found. Check your credentials and selected role.",
         )
 
-    role_home = {"citizen": "home", "engineer": "maintenance", "approver": "approval-authority", "admin": "dashboard"}
-
-    # ── Engineer: verify against individual password hash or specific demo account
+    # Engineer demo / local validation
     if payload.role == "engineer":
         spec_key = payload.identifier.strip().lower()
         if spec_key in SPECIFIC_ENGINEERS:
             spec = SPECIFIC_ENGINEERS[spec_key]
-            allowed = spec.get("passwords", [spec.get("password", "")])
-            shared_allowed = store.get("passwords", [store.get("password", "")])
-            if payload.password not in allowed and payload.password not in shared_allowed:
-                raise HTTPException(status_code=401, detail="Incorrect password. Please enter valid password for your engineering department.")
+            allowed = spec.get("passwords", [])
+            shared_allowed = store.get("passwords", [])
+            stored_hash = ENGINEER_CREDS.get(spec_key)
+
+            is_valid = False
+            if stored_hash and verify_password(payload.password, stored_hash):
+                is_valid = True
+            elif payload.password in allowed or payload.password in shared_allowed:
+                is_valid = True
+
+            if not is_valid:
+                raise HTTPException(status_code=401, detail="Incorrect password. Please try again.")
+
             return {
                 "user": {
                     "id": spec["id"],
@@ -303,12 +351,11 @@ def login(payload: LoginRequest):
             if not verify_password(payload.password, stored_hash):
                 raise HTTPException(status_code=401, detail="Incorrect password. Please try again.")
         else:
-            # Fallback: demo engineer with shared password
-            shared_allowed = store.get("passwords", [store.get("password", "")])
+            shared_allowed = store.get("passwords", [])
             if payload.password not in shared_allowed:
                 raise HTTPException(status_code=401, detail="Incorrect password. Please try again.")
     else:
-        valid_passwords = store.get("passwords", [store.get("password", "")])
+        valid_passwords = store.get("passwords", [])
         if payload.password not in valid_passwords:
             raise HTTPException(status_code=401, detail="Incorrect password. Please try again.")
 
@@ -336,51 +383,82 @@ def login(payload: LoginRequest):
     return {
         "user": user_data,
         "must_change_password": must_change,
-        "redirect": role_home[payload.role],
+        "redirect": role_home.get(payload.role, "home"),
     }
 
 @router.post("/change-password")
 def change_password(payload: ChangePasswordRequest):
-    if supabase and not is_demo_credential(payload.identifier):
-        try:
-            identifier = payload.identifier.strip()
-            # Allow lookup by emp_id or by mobile number
-            if ENG_ID_RE.match(identifier):
-                profile_res = supabase.table("profiles").select("*").eq("emp_id", identifier).execute()
-            else:
-                profile_res = supabase.table("profiles").select("*").eq("phone", identifier).eq("role", "engineer").execute()
+    identifier = payload.identifier.strip()
+    updated = False
 
-            if not profile_res.data:
-                raise HTTPException(status_code=404, detail="Engineer account not found.")
-            profile = profile_res.data[0]
-            
-            user_res = supabase.table("users").select("*").eq("id", profile["id"]).execute()
-            if not user_res.data:
-                raise HTTPException(status_code=404, detail="User account not found.")
-            user = user_res.data[0]
-            
-            if not verify_password(payload.old_password, user["password_hash"]):
-                raise HTTPException(status_code=400, detail="Incorrect current password.")
-                
-            new_hash = get_password_hash(payload.new_password)
-            supabase.table("users").update({"password_hash": new_hash}).eq("id", user["id"]).execute()
-            
-            supabase.table("profiles").update({"must_change_password": False}).eq("id", profile["id"]).execute()
-            
-            return {"message": "Password updated successfully."}
+    if supabase and not is_demo_credential(identifier):
+        try:
+            profile = None
+            if ENG_ID_RE.match(identifier):
+                profile_res = supabase.table("profiles").select("*").eq("emp_id", identifier.upper()).execute()
+                if not profile_res.data:
+                    profile_res = supabase.table("profiles").select("*").ilike("emp_id", identifier).execute()
+                if profile_res.data:
+                    profile = profile_res.data[0]
+            elif MOBILE_RE.match(identifier):
+                profile_res = supabase.table("profiles").select("*").eq("phone", identifier).execute()
+                if profile_res.data:
+                    profile = profile_res.data[0]
+            elif EMAIL_RE.match(identifier):
+                user_res = supabase.table("users").select("*").eq("email", identifier.lower()).execute()
+                if user_res.data:
+                    user_obj = user_res.data[0]
+                    p_res = supabase.table("profiles").select("*").eq("id", user_obj["id"]).execute()
+                    profile = p_res.data[0] if p_res.data else {"id": user_obj["id"]}
+
+            if profile:
+                user_res = supabase.table("users").select("*").eq("id", profile["id"]).execute()
+                if user_res.data:
+                    user = user_res.data[0]
+                    if not verify_password(payload.old_password, user["password_hash"]):
+                        raise HTTPException(status_code=400, detail="Incorrect current password.")
+                    new_hash = get_password_hash(payload.new_password)
+                    supabase.table("users").update({"password_hash": new_hash}).eq("id", user["id"]).execute()
+                    try:
+                        supabase.table("profiles").update({"must_change_password": False}).eq("id", profile["id"]).execute()
+                    except Exception:
+                        pass
+                    if profile.get("emp_id"):
+                        ENGINEER_CREDS[profile["emp_id"].lower()] = new_hash
+                    return {"message": "Password updated successfully."}
         except HTTPException as e:
             raise e
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Database update failed: {str(e)}")
-            
-    if is_demo_credential(payload.identifier):
-        if payload.old_password == "123456":
-            DEMO_USERS["engineer"]["password"] = payload.new_password
-            return {"message": "Password updated successfully (demo)."}
-        else:
+            print(f"Error in change_password database operation: {e}")
+
+    ident_lower = identifier.lower()
+    if ident_lower in SPECIFIC_ENGINEERS:
+        spec = SPECIFIC_ENGINEERS[ident_lower]
+        allowed = spec.get("passwords", [])
+        stored_hash = ENGINEER_CREDS.get(ident_lower)
+        is_valid = False
+        if stored_hash and verify_password(payload.old_password, stored_hash):
+            is_valid = True
+        elif payload.old_password in allowed:
+            is_valid = True
+
+        if not is_valid:
             raise HTTPException(status_code=400, detail="Incorrect current password.")
-            
-    raise HTTPException(status_code=404, detail="User not found.")
+        
+        new_hash = get_password_hash(payload.new_password)
+        spec["passwords"] = [payload.new_password]
+        ENGINEER_CREDS[ident_lower] = new_hash
+        return {"message": "Password updated successfully."}
+
+    for role, data in DEMO_USERS.items():
+        if ident_lower in [i.lower() for i in data.get("identifiers", [])]:
+            allowed = data.get("passwords", [])
+            if payload.old_password not in allowed:
+                raise HTTPException(status_code=400, detail="Incorrect current password.")
+            data["passwords"] = [payload.new_password]
+            return {"message": "Password updated successfully."}
+
+    raise HTTPException(status_code=404, detail="User not found with this identifier.")
 
 def mask_email(email: str) -> str:
     if not email or "@" not in email:
@@ -495,7 +573,10 @@ def reset_password(payload: ResetPasswordRequest):
             if profile_res and profile_res.data:
                 prof = profile_res.data[0]
                 supabase.table("users").update({"password_hash": new_hash}).eq("id", prof["id"]).execute()
-                supabase.table("profiles").update({"must_change_password": False}).eq("id", prof["id"]).execute()
+                try:
+                    supabase.table("profiles").update({"must_change_password": False}).eq("id", prof["id"]).execute()
+                except Exception:
+                    pass
                 if prof.get("emp_id"):
                     ENGINEER_CREDS[prof["emp_id"].lower()] = new_hash
                 updated = True
@@ -519,4 +600,3 @@ def reset_password(payload: ResetPasswordRequest):
         return {"success": True, "message": "Password has been updated successfully. You can now log in with your new password."}
 
     raise HTTPException(status_code=404, detail="User not found with this identifier.")
-

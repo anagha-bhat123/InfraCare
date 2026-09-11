@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { 
-  DollarSign, CheckCircle2, XCircle, AlertCircle, Clock, FileText, Plus, Search, 
+import {
+  DollarSign, CheckCircle2, XCircle, AlertCircle, Clock, FileText, Plus, Search,
   Filter, ShieldCheck, TrendingUp, Building2, ChevronRight, PieChart, X, Check, RotateCcw, AlertTriangle, Download, ShieldAlert, Lock
 } from "lucide-react";
 import Swal from "sweetalert2";
@@ -122,7 +122,7 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
   const [requests, setRequests] = useState(INITIAL_SEED_REQUESTS);
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(false);
-  
+
   // Filtering & Search states
   const [statusFilter, setStatusFilter] = useState("ALL"); // ALL | Pending | Approved | Rejected | Revision Requested
   const [deptFilter, setDeptFilter] = useState("ALL");
@@ -206,7 +206,7 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
           });
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // 2. Start with backend/seed requests and apply local overrides
     const list = requests.map(r => {
@@ -228,8 +228,8 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
 
     // 3. Unshift any local storage items not present in backend requests
     localOverrides.forEach(localItem => {
-      const exists = list.some(r => 
-        String(r.id) === String(localItem.id) || 
+      const exists = list.some(r =>
+        String(r.id) === String(localItem.id) ||
         (localItem.report_id && String(r.report_id) === String(localItem.report_id)) ||
         (localItem.work_order_id && String(r.work_order_id) === String(localItem.work_order_id))
       );
@@ -313,7 +313,7 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
       if (saved) {
         list = JSON.parse(saved);
       }
-    } catch (e) {}
+    } catch (e) { }
 
     (reports || []).forEach(rep => {
       if (rep.final_bill_amount || rep.status === "Final Bill Submitted by Engineer" || rep.status === "Final Bill Sent to Approval Authority" || rep.status === "Resolved") {
@@ -417,7 +417,7 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
     }
 
     const approverName = user?.name || "Approval Authority Officer";
-    
+
     // Find associated report and details
     const targetReq = combinedRequests.find(r => String(r.id) === String(requestId) || (r.report_id && String(r.report_id) === String(requestId))) || selectedRequest || {};
     const reqId = targetReq.id || requestId;
@@ -433,9 +433,9 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
     // 1. Update parent App state if linked to a report
     if (updateReportStatus) {
       updateReportStatus(
-        reportId, 
-        reportStatus, 
-        decisionNotes || `${targetStatus} by ${approverName}`, 
+        reportId,
+        reportStatus,
+        decisionNotes || `${targetStatus} by ${approverName}`,
         assignedEng,
         "",
         approvedBudget
@@ -503,7 +503,7 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
           timeline_days: timelineDays.toString(),
           note: decisionNotes || `Sanctioned / Updated by ${approverName}`
         });
-        fetch(`${apiUrl}/reports/${reportId}/status?${queryParams.toString()}`, { method: "PATCH" }).catch(() => {});
+        fetch(`${apiUrl}/reports/${reportId}/status?${queryParams.toString()}`, { method: "PATCH" }).catch(() => { });
       }
 
       await fetch(`${apiUrl}/budget-approvals/${requestId}/status`, {
@@ -514,7 +514,7 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
           approved_by: approverName,
           decision_notes: decisionNotes || `Status updated to ${targetStatus} by ${approverName}.`
         })
-      }).catch(() => {});
+      }).catch(() => { });
     } catch (e) {
       console.error("Backend status update sync error:", e);
     }
@@ -523,8 +523,8 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
     Swal.fire({
       icon: targetStatus === "Approved" ? "success" : targetStatus === "Rejected" ? "error" : "info",
       title: targetStatus === "Approved" ? "Budget Sanctioned ✓" : `Budget ${targetStatus}`,
-      text: targetStatus === "Approved" 
-        ? `Approved budget Rs. ${approvedBudget.toLocaleString()} with ${timelineDays}-day completion timeline.` 
+      text: targetStatus === "Approved"
+        ? `Approved budget Rs. ${approvedBudget.toLocaleString()} with ${timelineDays}-day completion timeline.`
         : `Request marked as ${targetStatus}.`,
       toast: true,
       position: "top-end",
@@ -614,16 +614,17 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
   };
 
   const getStatusBadge = (status) => {
-    switch (status) {
-      case "Approved":
-        return <span style={{ padding: "4px 10px", borderRadius: 12, backgroundColor: "#dcfce7", color: "#15803d", fontSize: "0.75rem", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}><CheckCircle2 size={13} /> Approved</span>;
-      case "Rejected":
-        return <span style={{ padding: "4px 10px", borderRadius: 12, backgroundColor: "#fee2e2", color: "#b91c1c", fontSize: "0.75rem", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}><XCircle size={13} /> Rejected</span>;
-      case "Revision Requested":
-        return <span style={{ padding: "4px 10px", borderRadius: 12, backgroundColor: "#fef3c7", color: "#b45309", fontSize: "0.75rem", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}><RotateCcw size={13} /> Revision Needed</span>;
-      default:
-        return <span style={{ padding: "4px 10px", borderRadius: 12, backgroundColor: "#dbeafe", color: "#1d4ed8", fontSize: "0.75rem", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}><Clock size={13} /> Pending Approval</span>;
+    const s = String(status || "").toLowerCase().trim();
+    if (s === "approved" || s === "budget approved") {
+      return <span style={{ padding: "4px 10px", borderRadius: 12, backgroundColor: "#dcfce7", color: "#15803d", fontSize: "0.75rem", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}><CheckCircle2 size={13} /> Approved</span>;
     }
+    if (s === "rejected") {
+      return <span style={{ padding: "4px 10px", borderRadius: 12, backgroundColor: "#fee2e2", color: "#b91c1c", fontSize: "0.75rem", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}><XCircle size={13} /> Rejected</span>;
+    }
+    if (s.includes("revision")) {
+      return <span style={{ padding: "4px 10px", borderRadius: 12, backgroundColor: "#fef3c7", color: "#b45309", fontSize: "0.75rem", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}><RotateCcw size={13} /> Revision Needed</span>;
+    }
+    return <span style={{ padding: "4px 10px", borderRadius: 12, backgroundColor: "#dbeafe", color: "#1d4ed8", fontSize: "0.75rem", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}><Clock size={13} /> Pending Approval</span>;
   };
 
   const getUrgencyBadge = (urgency) => {
@@ -911,25 +912,29 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
                     </td>
 
                     <td style={{ padding: "14px 16px", textAlign: "right" }}>
-                      <button
-                        onClick={() => setSelectedRequest(r)}
-                        style={{
-                          backgroundColor: "#0284c7",
-                          border: "none",
-                          color: "#fff",
-                          padding: "7px 14px",
-                          borderRadius: 6,
-                          fontSize: "0.78rem",
-                          fontWeight: 800,
-                          cursor: "pointer",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 4,
-                          boxShadow: "0 2px 4px rgba(2,132,199,0.2)"
-                        }}
-                      >
-                        View Necessary Budget &rarr;
-                      </button>
+                      {String(r.status || "").toLowerCase().trim() !== "approved" && String(r.status || "").toLowerCase().trim() !== "budget approved" ? (
+                        <button
+                          onClick={() => setSelectedRequest(r)}
+                          style={{
+                            backgroundColor: "#0284c7",
+                            border: "none",
+                            color: "#fff",
+                            padding: "7px 14px",
+                            borderRadius: 6,
+                            fontSize: "0.78rem",
+                            fontWeight: 800,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            boxShadow: "0 2px 4px rgba(2,132,199,0.2)"
+                          }}
+                        >
+                          View Necessary Budget &rarr;
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: "0.85rem", color: "#94a3b8", fontWeight: 600, paddingRight: 8 }}>—</span>
+                      )}
                     </td>
                   </tr>
                 ))
