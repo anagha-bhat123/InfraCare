@@ -246,3 +246,69 @@ def send_engineer_task_assignment_email(engineer_name: str, report_id: str, titl
     except Exception as exc:
         print(f"[EMAIL ALERT TO ENGINEER] SEND FAILED: {exc}", flush=True)
         return False
+
+def send_password_reset_email(to_email: str, full_name: str, identifier: str, reset_link: str = "") -> bool:
+    print(f"[EMAIL] Preparing to send password reset email to {to_email} (identifier={identifier})", flush=True)
+    if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+        print("[EMAIL] ERROR: SMTP credentials missing.", flush=True)
+        return False
+
+    subject = "InfraCare — Password Reset Request"
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8" />
+      <style>
+        body {{ font-family: 'Segoe UI', Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }}
+        .wrapper {{ max-width: 560px; margin: 40px auto; background: #fff; border-radius: 12px;
+                    overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,.1); }}
+        .header {{ background: #111; color: #fff; padding: 28px 32px; }}
+        .header h1 {{ margin: 0; font-size: 1.4rem; letter-spacing: .5px; }}
+        .body {{ padding: 32px; color: #333; line-height: 1.7; }}
+        .btn {{ display: inline-block; background: #000; color: #fff; padding: 12px 24px;
+                text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }}
+        .footer {{ background: #f9fafb; padding: 18px 32px; font-size: .8rem; color: #999;
+                   border-top: 1px solid #eee; text-align: center; }}
+      </style>
+    </head>
+    <body>
+      <div class="wrapper">
+        <div class="header">
+          <h1>&#128274; InfraCare Password Reset</h1>
+        </div>
+        <div class="body">
+          <p>Dear <strong>{full_name}</strong>,</p>
+          <p>We received a request to reset the password for your account associated with <strong>{identifier}</strong>.</p>
+          {f'<p><a href="{reset_link}" class="btn" style="color:#ffffff;">Reset Your Password</a></p>' if reset_link else ''}
+          <p>If you did not request this, please ignore this email or contact your municipal system administrator.</p>
+        </div>
+        <div class="footer">
+          &copy; 2024 InfraCare Road Damage Detection &amp; Reporting System.
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+
+    text_body = f"Dear {full_name},\n\nA password reset request was received for your account ({identifier}).\n\nIf you did not request this, please ignore this email.\n\n— InfraCare System"
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = settings.EMAIL_FROM
+    msg["To"] = to_email
+    msg.attach(MIMEText(text_body, "plain"))
+    msg.attach(MIMEText(html_body, "html"))
+
+    try:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=20) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.sendmail(settings.SMTP_USER, to_email, msg.as_string())
+        print(f"[EMAIL] SUCCESS - Password reset email sent to {to_email}", flush=True)
+        return True
+    except Exception as exc:
+        print(f"[EMAIL] SEND FAILED to {to_email}: {exc}", flush=True)
+        return False

@@ -1,19 +1,19 @@
 from fastapi import APIRouter, HTTPException
 import random
 import string
-from app.schemas.user import LoginRequest, ResetPasswordRequest, RegisterEngineerRequest, ChangePasswordRequest, ENG_ID_RE
+from app.schemas.user import LoginRequest, ResetPasswordRequest, ForgotPasswordRequest, RegisterEngineerRequest, ChangePasswordRequest, ENG_ID_RE, EMAIL_RE, MOBILE_RE
 from app.database import supabase
 from app.utils.security import verify_password, get_password_hash
-from app.utils.email import send_engineer_welcome_email
+from app.utils.email import send_engineer_welcome_email, send_password_reset_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 # Demo credential store — replace with real DB lookup in production
 DEMO_USERS = {
-    "citizen":  {"identifiers": ["citizen@demo.com", "anaghabhat920@gmail.com", "9876543210"], "password": "123456"},
-    "engineer": {"identifiers": ["M-001-PWD1", "m-001-pwd1", "M-002-MES1", "m-002-mes1", "M-001-AB12", "m-001-ab12", "M-002-8LUN", "m-002-8lun"], "password": "123456"},
-    "admin":    {"identifiers": ["admin@infracare.gov.in"], "password": "12345678"},
-    "approver": {"identifiers": ["approver@demo.com", "approver@infracare.gov.in", "fin-001-app"], "password": "approver123"},
+    "citizen":  {"identifiers": ["citizen@demo.com", "anaghabhat920@gmail.com", "9876543210"], "passwords": ["Citizen@123", "123456"]},
+    "engineer": {"identifiers": ["M-001-PWD1", "m-001-pwd1", "M-002-MES1", "m-002-mes1", "M-001-AB12", "m-001-ab12", "M-002-8LUN", "m-002-8lun"], "passwords": ["Engineer@123", "Pwd@1234", "Mescom@123", "123456"]},
+    "admin":    {"identifiers": ["admin@infracare.gov.in"], "passwords": ["Admin@1234", "12345678"]},
+    "approver": {"identifiers": ["approver@demo.com", "approver@infracare.gov.in", "fin-001-app"], "passwords": ["Approver@123", "approver123"]},
 }
 
 # Specialized Engineer Department Metadata
@@ -24,7 +24,7 @@ SPECIFIC_ENGINEERS = {
         "email": "pwd.engineer@infracare.gov.in",
         "emp_id": "M-001-PWD1",
         "department": "PWD - Road & Drainage",
-        "password": "pwd123",
+        "passwords": ["Pwd@1234", "pwd123", "Engineer@123"],
     },
     "m-002-mes1": {
         "id": "eng-mes-102",
@@ -32,7 +32,7 @@ SPECIFIC_ENGINEERS = {
         "email": "mescom.engineer@infracare.gov.in",
         "emp_id": "M-002-MES1",
         "department": "MESCOM - Streetlight & Grid",
-        "password": "mescom123",
+        "passwords": ["Mescom@123", "mescom123", "Engineer@123"],
     },
     "m-001-ab12": {
         "id": "eng-1",
@@ -40,7 +40,7 @@ SPECIFIC_ENGINEERS = {
         "email": "marcus.engineer@infracare.gov.in",
         "emp_id": "M-001-AB12",
         "department": "PWD - Road & Drainage",
-        "password": "123456",
+        "passwords": ["Engineer@123", "123456"],
     },
     "m-002-8lun": {
         "id": "eng-2",
@@ -48,7 +48,7 @@ SPECIFIC_ENGINEERS = {
         "email": "kavya.mescom@infracare.gov.in",
         "emp_id": "M-002-8LUN",
         "department": "MESCOM - Streetlight & Grid",
-        "password": "123456",
+        "passwords": ["Engineer@123", "123456"],
     }
 }
 
@@ -129,6 +129,10 @@ def register_engineer(payload: RegisterEngineerRequest):
             existing_user = supabase.table("users").select("id").eq("email", payload.email).execute()
             if existing_user.data:
                 raise HTTPException(status_code=400, detail="An account with this email already exists.")
+            
+            existing_phone = supabase.table("profiles").select("id").eq("phone", payload.mobile).execute()
+            if existing_phone.data:
+                raise HTTPException(status_code=400, detail="An account with this mobile number already exists.")
                 
             user_data = {
                 "email": payload.email,
@@ -211,9 +215,11 @@ def login(payload: LoginRequest):
         try:
             if payload.role == "engineer":
                 identifier = payload.identifier.strip()
-                # Look up by emp_id or by registered phone number
+                # Look up by emp_id (case-insensitive) or by registered phone number
                 if ENG_ID_RE.match(identifier):
-                    profile_res = supabase.table("profiles").select("*").eq("emp_id", identifier).execute()
+                    profile_res = supabase.table("profiles").select("*").eq("emp_id", identifier.upper()).execute()
+                    if not profile_res.data:
+                        profile_res = supabase.table("profiles").select("*").ilike("emp_id", identifier).execute()
                     lookup_label = "Employee ID"
                 else:
                     # mobile number lookup
@@ -275,7 +281,9 @@ def login(payload: LoginRequest):
         spec_key = payload.identifier.strip().lower()
         if spec_key in SPECIFIC_ENGINEERS:
             spec = SPECIFIC_ENGINEERS[spec_key]
-            if payload.password != spec["password"] and payload.password != store.get("password", ""):
+            allowed = spec.get("passwords", [spec.get("password", "")])
+            shared_allowed = store.get("passwords", [store.get("password", "")])
+            if payload.password not in allowed and payload.password not in shared_allowed:
                 raise HTTPException(status_code=401, detail="Incorrect password. Please enter valid password for your engineering department.")
             return {
                 "user": {
@@ -296,11 +304,12 @@ def login(payload: LoginRequest):
                 raise HTTPException(status_code=401, detail="Incorrect password. Please try again.")
         else:
             # Fallback: demo engineer with shared password
-            if payload.password != store.get("password", ""):
+            shared_allowed = store.get("passwords", [store.get("password", "")])
+            if payload.password not in shared_allowed:
                 raise HTTPException(status_code=401, detail="Incorrect password. Please try again.")
     else:
-        valid_password = store.get("password", "")
-        if payload.password != valid_password:
+        valid_passwords = store.get("passwords", [store.get("password", "")])
+        if payload.password not in valid_passwords:
             raise HTTPException(status_code=401, detail="Incorrect password. Please try again.")
 
     must_change = False
@@ -373,16 +382,141 @@ def change_password(payload: ChangePasswordRequest):
             
     raise HTTPException(status_code=404, detail="User not found.")
 
+def mask_email(email: str) -> str:
+    if not email or "@" not in email:
+        return email
+    local, domain = email.split("@", 1)
+    if len(local) <= 2:
+        masked_local = local[0] + "*"
+    else:
+        masked_local = local[0] + "*" * (len(local) - 2) + local[-1]
+    return f"{masked_local}@{domain}"
+
+@router.post("/forgot-password")
+def forgot_password(payload: ForgotPasswordRequest):
+    identifier = payload.identifier.strip()
+    target_email = None
+    full_name = "User"
+    user_found = False
+    
+    # 1. Check if identifier is an Employee ID (e.g. M-002-VC96), Mobile, or Email in Supabase DB
+    if supabase and not is_demo_credential(identifier):
+        try:
+            profile_res = None
+            if ENG_ID_RE.match(identifier):
+                profile_res = supabase.table("profiles").select("*").eq("emp_id", identifier.upper()).execute()
+                if not profile_res.data:
+                    profile_res = supabase.table("profiles").select("*").ilike("emp_id", identifier).execute()
+            elif MOBILE_RE.match(identifier):
+                profile_res = supabase.table("profiles").select("*").eq("phone", identifier).execute()
+            elif EMAIL_RE.match(identifier):
+                user_res = supabase.table("users").select("*").eq("email", identifier.lower()).execute()
+                if user_res.data:
+                    u = user_res.data[0]
+                    target_email = u["email"]
+                    p_res = supabase.table("profiles").select("full_name").eq("id", u["id"]).execute()
+                    full_name = p_res.data[0]["full_name"] if p_res.data else "User"
+                    user_found = True
+
+            if profile_res and profile_res.data:
+                prof = profile_res.data[0]
+                full_name = prof.get("full_name") or "Engineer"
+                u_res = supabase.table("users").select("email").eq("id", prof["id"]).execute()
+                if u_res.data:
+                    target_email = u_res.data[0]["email"]
+                    user_found = True
+        except Exception as e:
+            print(f"Error looking up account for password reset: {e}")
+
+    # 2. Check Specific Engineers or Demo Users
+    if not user_found:
+        ident_lower = identifier.lower()
+        if ident_lower in SPECIFIC_ENGINEERS:
+            spec = SPECIFIC_ENGINEERS[ident_lower]
+            target_email = spec.get("email")
+            full_name = spec.get("name")
+            user_found = True
+        else:
+            for role, data in DEMO_USERS.items():
+                if ident_lower in [i.lower() for i in data.get("identifiers", [])]:
+                    target_email = data.get("identifiers")[0] if "@" in data.get("identifiers")[0] else f"{role}@demo.com"
+                    full_name = role.title()
+                    user_found = True
+                    break
+
+    if not user_found and not target_email:
+        if EMAIL_RE.match(identifier):
+            target_email = identifier.lower()
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No account found with identifier '{identifier}'. Please verify your Employee ID, mobile number, or email address."
+            )
+
+    masked = mask_email(target_email)
+    
+    # Send email notification
+    send_password_reset_email(
+        to_email=target_email,
+        full_name=full_name,
+        identifier=identifier,
+    )
+
+    return {
+        "success": True,
+        "message": f"Password reset instructions have been sent to your registered email ({masked}).",
+        "email": target_email,
+        "masked_email": masked,
+        "identifier": identifier
+    }
+
 @router.post("/reset-password")
 def reset_password(payload: ResetPasswordRequest):
-    identifier = payload.identifier.lower().strip()
-    for role, data in DEMO_USERS.items():
-        if identifier in [i.lower() for i in data["identifiers"]]:
-            data["password"] = payload.new_password
-            return {"message": "Password reset successfully"}
+    identifier = payload.identifier.strip()
+    new_hash = get_password_hash(payload.new_password)
+    updated = False
     
-    raise HTTPException(
-        status_code=404,
-        detail="User not found with this identifier."
-    )
+    # Check DB lookup
+    if supabase and not is_demo_credential(identifier):
+        try:
+            profile_res = None
+            if ENG_ID_RE.match(identifier):
+                profile_res = supabase.table("profiles").select("*").eq("emp_id", identifier.upper()).execute()
+                if not profile_res.data:
+                    profile_res = supabase.table("profiles").select("*").ilike("emp_id", identifier).execute()
+            elif MOBILE_RE.match(identifier):
+                profile_res = supabase.table("profiles").select("*").eq("phone", identifier).execute()
+            elif EMAIL_RE.match(identifier):
+                user_res = supabase.table("users").select("*").eq("email", identifier.lower()).execute()
+                if user_res.data:
+                    supabase.table("users").update({"password_hash": new_hash}).eq("id", user_res.data[0]["id"]).execute()
+                    updated = True
+
+            if profile_res and profile_res.data:
+                prof = profile_res.data[0]
+                supabase.table("users").update({"password_hash": new_hash}).eq("id", prof["id"]).execute()
+                supabase.table("profiles").update({"must_change_password": False}).eq("id", prof["id"]).execute()
+                if prof.get("emp_id"):
+                    ENGINEER_CREDS[prof["emp_id"].lower()] = new_hash
+                updated = True
+        except Exception as e:
+            print(f"Error resetting DB password: {e}")
+
+    # Check Demo & Specific Engineers
+    ident_lower = identifier.lower()
+    if ident_lower in SPECIFIC_ENGINEERS:
+        SPECIFIC_ENGINEERS[ident_lower]["passwords"] = [payload.new_password]
+        ENGINEER_CREDS[ident_lower] = new_hash
+        updated = True
+    else:
+        for role, data in DEMO_USERS.items():
+            if ident_lower in [i.lower() for i in data.get("identifiers", [])]:
+                data["passwords"] = [payload.new_password]
+                updated = True
+                break
+
+    if updated:
+        return {"success": True, "message": "Password has been updated successfully. You can now log in with your new password."}
+
+    raise HTTPException(status_code=404, detail="User not found with this identifier.")
 

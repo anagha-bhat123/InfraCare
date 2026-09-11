@@ -321,7 +321,7 @@ export default function Profile({ user, setPage, setUser }) {
 
                 <div style={{ display: "grid", gap: 24 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                    <InputField label="Full Name" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Enter your name" />
+                    <InputField label="Full Name" value={fullName} onChange={e => setFullName(e.target.value.replace(/[^a-zA-Z\s]/g, ""))} placeholder="Enter your name" />
                     <InputField label="Phone Number" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Enter your phone number" />
                   </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import {
   Eye, EyeOff, ArrowRight, AlertCircle,
   UserCircle, ShieldCheck, HardHat, ArrowLeft,
@@ -10,8 +10,8 @@ import Swal from "sweetalert2";
 
 /* ─── Role detection from identifier ─────────────────────────────── */
 const ENG_ID_RE = /^M-\d{3}-[A-Z0-9]{4}$/i;
-const GOV_RE    = /^[^\s@]+@[^\s@]+\.gov\.[^\s@]+$/i;
-const EMAIL_RE  = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const GOV_RE    = /^[^\s@]+@[^\s@]*gov(\.[^\s@]+)?$/i;
+const EMAIL_RE  = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 const MOBILE_RE = /^[6-9]\d{9}$/;
 
 function detectRole(value) {
@@ -19,7 +19,7 @@ function detectRole(value) {
   if (!v) return null;
   if (v.includes("approver") || v.startsWith("fin-")) return "approver";
   if (ENG_ID_RE.test(v)) return "engineer";
-  if (GOV_RE.test(v))    return "admin";
+  if (GOV_RE.test(v) || v.includes("admin")) return "admin";
   if (EMAIL_RE.test(v) || MOBILE_RE.test(v)) return "citizen";
   return null;
 }
@@ -35,6 +35,8 @@ const ROLE_META = {
 function RoleBadge({ role, identifier }) {
   if (!role) return null;
   const meta = ROLE_META[role];
+  if (!meta) return null;
+
   let label = meta.label;
   if (role === "engineer" && identifier) {
     const cleanId = identifier.trim().toUpperCase();
@@ -47,6 +49,7 @@ function RoleBadge({ role, identifier }) {
   const { icon: Icon, color, bg } = meta;
   return (
     <span
+      id="role-detected-badge"
       style={{
         display: "inline-flex", alignItems: "center", gap: 6,
         background: bg, color, border: `1px solid ${color}33`,
@@ -65,27 +68,32 @@ function FieldError({ msg }) {
   if (!msg) return null;
   return (
     <span
+      role="alert"
       style={{
         display: "flex", alignItems: "center", gap: 6,
         color: "#c0152a", fontSize: ".82rem",
         fontWeight: 500, marginTop: 4,
       }}
     >
-      <AlertCircle size={14} />
+      <AlertCircle size={14} style={{ flexShrink: 0 }} />
       {msg}
     </span>
   );
 }
 
-/* ─── Demo credentials (backend only) ────────────────────────────── */
+/* ─── Demo credentials list (synced with backend DEMO_USERS) ──────── */
 const DEMO_IDS = new Set([
   "citizen@demo.com",
   "anaghabhat920@gmail.com",
+  "9876543210",
   "m-001-pwd1",
   "m-002-mes1",
   "m-001-ab12",
+  "m-002-8lun",
   "admin@infracare.gov.in",
   "approver@demo.com",
+  "approver@infracare.gov.in",
+  "fin-001-app",
 ]);
 
 function isDemoCredential(identifier) {
@@ -102,6 +110,7 @@ export default function Login({ setUser, setPage }) {
   const [password, setPassword]     = useState("");
   const [idTouched, setIdTouched]   = useState(false);
   const [pwdTouched, setPwdTouched] = useState(false);
+  const [errors, setErrors]         = useState({ identifier: "", password: "" });
   const [serverError, setServerError] = useState("");
 
   const idRef  = useRef(null);
@@ -109,62 +118,114 @@ export default function Login({ setUser, setPage }) {
 
   const detectedRole = detectRole(identifier);
 
-  /* ─── Field-level validation ──────────────────────────────────── */
-  const idError = (() => {
-    if (!idTouched) return "";
-    if (!identifier.trim()) return "This field is required.";
-    if (!detectedRole) return "Enter a valid email, 10-digit mobile, or Employee ID (M-001-AB12).";
-    return "";
-  })();
+const SPECIAL_CHAR_RE = /[!@#$%^&*(),.?":{}|<>_\-+=~`[\]\\;/]/;
 
-  const pwdError = (() => {
-    if (!pwdTouched) return "";
-    if (!password) return "Password is required.";
-    // Only enforce numeric-only for demo engineer IDs
-    if (ENG_ID_RE.test(identifier.trim()) && isDemoCredential(identifier)) {
-      if (!/^\d+$/.test(password)) return "Demo password must be numeric.";
+  /* ─── Field-level validation ──────────────────────────────────── */
+  const validateField = (field, value) => {
+    if (field === "identifier") {
+      const val = (value ?? identifier).trim();
+      if (!val) return "Email, Mobile, or Employee ID is required.";
+      const role = detectRole(val);
+      if (!role) {
+        return "Enter a valid email address, 10-digit mobile number, or Employee ID (e.g. M-001-AB12).";
+      }
+      return "";
     }
-    if (password.length < 6) return "Password must be at least 6 characters.";
+    if (field === "password") {
+      const val = value ?? password;
+      if (!val) return "Password is required.";
+      if (val.length < 8) return "Password must be at least 8 characters long.";
+      if (!/[A-Z]/.test(val)) return "Password must include at least one uppercase letter (A-Z).";
+      if (!/[a-z]/.test(val)) return "Password must include at least one lowercase letter (a-z).";
+      if (!/\d/.test(val)) return "Password must include at least one number (0-9).";
+      if (!SPECIAL_CHAR_RE.test(val)) return "Password must include at least one special character (!@#$%^&* etc.).";
+      return "";
+    }
     return "";
-  })();
+  };
+
+  const handleIdentifierBlur = () => {
+    setIdTouched(true);
+    const err = validateField("identifier", identifier);
+    setErrors((prev) => ({ ...prev, identifier: err }));
+  };
+
+  const handlePasswordBlur = () => {
+    setPwdTouched(true);
+    const err = validateField("password", password);
+    setErrors((prev) => ({ ...prev, password: err }));
+  };
+
+  const handleIdentifierChange = (e) => {
+    const val = e.target.value;
+    setIdentifier(val);
+    setServerError("");
+    if (idTouched) {
+      setErrors((prev) => ({ ...prev, identifier: validateField("identifier", val) }));
+    }
+  };
+
+  const handlePasswordChange = (e) => {
+    const val = e.target.value;
+    setPassword(val);
+    setServerError("");
+    if (pwdTouched) {
+      setErrors((prev) => ({ ...prev, password: validateField("password", val) }));
+    }
+  };
 
   /* ─── Login via Backend API & Supabase ─────────────────────────────────────── */
   const login = async (id, pwd, role) => {
-    if (isDemoCredential(id) || !EMAIL_RE.test(id)) {
+    const cleanId = id.trim();
+    // Route to backend API if it's a demo credential, an employee ID, an approver ID, or a mobile number
+    if (isDemoCredential(cleanId) || ENG_ID_RE.test(cleanId) || MOBILE_RE.test(cleanId) || role !== "citizen") {
       const res = await fetch(`${apiUrl}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier: id, password: pwd, role }),
+        body: JSON.stringify({ identifier: cleanId, password: pwd, role: role || "citizen" }),
       });
-  
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || "Invalid credentials. Please try again.");
+        throw new Error(err.detail || "Invalid credentials. Please verify your credentials and try again.");
       }
-  
+
       return res.json();
     }
 
+    if (!supabase) {
+      throw new Error("Authentication service is unavailable. Please check your connection.");
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: id,
+      email: cleanId.toLowerCase(),
       password: pwd,
     });
 
     if (error) {
+      if (error.message.toLowerCase().includes("invalid login credentials")) {
+        throw new Error("Invalid email or password. Please check your credentials and try again.");
+      }
       throw new Error(error.message);
     }
 
     if (data?.session) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role, full_name")
+        .select("role, full_name, phone, ward_zone, zone")
         .eq("id", data.session.user.id)
         .maybeSingle();
         
       const metadata = data.session.user?.user_metadata || {};
       const userRole = profile?.role || metadata.role || "citizen";
       const userName = profile?.full_name || metadata.full_name || data.session.user.email;
-      const role_home = { citizen: "home", engineer: "maintenance", inspector: "inspections", admin: "dashboard", approver: "approval-authority" };
+      const role_home = {
+        citizen: "home",
+        engineer: "maintenance",
+        inspector: "inspections",
+        admin: "dashboard",
+        approver: "approval-authority"
+      };
       
       return {
         user: {
@@ -172,33 +233,49 @@ export default function Login({ setUser, setPage }) {
           role: userRole,
           name: userName,
           email: data.session.user.email,
+          phone: profile?.phone || metadata.phone || "",
+          ward: profile?.ward_zone || metadata.ward_zone || "",
+          zone: profile?.zone || metadata.zone || "",
         },
         access_token: data.session.access_token,
         redirect: role_home[userRole] || "home"
       };
     }
+
+    throw new Error("Failed to establish user session.");
   };
 
   /* ─── Submit ──────────────────────────────────────────────────── */
   const submit = async (e) => {
     e.preventDefault();
     setServerError("");
+
+    const idErr = validateField("identifier", identifier);
+    const pwdErr = validateField("password", password);
+
     setIdTouched(true);
     setPwdTouched(true);
+    setErrors({ identifier: idErr, password: pwdErr });
 
-    if (!identifier.trim()) { idRef.current?.focus(); return; }
-    if (!detectedRole)       { idRef.current?.focus(); return; }
-    if (!password)           { pwdRef.current?.focus(); return; }
-    if (password.length < 6) { pwdRef.current?.focus(); return; }
+    if (idErr) {
+      idRef.current?.focus();
+      return;
+    }
+    if (pwdErr) {
+      pwdRef.current?.focus();
+      return;
+    }
 
     setLoading(true);
     try {
-      const result = await login(identifier, password, detectedRole);
+      const result = await login(identifier.trim(), password, detectedRole);
 
       if (remember) {
         localStorage.setItem("infracare_user", JSON.stringify(result.user));
       }
-      localStorage.setItem("infracare_token", result.access_token);
+      if (result.access_token) {
+        localStorage.setItem("infracare_token", result.access_token);
+      }
       
       setUser(result.user);
       setPage(result.redirect || "home");
@@ -221,38 +298,77 @@ export default function Login({ setUser, setPage }) {
 
   /* ─── Forgot password ─────────────────────────────────────────── */
   const handleForgotPassword = async () => {
-    const email = identifier.trim();
-    if (!EMAIL_RE.test(email)) {
-      Swal.fire({
-        icon: "warning",
-        title: "Invalid Email",
-        text: "Please enter your email address in the field above first."
+    let targetId = identifier.trim();
+
+    if (!targetId) {
+      const { value: promptedId } = await Swal.fire({
+        title: "Reset Password",
+        text: "Enter your registered Email, Employee ID (e.g. M-002-VC96), or 10-digit Mobile number:",
+        input: "text",
+        inputPlaceholder: "Email / Employee ID / Mobile",
+        showCancelButton: true,
+        confirmButtonText: "Send Reset Link",
+        confirmButtonColor: "#111827",
+        cancelButtonColor: "#64748b",
+        inputValidator: (val) => {
+          if (!val || !val.trim()) return "Please enter your identifier to proceed.";
+        }
       });
-      idRef.current?.focus();
-      return;
+
+      if (!promptedId) return;
+      targetId = promptedId.trim();
     }
-    
+
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/`,
+      // 1. Call Backend Password Recovery (supports Employee IDs, Mobile numbers, and Emails)
+      const res = await fetch(`${apiUrl}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: targetId }),
       });
-      if (error) throw error;
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.detail || "Account not found with this identifier.");
+      }
+
+      // 2. If it's a citizen with a valid email and Supabase is configured, also trigger Supabase Auth reset
+      if (EMAIL_RE.test(targetId) && supabase) {
+        try {
+          await supabase.auth.resetPasswordForEmail(targetId.toLowerCase(), {
+            redirectTo: `${window.location.origin}/`,
+          });
+        } catch {
+          // Backend email was already dispatched
+        }
+      }
+
       Swal.fire({
-        icon: "info",
-        title: "Check your email",
-        text: "If an account exists, a password reset link has been sent to your email."
+        icon: "success",
+        title: "Check Your Email",
+        html: `<p style="font-size:.95rem; color:#334155; line-height:1.5;">${data.message || "Password reset instructions have been sent to your registered email address."}</p>`,
+        confirmButtonColor: "#111827",
       });
     } catch (err) {
-      Swal.fire({ icon: "error", title: "Error", text: err.message || JSON.stringify(err) });
+      Swal.fire({
+        icon: "error",
+        title: "Password Reset Failed",
+        text: err.message || "Could not process password reset request. Please check your credentials.",
+        confirmButtonColor: "#111827",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const placeholder =
-    detectedRole === "admin"  ? "Government email (e.g. admin@infracare.gov.in)"
-    : "Email or 10-digit mobile";
+    detectedRole === "admin"
+      ? "Government email (e.g. admin@infracare.gov.in)"
+      : detectedRole === "engineer"
+      ? "Employee ID (e.g. M-001-AB12) or mobile"
+      : "Email, 10-digit mobile, or Employee ID";
 
   return (
     <main className="split-auth login-split">
@@ -282,112 +398,114 @@ export default function Login({ setUser, setPage }) {
         <h1>Welcome Back</h1>
         <p>Enter your credentials — we'll detect your role automatically.</p>
 
+        {/* Server-level error */}
+        {serverError && (
+          <div
+            id="server-error-banner"
+            style={{
+              display: "flex", alignItems: "center", gap: 10,
+              background: "#fff0f2", border: "1px solid #f5c2c7",
+              color: "#c0152a", padding: "14px 18px",
+              fontSize: ".9rem", fontWeight: 500, borderRadius: 8,
+              marginBottom: 8,
+            }}
+          >
+            <AlertCircle size={18} style={{ flexShrink: 0 }} />
+            <span>{serverError}</span>
+          </div>
+        )}
 
-            {/* Server-level error */}
-            {serverError && (
-              <div
-                id="server-error-banner"
-                style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  background: "#fff0f2", border: "1px solid #f5c2c7",
-                  color: "#c0152a", padding: "14px 18px",
-                  fontSize: ".9rem", fontWeight: 500, borderRadius: 8,
-                }}
-              >
-                <AlertCircle size={18} />
-                {serverError}
-              </div>
-            )}
+        {/* Identifier field */}
+        <label id="label-identifier" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <span>Email / Mobile / Employee ID</span>
+          <input
+            id="input-identifier"
+            ref={idRef}
+            type="text"
+            placeholder={placeholder}
+            value={identifier}
+            autoComplete="username"
+            autoFocus
+            onChange={handleIdentifierChange}
+            onBlur={handleIdentifierBlur}
+            aria-invalid={Boolean(idTouched && errors.identifier)}
+            style={idTouched && errors.identifier ? { borderColor: "#c0152a" } : {}}
+          />
+          <RoleBadge role={detectedRole} identifier={identifier} />
+          {idTouched && <FieldError msg={errors.identifier} />}
+        </label>
 
-            {/* Identifier field */}
-            <label id="label-identifier" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <span>Email / Mobile / Employee ID</span>
-              <input
-                id="input-identifier"
-                ref={idRef}
-                type="text"
-                placeholder={placeholder}
-                value={identifier}
-                autoComplete="username"
-                autoFocus
-                onChange={(e) => { setIdentifier(e.target.value); setServerError(""); }}
-                onBlur={() => setIdTouched(true)}
-                style={idError ? { borderColor: "#c0152a" } : {}}
-              />
-              <RoleBadge role={detectedRole} identifier={identifier} />
-              <FieldError msg={idError} />
-            </label>
-
-            {/* Password field */}
-            <label id="label-password" style={{ position: "relative" }}>
-              <span>Password</span>
-              <button
-                type="button"
-                className="text-link"
-                style={{ position: "absolute", right: 0, top: 0 }}
-                onClick={handleForgotPassword}
-              >
-                Forgot Password?
-              </button>
-              <span
-                className="input-icon"
-                style={pwdError ? { borderColor: "#c0152a" } : {}}
-              >
-                <input
-                  id="input-password"
-                  ref={pwdRef}
-                  type={show ? "text" : "password"}
-                  placeholder="Enter your password"
-                  value={password}
-                  autoComplete="current-password"
-                  onChange={(e) => { setPassword(e.target.value); setServerError(""); }}
-                  onBlur={() => setPwdTouched(true)}
-                />
-                <button
-                  type="button"
-                  id="toggle-password-visibility"
-                  aria-label={show ? "Hide password" : "Show password"}
-                  onClick={() => setShow((s) => !s)}
-                  style={{ flexShrink: 0 }}
-                >
-                  {show ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </span>
-              <FieldError msg={pwdError} />
-            </label>
-
-            {/* Remember me */}
-            <label className="checkline" id="label-remember-me">
-              <input
-                id="checkbox-remember-me"
-                type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-              />
-              Remember Me
-            </label>
-
-            {/* Submit */}
+        {/* Password field */}
+        <label id="label-password" style={{ position: "relative" }}>
+          <span>Password</span>
+          <button
+            type="button"
+            className="text-link"
+            style={{ position: "absolute", right: 0, top: 0 }}
+            onClick={handleForgotPassword}
+          >
+            Forgot Password?
+          </button>
+          <span
+            className="input-icon"
+            style={pwdTouched && errors.password ? { borderColor: "#c0152a" } : {}}
+          >
+            <input
+              id="input-password"
+              ref={pwdRef}
+              type={show ? "text" : "password"}
+              placeholder="Enter your password"
+              value={password}
+              autoComplete="current-password"
+              onChange={handlePasswordChange}
+              onBlur={handlePasswordBlur}
+              aria-invalid={Boolean(pwdTouched && errors.password)}
+            />
             <button
-              id="btn-login"
-              className="black wide"
-              disabled={loading}
-              style={loading ? { opacity: 0.7, cursor: "not-allowed" } : {}}
+              type="button"
+              id="toggle-password-visibility"
+              aria-label={show ? "Hide password" : "Show password"}
+              onClick={() => setShow((s) => !s)}
+              style={{ flexShrink: 0 }}
             >
-              {loading ? "Logging in…" : <>Login <ArrowRight /></>}
+              {show ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
-            
-            <p className="center">
-              Don&apos;t have an account?{" "}
-              <button
-                id="btn-register-link"
-                type="button"
-                className="text-link strong"
-                onClick={() => setPage("register")}
-              >
-                Register here
-              </button>
-            </p>
+          </span>
+          {pwdTouched && <FieldError msg={errors.password} />}
+        </label>
+
+        {/* Remember me */}
+        <label className="checkline" id="label-remember-me">
+          <input
+            id="checkbox-remember-me"
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+          />
+          Remember Me
+        </label>
+
+        {/* Submit */}
+        <button
+          id="btn-login"
+          className="black wide"
+          disabled={loading}
+          style={loading ? { opacity: 0.7, cursor: "not-allowed" } : {}}
+        >
+          {loading ? "Logging in…" : <>Login <ArrowRight /></>}
+        </button>
+        
+        <p className="center">
+          Don&apos;t have an account?{" "}
+          <button
+            id="btn-register-link"
+            type="button"
+            className="text-link strong"
+            onClick={() => setPage("register")}
+          >
+            Register here
+          </button>
+        </p>
       </form>
     </main>
   );
