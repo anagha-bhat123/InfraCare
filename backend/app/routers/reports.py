@@ -1,7 +1,7 @@
 from datetime import datetime
 import random
 import string
-from typing import Optional
+from typing import Optional, Any
 import math
 from fastapi import APIRouter, Form, UploadFile, File, Query, HTTPException
 from app.database import supabase, create_client
@@ -118,10 +118,13 @@ async def upload_report_photo(
     if not supabase:
         return {"photo": {"report_id": report_id, "filename": photo.filename, "latitude": latitude, "longitude": longitude, "captured_at": captured_at}}
     data = await photo.read()
-    path = f"reports/{report_id}/{int(datetime.utcnow().timestamp())}-{photo.filename}"
+    safe_filename = (photo.filename or "photo.jpg").replace(" ", "_")
+    path = f"reports/{report_id}/{int(datetime.utcnow().timestamp())}-{safe_filename}"
     storage = supabase.storage.from_("report-photos")
-    storage.upload(path, data, {"content-type": photo.content_type})
+    storage.upload(path, data, file_options={"content-type": photo.content_type or "image/jpeg"})
     public_url = storage.get_public_url(path)
+    if public_url.endswith("?"):
+        public_url = public_url[:-1]
     
     # Module 3: AI-Based Damage Detection Mock
     ai_damage_types = ["Pothole", "Cracked Asphalt", "Deterioration"]
@@ -263,9 +266,9 @@ def update_status(
     engineer_notes: str = "",
     assigned_department: str = "",
     site_visit_crew: str = "",
-    estimated_budget: float = None,
-    approved_budget: float = None,
-    timeline_days: int = None,
+    estimated_budget: Optional[float] = None,
+    approved_budget: Optional[float] = None,
+    timeline_days: Optional[int] = None,
     repaired_photo_url: str = ""
 ):
     try:
@@ -292,7 +295,7 @@ def update_status(
                         raise e
                     print(f"Supabase workflow check warning: {e}")
 
-        update_payload = {"status": status}
+        update_payload: dict[str, Any] = {"status": status}
         if assigned_engineer:
             update_payload["assigned_engineer"] = assigned_engineer
         if engineer_notes:
@@ -337,6 +340,20 @@ def update_status(
                 print(f"Failed to insert into report_status_history: {e}")
 
         # 2. Notification Triggers
+        # Fetch report details for email
+        title_val = "Infrastructure Defect"
+        cat_val = "Uncategorized"
+        if supabase:
+            try:
+                q = supabase.table("damage_reports").select("*")
+                q = q.eq("id", report_id) if is_uuid else q.eq("tracking_id", report_id)
+                r = q.execute()
+                if r.data:
+                    title_val = r.data[0].get("title", title_val)
+                    cat_val = r.data[0].get("category", cat_val)
+            except Exception:
+                pass
+
         if assigned_engineer or site_visit_crew or status in ["Site Visit Assigned", "Crew Assigned", "Approved", "In Progress", "Work In Progress"]:
             eng_target = assigned_engineer or site_visit_crew or "Assigned Crew"
             notif_msg = f"You have been assigned to complaint #{report_id[:8].upper()}. Status: {status}."
@@ -351,6 +368,16 @@ def update_status(
                 role="engineer",
                 engineer_name=eng_target
             )
+            try:
+                send_engineer_task_assignment_email(
+                    engineer_name=eng_target,
+                    report_id=report_id,
+                    title=title_val,
+                    category=cat_val,
+                    note=note or engineer_notes
+                )
+            except Exception as e:
+                print(f"Engineer email alert skipped: {e}")
 
         if status in ["Pending Final Verification", "Completed by Engineer", "Completed", "Resolved"]:
             create_notification_record(
@@ -367,6 +394,19 @@ def update_status(
                 message=f"Your complaint #{report_id[:8].upper()} has been inspected, repaired, and resolved with photographic proof.",
                 role="citizen"
             )
+
+        # General status update email for the citizen
+        try:
+            # We don't have user's email in DB, so send to citizen generic email for now as per email.py logic 
+            # Or assuming email.py handles citizen lookup eventually, we just pass citizen@infracare.gov.in
+            send_status_update_email(
+                to_email="citizen@infracare.gov.in",
+                report_id=report_id,
+                new_status=status,
+                note=note or engineer_notes
+            )
+        except Exception as e:
+            print(f"Status update email skipped: {e}")
 
         return {
             "report_id": report_id,
