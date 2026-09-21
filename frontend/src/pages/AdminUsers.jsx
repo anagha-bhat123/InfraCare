@@ -38,7 +38,9 @@ export default function AdminUsers({ setPage }) {
                   <div className="tabs flex gap-8 text-sm font-bold text-gray-500">
                     <button className="text-black border-b-2 border-black pb-4 -mb-4">All Users</button>
                     <button className="hover:text-black pb-4 -mb-4">Admins</button>
-                    <button className="hover:text-black pb-4 -mb-4">Engineers</button>
+                    <button className="hover:text-black pb-4 -mb-4">Engineer Crews</button>
+                    <button className="hover:text-black pb-4 -mb-4">Approvers</button>
+                    <button className="hover:text-black pb-4 -mb-4">Citizens</button>
                   </div>
                   <button className="bg-black text-white px-4 py-2 text-xs font-bold flex items-center tracking-wider hover:bg-gray-800 transition-colors" onClick={() => setPage("register")}>
                     <UserPlus size={14} className="mr-2"/> ADD NEW USER
@@ -67,15 +69,15 @@ export default function AdminUsers({ setPage }) {
                       </td>
                       <td className="p-4">
                         <div className="role-stacked-badge inline-flex flex-col border-all">
-                          <span className="bg-gray-100 text-black text-[10px] font-bold px-2 py-1 border-bottom uppercase tracking-wider">CHIEF</span>
-                          <span className="bg-gray-200 text-black text-[10px] font-bold px-2 py-1 uppercase tracking-wider">ENGINEER</span>
+                          <span className="bg-black text-white text-[10px] font-bold px-2 py-1 border-bottom border-gray-600 uppercase tracking-wider">SYSTEM</span>
+                          <span className="bg-black text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider">ADMIN</span>
                         </div>
                       </td>
                       <td className="p-4 font-bold text-gray-700 flex items-center pt-8">
                         <span className="dot solid green bg-green-500 mr-2"></span> Verified
                       </td>
                       <td className="p-4 text-gray-600">
-                        2m ago<br/><span className="text-xs text-gray-400">(Node 04)</span>
+                        2m ago<br/><span className="text-xs text-gray-400">(Udupi Central)</span>
                       </td>
                       <td className="p-4 text-right">
                         <button className="text-sm text-gray-600 hover:text-black hover:underline">Manage</button>
@@ -92,15 +94,15 @@ export default function AdminUsers({ setPage }) {
                       </td>
                       <td className="p-4">
                         <div className="role-stacked-badge inline-flex flex-col border-all">
-                          <span className="bg-black text-white text-[10px] font-bold px-2 py-1 border-bottom border-gray-600 uppercase tracking-wider">SYSTEM</span>
-                          <span className="bg-black text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider">ADMIN</span>
+                          <span className="bg-blue-900 text-white text-[10px] font-bold px-2 py-1 border-bottom border-blue-800 uppercase tracking-wider" style={{background: '#1e3a8a'}}>BUDGET</span>
+                          <span className="bg-blue-900 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider" style={{background: '#1e3a8a'}}>APPROVER</span>
                         </div>
                       </td>
                       <td className="p-4 font-bold text-gray-700 flex items-center pt-8">
-                        <span className="dot solid yellow bg-yellow-500 mr-2" style={{background: '#eab308'}}></span> MFA Pending
+                        <span className="dot solid yellow bg-yellow-500 mr-2" style={{background: '#eab308'}}></span> Auth Pending
                       </td>
                       <td className="p-4 text-gray-600">
-                        14h ago<br/><span className="text-xs text-gray-400">(Remote)</span>
+                        14h ago<br/><span className="text-xs text-gray-400">(Manipal Hub)</span>
                       </td>
                       <td className="p-4 text-right">
                         <button className="text-sm text-gray-600 hover:text-black hover:underline">Manage</button>
@@ -117,15 +119,14 @@ export default function AdminUsers({ setPage }) {
                       </td>
                       <td className="p-4">
                         <div className="role-stacked-badge inline-flex flex-col border-all">
-                          <span className="bg-gray-100 text-black text-[10px] font-bold px-2 py-1 border-bottom uppercase tracking-wider">CITIZEN</span>
-                          <span className="bg-white text-gray-600 text-[10px] font-bold px-2 py-1 uppercase tracking-wider">REP</span>
+                          <span className="bg-gray-100 text-black text-[10px] font-bold px-2 py-1 uppercase tracking-wider">CITIZEN</span>
                         </div>
                       </td>
                       <td className="p-4 font-bold text-gray-700 flex items-center pt-8">
                         <span className="dot solid green bg-green-500 mr-2"></span> Verified
                       </td>
                       <td className="p-4 text-gray-600">
-                        3d ago<br/><span className="text-xs text-gray-400">(Mobile)</span>
+                        3d ago<br/><span className="text-xs text-gray-400">(Malpe)</span>
                       </td>
                       <td className="p-4 text-right">
                         <button className="text-sm text-gray-600 hover:text-black hover:underline">Manage</button>
@@ -142,15 +143,15 @@ export default function AdminUsers({ setPage }) {
                       </td>
                       <td className="p-4">
                         <div className="role-stacked-badge inline-flex flex-col border-all opacity-70">
-                          <span className="bg-gray-100 text-black text-[10px] font-bold px-2 py-1 border-bottom uppercase tracking-wider">FIELD</span>
-                          <span className="bg-gray-200 text-black text-[10px] font-bold px-2 py-1 uppercase tracking-wider">ENG</span>
+                          <span className="bg-orange-100 text-orange-900 text-[10px] font-bold px-2 py-1 border-bottom border-orange-200 uppercase tracking-wider" style={{background: '#ffedd5', color: '#7c2d12'}}>ENGINEER</span>
+                          <span className="bg-orange-100 text-orange-900 text-[10px] font-bold px-2 py-1 uppercase tracking-wider" style={{background: '#ffedd5', color: '#7c2d12'}}>CREW</span>
                         </div>
                       </td>
                       <td className="p-4 font-bold text-red-600 flex items-center pt-8 uppercase tracking-wider text-xs">
                         <span className="dot solid red bg-red-600 mr-2"></span> SUSPENDED
                       </td>
                       <td className="p-4 text-gray-600">
-                        24d ago<br/><span className="text-xs text-gray-400">(In-Office)</span>
+                        24d ago<br/><span className="text-xs text-gray-400">(Kaup Region)</span>
                       </td>
                       <td className="p-4 text-right">
                         <button className="text-sm text-red-600 font-bold hover:underline">Reactivate</button>
@@ -172,18 +173,18 @@ export default function AdminUsers({ setPage }) {
 
             <div className="users-sidebar flex-1 flex flex-col gap-6" style={{flex: 1}}>
               
-              {/* SECURITY SNAPSHOT */}
+              {/* SYSTEM ACCESS OVERVIEW */}
               <div className="bg-white border-all p-6">
                 <div className="flex items-center text-xs font-bold text-gray-500 mb-4 tracking-wider">
-                  <ShieldAlert size={14} className="mr-2"/> SECURITY SNAPSHOT
+                  <ShieldAlert size={14} className="mr-2"/> SYSTEM ACCESS OVERVIEW
                 </div>
                 <div className="flex gap-4">
                   <div className="bg-gray-50 p-4 flex-1 border-l-4 border-black">
-                    <span className="text-[10px] font-bold text-gray-500 tracking-wider block mb-1">FAILED LOGINS</span>
+                    <span className="text-[10px] font-bold text-gray-500 tracking-wider block mb-1">ACTIVE CREWS</span>
                     <strong className="text-2xl font-serif">12</strong>
                   </div>
                   <div className="bg-gray-50 p-4 flex-1 border-l-4 border-red-600">
-                    <span className="text-[10px] font-bold text-gray-500 tracking-wider block mb-1">NEW ALERTS</span>
+                    <span className="text-[10px] font-bold text-gray-500 tracking-wider block mb-1">NEW CITIZENS</span>
                     <strong className="text-2xl font-serif text-red-600">03</strong>
                   </div>
                 </div>
@@ -204,11 +205,11 @@ export default function AdminUsers({ setPage }) {
                       <MapPin size={16} className="opacity-70" />
                     </div>
                     <div>
-                      <h5 className="font-bold text-gray-900 text-sm mb-1">Unusual Access Location</h5>
-                      <p className="text-xs text-gray-500 mb-2 line-height-normal">Attempted login for <strong>s.henderson</strong> from IP 45.12.9.2 (Prague, CZ)</p>
+                      <h5 className="font-bold text-gray-900 text-sm mb-1">New Citizen Registration</h5>
+                      <p className="text-xs text-gray-500 mb-2 line-height-normal">New citizen user <strong>m.chen</strong> registered from Malpe Sector 3.</p>
                       <span className="text-[10px] font-bold text-gray-400 block mb-4 uppercase">12:45 PM Today</span>
                       <div className="flex gap-4 items-center">
-                        <button className="text-[10px] font-bold border-all border-black px-3 py-1 uppercase tracking-wider hover:bg-black hover:text-white transition-colors">RESOLVE</button>
+                        <button className="text-[10px] font-bold border-all border-black px-3 py-1 uppercase tracking-wider hover:bg-black hover:text-white transition-colors">VERIFY</button>
                         <button className="text-[10px] font-bold text-gray-500 uppercase tracking-wider hover:text-black">DISMISS</button>
                       </div>
                     </div>
@@ -219,9 +220,9 @@ export default function AdminUsers({ setPage }) {
                       <UserX size={16} />
                     </div>
                     <div>
-                      <h5 className="font-bold text-gray-900 text-sm mb-1">MFA Exhaustion</h5>
-                      <p className="text-xs text-gray-500 mb-2 line-height-normal">5 consecutive MFA push requests denied for user <strong>j.doe</strong>.</p>
-                      <span className="text-[10px] font-bold text-gray-400 block mb-2 uppercase">11:12 AM Today</span>
+                      <h5 className="font-bold text-gray-900 text-sm mb-1">Missed Shift Login</h5>
+                      <p className="text-xs text-gray-500 mb-2 line-height-normal">Engineer Crew <strong>Team Alpha</strong> missed 9:00 AM dispatch check-in.</p>
+                      <span className="text-[10px] font-bold text-gray-400 block mb-2 uppercase">09:12 AM Today</span>
                     </div>
                   </div>
 
@@ -230,29 +231,29 @@ export default function AdminUsers({ setPage }) {
                       <KeyRound size={16} />
                     </div>
                     <div>
-                      <h5 className="font-bold text-gray-900 text-sm mb-1">Credential Change</h5>
-                      <p className="text-xs text-gray-500 mb-2 line-height-normal">User <strong>m.chen</strong> updated administrative credentials.</p>
-                      <span className="text-[10px] font-bold text-gray-400 block mb-2 uppercase">09:30 AM Today</span>
+                      <h5 className="font-bold text-gray-900 text-sm mb-1">Approver Status Updated</h5>
+                      <p className="text-xs text-gray-500 mb-2 line-height-normal">User <strong>s.henderson</strong> granted final budget approval authority.</p>
+                      <span className="text-[10px] font-bold text-gray-400 block mb-2 uppercase">08:30 AM Today</span>
                     </div>
                   </div>
 
                 </div>
               </div>
 
-              {/* ACCESS FREQUENCY MAP */}
+              {/* SYSTEM ENGAGEMENT MAP */}
               <div className="bg-white border-all overflow-hidden relative" style={{height: 200}}>
                 <div className="absolute inset-0 bg-gray-100 opacity-60" style={{backgroundImage: 'url("https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=600")', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'grayscale(100%) opacity(0.3)'}}></div>
                 <div className="relative z-10 p-6 flex flex-col justify-between h-full">
-                  <h4 className="text-xs font-bold text-gray-600 tracking-wider">ACCESS FREQUENCY</h4>
+                  <h4 className="text-xs font-bold text-gray-600 tracking-wider">UDUPI DISTRICT ENGAGEMENT</h4>
                   
                   <div className="flex justify-between items-end">
                     <div>
-                      <strong className="text-3xl font-serif text-black block leading-none">98%</strong>
-                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">MFA SUCCESS</span>
+                      <strong className="text-3xl font-serif text-black block leading-none">128</strong>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">TOTAL CITIZENS</span>
                     </div>
                     <div className="text-right">
-                      <strong className="text-3xl font-serif text-black block leading-none">0.4s</strong>
-                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">LATENCY</span>
+                      <strong className="text-3xl font-serif text-black block leading-none">42</strong>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">ACTIVE CREWS</span>
                     </div>
                   </div>
                 </div>
