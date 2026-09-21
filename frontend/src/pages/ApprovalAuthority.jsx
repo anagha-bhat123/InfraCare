@@ -201,7 +201,7 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
         if (Array.isArray(parsed)) {
           parsed.forEach(item => {
             if (item.id) localOverrides.set(String(item.id), item);
-            if (item.report_id) localOverrides.set(String(item.report_id), item);
+            if (item.report_id && item.report_id !== "custom-rep" && item.report_id !== "null") localOverrides.set(String(item.report_id), item);
             if (item.work_order_id) localOverrides.set(String(item.work_order_id), item);
           });
         }
@@ -230,7 +230,7 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
     localOverrides.forEach(localItem => {
       const exists = list.some(r =>
         String(r.id) === String(localItem.id) ||
-        (localItem.report_id && String(r.report_id) === String(localItem.report_id)) ||
+        (localItem.report_id && localItem.report_id !== "custom-rep" && localItem.report_id !== "null" && String(r.report_id) === String(localItem.report_id)) ||
         (localItem.work_order_id && String(r.work_order_id) === String(localItem.work_order_id))
       );
       if (!exists) {
