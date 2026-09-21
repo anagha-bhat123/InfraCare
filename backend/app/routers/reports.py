@@ -42,7 +42,7 @@ def create_report(report: DamageReport):
     tracking_id = f"CMP-{datetime.utcnow().strftime('%Y%m%d')}-{seq}"
     
     cat = (report.category or "").strip().lower()
-    dept = report.assigned_department or ("MESCOM - Streetlight & Grid" if "light" in cat or "electric" in cat or "lamp" in cat else "PWD - Road & Drainage")
+    dept = report.assigned_department or ("MESCOM - Streetlight & Grid" if "light" in cat or "electric" in cat else "PWD - Road, Water & Waste Management")
     
     row = {
         "tracking_id": tracking_id,

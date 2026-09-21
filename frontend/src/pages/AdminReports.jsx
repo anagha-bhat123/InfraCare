@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import Swal from "sweetalert2";
 import { reportsSeed } from "../data/seedData";
+import { UDUPI_WARD_GROUPS } from "../utils/wards";
 
 const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -42,6 +43,7 @@ const StatusBadge = ({ status }) => {
 export default function AdminReports({ reports = [], updateReportStatus, setPage, selectedReportId, setSelectedReportId, user, clearAllReports, deleteReport }) {
   const [urgencyFilter, setUrgencyFilter] = useState("ALL");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [wardFilter, setWardFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -102,6 +104,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
     if (selectedReportId) {
       setUrgencyFilter("ALL");
       setCategoryFilter("ALL");
+      setWardFilter("ALL");
       setSearchQuery(selectedReportId);
       setCurrentPage(1);
     }
@@ -318,6 +321,16 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
       // Category filter
       if (categoryFilter !== "ALL" && r.category !== categoryFilter) return false;
 
+      // Ward filter
+      if (wardFilter !== "ALL") {
+        if (wardFilter.startsWith("Ward Group")) {
+          const groupWards = UDUPI_WARD_GROUPS[wardFilter] || [];
+          if (!groupWards.includes(r.ward_zone)) return false;
+        } else {
+          if (r.ward_zone !== wardFilter) return false;
+        }
+      }
+
       // Urgency filter
       const u = (r.urgency || "").toLowerCase();
       if (urgencyFilter === "CRITICAL" && !(u === "critical" || u === "urgent" || u === "high priority")) return false;
@@ -344,7 +357,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
 
       return true;
     });
-  }, [sortedReports, categoryFilter, urgencyFilter, searchQuery, selectedReportId]);
+  }, [sortedReports, categoryFilter, urgencyFilter, wardFilter, searchQuery, selectedReportId]);
 
   // Pagination Logic
   const totalReports = filteredReports.length;
@@ -363,6 +376,11 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
 
   const handleCategoryChange = (val) => {
     setCategoryFilter(val);
+    setCurrentPage(1);
+  };
+
+  const handleWardChange = (val) => {
+    setWardFilter(val);
     setCurrentPage(1);
   };
 
@@ -872,6 +890,36 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
                         <option value="ALL">All Categories ({reports.length})</option>
                         {categoriesList.map(cat => (
                           <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Ward Filter */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "0.72rem", fontWeight: 800, color: "#64748b", letterSpacing: "0.5px" }}>WARD:</span>
+                      <select
+                        value={wardFilter}
+                        onChange={(e) => handleWardChange(e.target.value)}
+                        style={{
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "6px",
+                          padding: "5px 10px",
+                          fontSize: "0.8rem",
+                          fontWeight: 700,
+                          color: "#0f172a",
+                          backgroundColor: "#fff",
+                          cursor: "pointer",
+                          outline: "none"
+                        }}
+                      >
+                        <option value="ALL">All Wards</option>
+                        {Object.keys(UDUPI_WARD_GROUPS).map(group => (
+                          <optgroup key={group} label={group}>
+                            <option value={group}>-- Entire {group} --</option>
+                            {UDUPI_WARD_GROUPS[group].map(ward => (
+                              <option key={ward} value={ward}>{ward}</option>
+                            ))}
+                          </optgroup>
                         ))}
                       </select>
                     </div>

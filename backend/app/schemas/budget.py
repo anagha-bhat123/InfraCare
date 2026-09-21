@@ -48,7 +48,6 @@ class RepairBudgetResponse(BaseModel):
     decision_notes: Optional[str] = None
     timeline_days: Optional[int] = 7
     target_completion_date: Optional[str] = None
-    discount_rate: Optional[float] = 10.0
     cost_breakdown: Optional[List[Dict[str, Any]]] = []
     created_at: str
     updated_at: str

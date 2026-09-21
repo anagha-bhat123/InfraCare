@@ -27,5 +27,4 @@ class DamageReport(BaseModel):
     timeline_days: Optional[int] = None
     target_completion_date: Optional[str] = None
     repaired_photo_url: Optional[str] = None
-    delay_discount_applied: Optional[bool] = False
     final_bill_amount: Optional[float] = None

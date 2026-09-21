@@ -15,6 +15,7 @@ import MapPanel from "../components/MapPanel";
 import { supabase } from "../services/supabase";
 import { apiUrl } from "../services/api";
 import Swal from "sweetalert2";
+import { ALL_UDUPI_WARDS } from "../utils/wards";
 
 export default function Report({ addReport, setPage }) {
   const [urgency, setUrgency] = useState("Normal");
@@ -142,11 +143,30 @@ export default function Report({ addReport, setPage }) {
               Complaint Category <span style={{ color: "#c0152a" }}>*</span>
               <select required value={category} onChange={(e) => setCategory(e.target.value)}>
                 <option value="">Select category...</option>
-                <option value="Road Pothole & Surface Damage">Pothole & Surface Damage (PWD)</option>
-                <option value="Broken Drainage & Culvert Cover">Broken Drainage & Culvert Cover (PWD)</option>
-                <option value="Cracked Asphalt Roadway">Cracked Asphalt Roadway (PWD)</option>
-                <option value="Streetlight Hazard & Outage">Streetlight Hazard & Outage (MESCOM)</option>
-                <option value="Electrical Grid Pole & Cable">Electrical Grid Pole & Cable (MESCOM)</option>
+                <optgroup label="Road & Infrastructure (PWD)">
+                  <option value="Road Pothole">Potholes</option>
+                  <option value="Road cracks">Road cracks</option>
+                  <option value="Damaged roads">Damaged roads</option>
+                  <option value="Other road-related issues">Other road-related issues</option>
+                </optgroup>
+                <optgroup label="Water Supply (PWD)">
+                  <option value="Water leakage">Water leakage</option>
+                  <option value="Broken pipelines">Broken pipelines</option>
+                  <option value="Water supply interruption">Water supply interruption</option>
+                  <option value="Damaged water infrastructure">Damaged water infrastructure</option>
+                  <option value="Other water-supply complaints">Other water-supply complaints</option>
+                </optgroup>
+                <optgroup label="Waste Management (PWD)">
+                  <option value="Garbage accumulation">Garbage accumulation</option>
+                  <option value="Improper waste disposal">Improper waste disposal</option>
+                  <option value="Overflowing garbage bins">Overflowing garbage bins</option>
+                  <option value="Uncollected waste">Uncollected waste</option>
+                  <option value="Other waste-management complaints">Other waste-management complaints</option>
+                </optgroup>
+                <optgroup label="Electricity (MESCOM)">
+                  <option value="Streetlight Hazard & Outage">Streetlight Hazard & Outage</option>
+                  <option value="Electrical Grid Pole & Cable">Electrical Grid Pole & Cable</option>
+                </optgroup>
               </select>
               {category && (
                 <div style={{ fontSize: "0.78rem", fontWeight: 800, marginTop: 4, color: category.toLowerCase().includes("light") || category.toLowerCase().includes("electric") ? "#d97706" : "#2563eb" }}>
@@ -158,12 +178,9 @@ export default function Report({ addReport, setPage }) {
               Ward / Zone <span style={{ color: "#c0152a" }}>*</span>
               <select required value={ward} onChange={(e) => setWard(e.target.value)}>
                 <option value="">Select your Ward/Zone</option>
-                <option value="Ward 01 - North">Ward 01 - North</option>
-                <option value="Ward 02 - East Side">Ward 02 - East Side</option>
-                <option value="Ward 03 - South">Ward 03 - South</option>
-                <option value="Ward 04 - Central Business">Ward 04 - Central Business</option>
-                <option value="Ward 05 - North District">Ward 05 - North District</option>
-                <option value="West Ward">West Ward</option>
+                {ALL_UDUPI_WARDS.map(w => (
+                  <option key={w} value={w}>{w}</option>
+                ))}
               </select>
             </label>
             <label>

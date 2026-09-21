@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { User, Bell, History, ShieldCheck, ArrowRight, CheckCircle, XCircle } from "lucide-react";
 import { apiUrl } from "../services/api";
 import { supabase } from "../services/supabase";
+import { ALL_UDUPI_WARDS } from "../utils/wards";
 
 function getDisplayName(user) {
   const n = (user?.name || "").trim();
@@ -332,7 +333,7 @@ export default function Profile({ user, setPage, setUser }) {
                       label="Ward / District"
                       value={ward}
                       onChange={e => setWard(e.target.value)}
-                      options={["Ward 04 - Central Business", "Ward 05 - North District", "Ward 02 - East Side"]}
+                      options={ALL_UDUPI_WARDS}
                       placeholder="Select Ward / District"
                     />
                     <InputField label="Zone Designation" value={zone} onChange={e => setZone(e.target.value)} placeholder="e.g. Zone B-R2" />

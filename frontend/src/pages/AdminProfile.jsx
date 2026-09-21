@@ -4,6 +4,7 @@ import {
 } from "lucide-react";
 import { apiUrl } from "../services/api";
 import { supabase } from "../services/supabase";
+import { ALL_UDUPI_WARDS } from "../utils/wards";
 
 // Check if user ID is a real UUID (not a demo string like "demo-admin")
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -305,7 +306,7 @@ export default function AdminProfile({ user, setPage, setUser }) {
                           label="Ward / District"
                           value={ward}
                           onChange={e => setWard(e.target.value)}
-                          options={["Ward 04 - Central Business", "Ward 05 - North District", "Ward 02 - East Side"]}
+                          options={ALL_UDUPI_WARDS}
                           placeholder="Select Ward / District"
                         />
                         <InputField label="Zone Designation" value={zone} onChange={e => setZone(e.target.value)} placeholder="e.g. Zone B-R2" />

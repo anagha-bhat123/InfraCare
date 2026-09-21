@@ -193,8 +193,6 @@ def list_budget_requests(
         if not item.get("timeline_days"):
             urgency_str = str(item.get("urgency") or "Normal")
             item["timeline_days"] = get_timeline_days_for_urgency(urgency_str)
-        if not item.get("discount_rate"):
-            item["discount_rate"] = 10.0
 
     return {"requests": items}
 
@@ -227,7 +225,6 @@ def create_budget_request(payload: RepairBudgetCreate):
         "decision_notes": None,
         "timeline_days": timeline_days,
         "target_completion_date": target_date,
-        "discount_rate": 10.0,
         "cost_breakdown": payload.cost_breakdown or [],
         "created_at": now_iso,
         "updated_at": now_iso

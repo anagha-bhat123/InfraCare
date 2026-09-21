@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../services/supabase";
 import { apiUrl } from "../services/api";
+import { ALL_UDUPI_WARDS } from "../utils/wards";
 
 const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 const MOBILE_RE = /^[6-9]\d{9}$/;
@@ -668,11 +669,9 @@ export default function Register({ setPage }) {
               onChange={(e) => setWard(e.target.value)}
             >
               <option value="">Select your Ward/Zone</option>
-              <option>North District</option>
-              <option>East Side</option>
-              <option>South Zone</option>
-              <option>West Ward</option>
-              <option>Central District</option>
+              {ALL_UDUPI_WARDS.map(w => (
+                <option key={w} value={w}>{w}</option>
+              ))}
             </select>
             <ChevronDown />
           </span>
