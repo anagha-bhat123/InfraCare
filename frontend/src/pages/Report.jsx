@@ -141,7 +141,6 @@ export default function Report({ addReport, setPage }) {
           <div className="form-row">
             <label>
               Complaint Category <span style={{ color: "#c0152a" }}>*</span>
-              {!photo && <small style={{ color: "#c0152a", display: "block", marginTop: "4px", fontWeight: "bold" }}>Please upload an image first to select a category.</small>}
               <select 
                 required 
                 value={category} 
@@ -175,6 +174,7 @@ export default function Report({ addReport, setPage }) {
                   <option value="Electrical Grid Pole & Cable">Electrical Grid Pole & Cable</option>
                 </optgroup>
               </select>
+              {!photo && <small style={{ color: "#c0152a", marginTop: "4px", fontSize: "0.75rem", fontWeight: "600", display: "block" }}>Please upload an image first to select a category.</small>}
               {category && (
                 <div style={{ fontSize: "0.78rem", fontWeight: 800, marginTop: 4, color: category.toLowerCase().includes("light") || category.toLowerCase().includes("electric") ? "#d97706" : "#2563eb" }}>
                   📍 Assigned Department: {category.toLowerCase().includes("light") || category.toLowerCase().includes("electric") ? "MESCOM (Electricity Supply Board)" : "PWD (Public Works Department)"}
