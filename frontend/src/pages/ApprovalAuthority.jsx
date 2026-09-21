@@ -302,7 +302,12 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
         }
       }
     });
-    return list;
+    // 6. Sort by created_at descending so newest are always at the top
+    return list.sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    });
   }, [requests, reports]);
 
   // Compute final bills list from localStorage and reports prop
