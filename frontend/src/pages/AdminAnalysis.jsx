@@ -4,41 +4,140 @@ import {
   FileSpreadsheet, Edit3, Filter, Calendar, Plus, X, ToggleLeft
 } from "lucide-react";
 import Swal from "sweetalert2";
+import { UDUPI_WARD_GROUPS } from "../utils/wards";
 
-export default function AdminAnalysis({ setPage }) {
+export default function AdminAnalysis({ setPage, reports = [] }) {
+  // Global Filters
+  const [wardFilter, setWardFilter] = useState("ALL");
+  const [deptFilter, setDeptFilter] = useState("ALL"); // ALL, PWD, MESCOM
+  const [dateFilter, setDateFilter] = useState("30D"); // 7D, 30D, 90D, ALL
+
+  // Compute filtered reports
+  const filteredReports = React.useMemo(() => {
+    let list = reports;
+    
+    if (wardFilter !== "ALL") {
+      list = list.filter(r => (r.ward || "").trim() === wardFilter.trim());
+    }
+    
+    if (deptFilter !== "ALL") {
+      list = list.filter(r => {
+        const cat = (r.category || "").toLowerCase();
+        const isMescom = cat.includes("street light") || cat.includes("electrical");
+        return deptFilter === "MESCOM" ? isMescom : !isMescom;
+      });
+    }
+    
+    if (dateFilter !== "ALL") {
+      const now = new Date();
+      const days = parseInt(dateFilter);
+      list = list.filter(r => {
+        const d = new Date(r.created_at || r.date || now);
+        return (now - d) / (1000 * 60 * 60 * 24) <= days;
+      });
+    }
+    
+    return list;
+  }, [reports, wardFilter, deptFilter, dateFilter]);
+
+  // Compute dynamic area conditions based on filtered reports
+  const dynamicAreaConditions = React.useMemo(() => {
+    const wardGroupNames = Object.keys(UDUPI_WARD_GROUPS);
+    
+    return wardGroupNames.map((group) => {
+      const wardsInGroup = UDUPI_WARD_GROUPS[group];
+      const groupReports = filteredReports.filter(r => wardsInGroup.includes((r.ward || "").trim()));
+      
+      const total = groupReports.length;
+      if (total === 0) {
+        return { name: group.split(" - ")[1] || group, value: 100, color: "green", activeTeams: 0 };
+      }
+      
+      const resolved = groupReports.filter(r => {
+        const s = (r.status || "").toLowerCase();
+        return s === "resolved" || s === "completed" || s === "verified";
+      }).length;
+      
+      const criticalPending = groupReports.filter(r => {
+        const s = (r.status || "").toLowerCase();
+        const u = (r.urgency || "").toLowerCase();
+        const isPending = s !== "resolved" && s !== "completed" && s !== "verified";
+        const isCritical = u === "critical" || u === "urgent" || u === "high priority";
+        return isPending && isCritical;
+      }).length;
+      
+      // Basic health score: base 100, -5 for every pending critical, + ratio of resolved
+      let score = Math.round((resolved / total) * 100) - (criticalPending * 5);
+      score = Math.max(0, Math.min(100, score)); // Clamp between 0-100
+      
+      let color = "green";
+      if (score < 65) color = "red";
+      else if (score < 85) color = "orange";
+      
+      const activeTeams = groupReports.filter(r => {
+        const s = (r.status || "").toLowerCase();
+        return s === "in progress" || s === "assigned" || s === "work in progress";
+      }).length;
+      
+      return {
+        name: group.split(" - ")[1] || group,
+        value: score,
+        color,
+        activeTeams
+      };
+    });
+  }, [filteredReports]);
+
   // Timeframe for Maintenance Velocity chart
   const [timeframe, setTimeframe] = useState("30D"); // "7D" | "30D" | "90D"
 
-  // Dynamic bar data per district based on timeframe
-  const velocityData = {
-    "7D": [
-      { code: "DIST-01", name: "Udupi Central", days: 2.1, pct: 42, color: "#16a34a" },
-      { code: "DIST-02", name: "Manipal Hub", days: 3.5, pct: 70, color: "#f59e0b" },
-      { code: "DIST-03", name: "Surathkal", days: 1.8, pct: 36, color: "#16a34a" },
-      { code: "DIST-04", name: "Hampankatta", days: 4.2, pct: 84, color: "#dc2626" },
-      { code: "DIST-05", name: "Lalbagh", days: 2.9, pct: 58, color: "#f59e0b" },
-      { code: "DIST-06", name: "Malpe Port", days: 1.4, pct: 28, color: "#16a34a" },
-      { code: "DIST-07", name: "Kadri Park", days: 3.1, pct: 62, color: "#f59e0b" }
-    ],
-    "30D": [
-      { code: "DIST-01", name: "Udupi Central", days: 3.2, pct: 64, color: "#16a34a" },
-      { code: "DIST-02", name: "Manipal Hub", days: 4.8, pct: 96, color: "#dc2626" },
-      { code: "DIST-03", name: "Surathkal", days: 2.1, pct: 42, color: "#16a34a" },
-      { code: "DIST-04", name: "Hampankatta", days: 5.5, pct: 100, color: "#dc2626" },
-      { code: "DIST-05", name: "Lalbagh", days: 3.9, pct: 78, color: "#f59e0b" },
-      { code: "DIST-06", name: "Malpe Port", days: 1.8, pct: 36, color: "#16a34a" },
-      { code: "DIST-07", name: "Kadri Park", days: 4.2, pct: 84, color: "#f59e0b" }
-    ],
-    "90D": [
-      { code: "DIST-01", name: "Udupi Central", days: 4.1, pct: 82, color: "#f59e0b" },
-      { code: "DIST-02", name: "Manipal Hub", days: 5.2, pct: 98, color: "#dc2626" },
-      { code: "DIST-03", name: "Surathkal", days: 3.0, pct: 60, color: "#16a34a" },
-      { code: "DIST-04", name: "Hampankatta", days: 6.1, pct: 100, color: "#dc2626" },
-      { code: "DIST-05", name: "Lalbagh", days: 4.5, pct: 90, color: "#dc2626" },
-      { code: "DIST-06", name: "Malpe Port", days: 2.2, pct: 44, color: "#16a34a" },
-      { code: "DIST-07", name: "Kadri Park", days: 4.9, pct: 94, color: "#dc2626" }
-    ]
-  };
+  // Dynamic bar data per district based on timeframe (now using real data)
+  const dynamicVelocityData = React.useMemo(() => {
+    const wardGroupNames = Object.keys(UDUPI_WARD_GROUPS);
+    
+    return wardGroupNames.map((group, index) => {
+      // Find reports belonging to this ward group
+      const wardsInGroup = UDUPI_WARD_GROUPS[group];
+      const groupReports = filteredReports.filter(r => wardsInGroup.includes((r.ward || "").trim()));
+      
+      // Calculate completion time
+      const resolved = groupReports.filter(r => {
+        const s = (r.status || "").toLowerCase();
+        return s === "resolved" || s === "completed" || s === "verified";
+      });
+      
+      let avgDays = 0;
+      if (resolved.length > 0) {
+        let totalDays = 0;
+        resolved.forEach(r => {
+          const createD = new Date(r.created_at || r.date || Date.now());
+          const endD = new Date(r.updated_at || r.resolved_at || Date.now());
+          const days = Math.max(0.5, (endD - createD) / (1000 * 60 * 60 * 24));
+          totalDays += days;
+        });
+        avgDays = totalDays / resolved.length;
+      }
+      
+      // Calculate a pct value based on days (lower days = higher pct for green)
+      // Assuming a max acceptable limit of 14 days for 0 pct
+      const pct = avgDays === 0 ? 0 : Math.max(10, Math.min(100, 100 - (avgDays / 14) * 100));
+      
+      // Color coding: green if <= 3 days, orange if <= 7 days, red if > 7
+      let color = "#16a34a"; // green
+      if (avgDays > 7) color = "#dc2626"; // red
+      else if (avgDays > 3) color = "#f59e0b"; // orange
+      
+      return {
+        code: `WG-0${index + 1}`,
+        name: group.split(" - ")[1] || group,
+        groupName: group,
+        days: avgDays.toFixed(1),
+        pct,
+        color,
+        count: resolved.length
+      };
+    });
+  }, [filteredReports]);
 
   // Distribution Automation Triggers state
   const [triggers, setTriggers] = useState([
@@ -54,7 +153,7 @@ export default function AdminAnalysis({ setPage }) {
   // Generated Reports Archive state
   const [archiveReports, setArchiveReports] = useState([
     { id: "REP-2026-001", title: "Q3 Coastal Infrastructure Durability Audit", date: "Oct 12, 2026 • 14:30", status: "VERIFIED", department: "Udupi Municipal PWD", completionRate: "94%" },
-    { id: "REP-2026-002", title: "Annual Maintenance Velocity & Pothole Metrics", date: "Oct 05, 2026 • 09:15", status: "DRAFT", department: "Mangalore Urban Cell", completionRate: "78%" },
+    { id: "REP-2026-002", title: "Annual Maintenance Velocity & Pothole Metrics", date: "Oct 05, 2026 • 09:15", status: "DRAFT", department: "Udupi Urban Cell", completionRate: "78%" },
     { id: "REP-2026-003", title: "Monsoon Flood Prevention Readiness Assessment", date: "Sep 28, 2026 • 16:45", status: "VERIFIED", department: "Coastal Karnataka Infra Authority", completionRate: "91%" },
     { id: "REP-2026-004", title: "National Highway NH-66 Maintenance Report", date: "Sep 20, 2026 • 11:20", status: "VERIFIED", department: "National Highways Authority", completionRate: "88%" }
   ]);
@@ -152,7 +251,7 @@ export default function AdminAnalysis({ setPage }) {
             <div class="header">
               <div>
                 <div class="logo">INFRACARE MUNICIPAL SYSTEMS</div>
-                <div style="font-size: 13px; color: #555;">Udupi & Mangalore District Infrastructure Audit</div>
+                <div style="font-size: 13px; color: #555;">Udupi District Infrastructure Audit</div>
               </div>
               <div class="badge">${report.status}</div>
             </div>
@@ -169,7 +268,7 @@ export default function AdminAnalysis({ setPage }) {
 
             <div class="section">
               <div class="section-title">Audit Overview</div>
-              <p>This report documents the structural integrity, pothole remediation speed, and operational readiness metrics for municipal road networks across Udupi and Mangalore districts. All field records have been verified against citizen GPS reports and AI damage assessment models.</p>
+              <p>This report documents the structural integrity, pothole remediation speed, and operational readiness metrics for municipal road networks across Udupi district. All field records have been verified against citizen GPS reports and AI damage assessment models.</p>
             </div>
 
             <div class="section">
@@ -186,8 +285,8 @@ export default function AdminAnalysis({ setPage }) {
                 <tbody>
                   <tr><td>Udupi Central (DIST-01)</td><td>42</td><td>3.2 Days</td><td>Optimal</td></tr>
                   <tr><td>Manipal Hub (DIST-02)</td><td>68</td><td>4.8 Days</td><td>Action Required</td></tr>
-                  <tr><td>Surathkal Highway (DIST-03)</td><td>29</td><td>2.1 Days</td><td>Optimal</td></tr>
-                  <tr><td>Hampankatta (DIST-04)</td><td>84</td><td>5.5 Days</td><td>Critical Priority</td></tr>
+                  <tr><td>Malpe Hub (DIST-03)</td><td>29</td><td>2.1 Days</td><td>Optimal</td></tr>
+                  <tr><td>Korangrapady (DIST-04)</td><td>84</td><td>5.5 Days</td><td>Critical Priority</td></tr>
                 </tbody>
               </table>
             </div>
@@ -286,12 +385,72 @@ export default function AdminAnalysis({ setPage }) {
           <div className="admin-page-header">
             <div className="admin-header-text">
               <h2 className="serif-title large">Documentation Engine</h2>
-              <p>High-fidelity municipal reporting for fiscal oversight and infrastructural assessment. All<br/>data is synchronized with real-time field reporting units across Udupi & Mangalore.</p>
+              <p>High-fidelity municipal reporting for fiscal oversight and infrastructural assessment. All<br/>data is synchronized with real-time field reporting units across Udupi District.</p>
             </div>
             <div className="admin-header-actions">
               <button className="admin-btn-black" onClick={() => setIsNewReportModalOpen(true)}>
                 GENERATE NEW<br/>REPORT <ArrowRight size={16} className="ml-2 inline" />
               </button>
+            </div>
+          </div>
+
+          {/* GLOBAL FILTER BAR */}
+          <div style={{ display: "flex", gap: "16px", marginBottom: "24px", backgroundColor: "#fff", padding: "16px", borderRadius: "8px", border: "1px solid #e5e5e5", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: 800, color: "#6b7280" }}>WARD GROUP:</span>
+              <select 
+                value={wardFilter} 
+                onChange={(e) => setWardFilter(e.target.value)}
+                style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "0.85rem", fontWeight: 600, backgroundColor: "#f8fafc" }}
+              >
+                <option value="ALL">All Wards</option>
+                {Object.keys(UDUPI_WARD_GROUPS).map(group => (
+                  <option key={group} value={group}>{group}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: 800, color: "#6b7280" }}>DEPARTMENT:</span>
+              <select 
+                value={deptFilter} 
+                onChange={(e) => setDeptFilter(e.target.value)}
+                style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "0.85rem", fontWeight: 600, backgroundColor: "#f8fafc" }}
+              >
+                <option value="ALL">All (PWD & MESCOM)</option>
+                <option value="PWD">PWD (Road, Water, Waste)</option>
+                <option value="MESCOM">MESCOM (Electrical)</option>
+              </select>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: 800, color: "#6b7280" }}>TIMEFRAME:</span>
+              <div style={{ display: "flex", border: "1px solid #cbd5e1", borderRadius: "6px", overflow: "hidden" }}>
+                {["7D", "30D", "90D", "ALL"].map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setDateFilter(t)}
+                    style={{
+                      padding: "8px 12px",
+                      fontSize: "0.8rem",
+                      fontWeight: 700,
+                      border: "none",
+                      backgroundColor: dateFilter === t ? "#111" : "#f8fafc",
+                      color: dateFilter === t ? "#fff" : "#475569",
+                      cursor: "pointer",
+                      borderRight: t !== "ALL" ? "1px solid #cbd5e1" : "none"
+                    }}
+                  >
+                    {t === "ALL" ? "ALL TIME" : t}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#111" }}>
+                {filteredReports.length} <span style={{ color: "#6b7280", fontWeight: 500 }}>Reports Found</span>
+              </span>
             </div>
           </div>
 
@@ -305,37 +464,6 @@ export default function AdminAnalysis({ setPage }) {
                   <span className="sub-label">AVERAGE COMPLETION TIME BY DISTRICT (DAYS)</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div className="timeline-toggles flex border-all" style={{ borderRadius: 4, overflow: "hidden", display: "inline-flex" }}>
-                    {["7D", "30D", "90D"].map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => {
-                          setTimeframe(t);
-                          Swal.fire({
-                            toast: true,
-                            position: "top-end",
-                            icon: "info",
-                            title: `Velocity View: ${t === '7D' ? 'Last 7 Days' : t === '30D' ? 'Last 30 Days' : 'Last 90 Days'}`,
-                            showConfirmButton: false,
-                            timer: 1500
-                          });
-                        }}
-                        style={{
-                          padding: "6px 14px",
-                          fontSize: "0.75rem",
-                          fontWeight: 800,
-                          border: "none",
-                          cursor: "pointer",
-                          backgroundColor: timeframe === t ? "#111" : "#fff",
-                          color: timeframe === t ? "#fff" : "#333",
-                          transition: "all 0.2s"
-                        }}
-                      >
-                        {t === "7D" ? "7 Days" : t === "30D" ? "30 Days" : "90 Days"}
-                      </button>
-                    ))}
-                  </div>
                   <div className="badge-light-green">LIVE SYNC</div>
                 </div>
               </div>
@@ -343,8 +471,8 @@ export default function AdminAnalysis({ setPage }) {
               {/* Functional Bar Chart */}
               <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", border: "1px solid #e5e5e5", padding: "20px 16px 12px", background: "#fff", borderRadius: 4, minHeight: 190 }}>
                 <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", height: 140, marginBottom: 12, padding: "0 10px" }}>
-                  {velocityData[timeframe].map((item) => (
-                    <div key={item.code} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: `${100 / velocityData[timeframe].length - 2}%`, height: "100%", justifyContent: "flex-end" }}>
+                  {dynamicVelocityData.map((item) => (
+                    <div key={item.code} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: `${100 / dynamicVelocityData.length - 2}%`, height: "100%", justifyContent: "flex-end" }}>
                       <span style={{ fontSize: "0.75rem", fontWeight: 800, color: item.color, marginBottom: 6 }}>
                         {item.days}d
                       </span>
@@ -367,7 +495,7 @@ export default function AdminAnalysis({ setPage }) {
                   ))}
                 </div>
                 <div className="x-axis-labels" style={{ borderTop: "1px solid #f0f0f0", paddingTop: 8, display: "flex", justifyContent: "space-between" }}>
-                  {velocityData[timeframe].map((item) => (
+                  {dynamicVelocityData.map((item) => (
                     <span key={item.code} style={{ fontSize: "0.65rem", fontWeight: 700, color: "#555" }}>{item.code}</span>
                   ))}
                 </div>
@@ -413,7 +541,7 @@ export default function AdminAnalysis({ setPage }) {
           {/* Area-Wise Road Conditions */}
           <div className="road-conditions-panel" style={{ marginTop: 24 }}>
             <div className="panel-header">
-              <h3 className="serif-title">Area-Wise Road Conditions (Udupi & Mangalore)</h3>
+              <h3 className="serif-title">Area-Wise Conditions (Udupi District)</h3>
               <div className="legend">
                 <span className="legend-item"><span className="dot red"></span> CRITICAL</span>
                 <span className="legend-item"><span className="dot orange"></span> WARNING</span>
@@ -421,23 +549,14 @@ export default function AdminAnalysis({ setPage }) {
               </div>
             </div>
             <div className="conditions-grid">
-              {[
-                { name: "Manipal", value: 88, color: "green" },
-                { name: "Kalsanka", value: 64, color: "orange" },
-                { name: "Surathkal", value: 92, color: "green" },
-                { name: "Hampankatta", value: 58, color: "red" },
-                { name: "Lalbagh", value: 79, color: "orange" },
-                { name: "Malpe Rd", value: 89, color: "green" },
-                { name: "Kadri Park", value: 85, color: "green" },
-                { name: "Pumpwell", value: 72, color: "orange" },
-              ].map((area, i) => (
+              {dynamicAreaConditions.map((area, i) => (
                 <div 
                   className="condition-card" 
                   key={i}
                   style={{ cursor: "pointer" }}
                   onClick={() => Swal.fire({
                     title: `${area.name} Zone Analysis`,
-                    html: `<b>Structural Condition Score:</b> ${area.value}%<br/><b>Active Maintenance Squads:</b> 2 Teams Dispatched<br/><b>Status:</b> ${area.value >= 85 ? 'Optimal Maintenance' : area.value >= 65 ? 'Moderate Surface Wear' : 'Priority Repair Required'}`,
+                    html: `<b>Condition Score:</b> ${area.value}%<br/><b>Active Maintenance Squads:</b> ${area.activeTeams} Teams Dispatched<br/><b>Status:</b> ${area.value >= 85 ? 'Optimal Maintenance' : area.value >= 65 ? 'Moderate Surface Wear' : 'Priority Repair Required'}`,
                     icon: area.value >= 85 ? 'success' : area.value >= 65 ? 'warning' : 'error'
                   })}
                 >
@@ -760,7 +879,7 @@ export default function AdminAnalysis({ setPage }) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "2px solid #111", paddingBottom: 20, marginBottom: 24 }}>
                 <div>
                   <h1 style={{ margin: 0, fontSize: "1.4rem", fontWeight: 800, fontFamily: "Georgia, serif", color: "#0f172a" }}>INFRACARE MUNICIPAL SYSTEMS</h1>
-                  <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: 4 }}>Udupi & Mangalore District Infrastructure Audit</div>
+                  <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: 4 }}>Udupi District Infrastructure Audit</div>
                 </div>
                 <span style={{ fontSize: "0.75rem", fontWeight: 800, backgroundColor: "#0f172a", color: "#fff", padding: "4px 10px", borderRadius: 4, letterSpacing: 0.5 }}>
                   {viewingReport.status}
@@ -794,7 +913,7 @@ export default function AdminAnalysis({ setPage }) {
                   Audit Overview
                 </h4>
                 <p style={{ fontSize: "0.88rem", color: "#334155", lineHeight: 1.6, margin: 0 }}>
-                  This report documents the structural integrity, pothole remediation speed, and operational readiness metrics for municipal road networks across Udupi and Mangalore districts. All field records have been verified against citizen GPS reports and AI damage assessment models.
+                  This report documents the structural integrity, pothole remediation speed, and operational readiness metrics for municipal road networks across Udupi district. All field records have been verified against citizen GPS reports and AI damage assessment models.
                 </p>
               </div>
 
@@ -814,8 +933,8 @@ export default function AdminAnalysis({ setPage }) {
                   <tbody>
                     <tr style={{ borderBottom: "1px solid #f1f5f9" }}><td style={{ padding: "8px 12px" }}>Udupi Central (DIST-01)</td><td style={{ padding: "8px 12px" }}>42</td><td style={{ padding: "8px 12px" }}>3.2 Days</td><td style={{ padding: "8px 12px", color: "#16a34a", fontWeight: 700 }}>Optimal</td></tr>
                     <tr style={{ borderBottom: "1px solid #f1f5f9" }}><td style={{ padding: "8px 12px" }}>Manipal Hub (DIST-02)</td><td style={{ padding: "8px 12px" }}>68</td><td style={{ padding: "8px 12px" }}>4.8 Days</td><td style={{ padding: "8px 12px", color: "#d97706", fontWeight: 700 }}>Action Required</td></tr>
-                    <tr style={{ borderBottom: "1px solid #f1f5f9" }}><td style={{ padding: "8px 12px" }}>Surathkal Highway (DIST-03)</td><td style={{ padding: "8px 12px" }}>29</td><td style={{ padding: "8px 12px" }}>2.1 Days</td><td style={{ padding: "8px 12px", color: "#16a34a", fontWeight: 700 }}>Optimal</td></tr>
-                    <tr style={{ borderBottom: "1px solid #f1f5f9" }}><td style={{ padding: "8px 12px" }}>Hampankatta (DIST-04)</td><td style={{ padding: "8px 12px" }}>84</td><td style={{ padding: "8px 12px" }}>5.5 Days</td><td style={{ padding: "8px 12px", color: "#dc2626", fontWeight: 700 }}>Critical Priority</td></tr>
+                    <tr style={{ borderBottom: "1px solid #f1f5f9" }}><td style={{ padding: "8px 12px" }}>Malpe Hub (DIST-03)</td><td style={{ padding: "8px 12px" }}>29</td><td style={{ padding: "8px 12px" }}>2.1 Days</td><td style={{ padding: "8px 12px", color: "#16a34a", fontWeight: 700 }}>Optimal</td></tr>
+                    <tr style={{ borderBottom: "1px solid #f1f5f9" }}><td style={{ padding: "8px 12px" }}>Korangrapady (DIST-04)</td><td style={{ padding: "8px 12px" }}>84</td><td style={{ padding: "8px 12px" }}>5.5 Days</td><td style={{ padding: "8px 12px", color: "#dc2626", fontWeight: 700 }}>Critical Priority</td></tr>
                   </tbody>
                 </table>
               </div>
