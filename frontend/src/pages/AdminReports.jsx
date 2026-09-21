@@ -584,35 +584,7 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
 
               {/* Right Action Button Group */}
               <div style={{ display: "flex", flexDirection: "column", gap: "12px", alignItems: "flex-end", alignSelf: "center", flexShrink: 0 }}>
-                <button
-                  onClick={() => setPage("report")}
-                  style={{
-                    background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
-                    color: "#ffffff",
-                    border: "none",
-                    borderRadius: "8px",
-                    padding: "12px 22px",
-                    fontWeight: 800,
-                    fontSize: "0.82rem",
-                    letterSpacing: "0.6px",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    boxShadow: "0 4px 14px rgba(37, 99, 235, 0.35)",
-                    transition: "all 0.2s ease"
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-1px)";
-                    e.currentTarget.style.boxShadow = "0 6px 20px rgba(37, 99, 235, 0.45)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.boxShadow = "0 4px 14px rgba(37, 99, 235, 0.35)";
-                  }}
-                >
-                  <Plus size={16} strokeWidth={3} /> NEW CITIZEN REPORT
-                </button>
+
 
                 <div style={{ display: "flex", gap: "8px" }}>
                   <button
