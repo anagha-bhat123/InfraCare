@@ -58,6 +58,7 @@ def create_report(report: DamageReport):
         "evidence": report.evidence,
         "assigned_engineer": report.assigned_engineer,
         "engineer_notes": report.engineer_notes,
+        "ward_zone": report.ward_zone,
     }
     
     # Send Notification Alert to Admin & Citizen

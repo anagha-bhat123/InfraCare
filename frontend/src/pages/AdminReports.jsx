@@ -992,30 +992,66 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
                           </td>
                           <td><UrgencyBadge urgency={r.urgency} /></td>
                           <td>
-                            <select
-                              value={r.assigned_engineer || r.crew || selectedEng[r.id] || (isStreetlight ? "MESCOM Field Crew #09-E" : "PWD Engineering Crew #01-A")}
-                              onChange={(e) => {
-                                const newEng = e.target.value;
-                                setSelectedEng({ ...selectedEng, [r.id]: newEng });
-                                if (updateReportStatus) {
-                                  updateReportStatus(r.id, r.status || "Site Visit Assigned", r.engineer_notes || "Assigned for site visit", newEng);
-                                }
-                              }}
-                              style={{ padding: "6px", borderRadius: "4px", border: "1px solid #ddd", maxWidth: "180px", fontSize: "0.75rem" }}
-                            >
-                              {isStreetlight ? (
-                                <>
-                                  <option value="MESCOM Field Crew #09-E">MESCOM Field Crew #09-E</option>
-                                  <option value="MESCOM Grid Supervisor #05-F">MESCOM Grid Supervisor #05-F</option>
-                                </>
-                              ) : (
-                                <>
-                                  <option value="PWD Engineering Crew #01-A">PWD Engineering Crew #01-A</option>
-                                  <option value="PWD Highway Repair Team #03-B">PWD Highway Repair Team #03-B</option>
-                                  <option value="PWD Drainage Unit #02-C">PWD Drainage Unit #02-C</option>
-                                </>
-                              )}
-                            </select>
+                            {r.status === "Pending" || r.status === "Submitted" || !r.status ? (
+                              <div>
+                                <label style={{ fontSize: "0.6rem", fontWeight: "700", color: "#64748b", display: "block", marginBottom: 2 }}>SELECT SITE VISIT CREW</label>
+                                <select
+                                  value={r.site_visit_crew || selectedEng[r.id] || (isStreetlight ? "MESCOM Field Crew #09-E" : "PWD Engineering Crew #01-A")}
+                                  onChange={(e) => {
+                                    const newEng = e.target.value;
+                                    setSelectedEng({ ...selectedEng, [r.id]: newEng });
+                                    if (updateReportStatus) {
+                                      updateReportStatus(r.id, "Site Visit Assigned", "Assigned for site visit", "", "", null, { site_visit_crew: newEng });
+                                    }
+                                  }}
+                                  style={{ padding: "6px", borderRadius: "4px", border: "1px solid #cbd5e1", maxWidth: "180px", fontSize: "0.75rem", backgroundColor: "#f8fafc" }}
+                                >
+                                  {isStreetlight ? (
+                                    <>
+                                      <option value="MESCOM Field Crew #09-E">MESCOM Field Crew #09-E</option>
+                                      <option value="MESCOM Grid Supervisor #05-F">MESCOM Grid Supervisor #05-F</option>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <option value="PWD Engineering Crew #01-A">PWD Engineering Crew #01-A</option>
+                                      <option value="PWD Highway Repair Team #03-B">PWD Highway Repair Team #03-B</option>
+                                      <option value="PWD Drainage Unit #02-C">PWD Drainage Unit #02-C</option>
+                                    </>
+                                  )}
+                                </select>
+                              </div>
+                            ) : r.status === "Budget Approved" ? (
+                              <div>
+                                <label style={{ fontSize: "0.6rem", fontWeight: "700", color: "#16a34a", display: "block", marginBottom: 2 }}>SELECT WORK EXECUTION CREW</label>
+                                <select
+                                  value={r.assigned_engineer || selectedEng[r.id] || (isStreetlight ? "MESCOM Field Crew #09-E" : "PWD Engineering Crew #01-A")}
+                                  onChange={(e) => {
+                                    const newEng = e.target.value;
+                                    setSelectedEng({ ...selectedEng, [r.id]: newEng });
+                                  }}
+                                  style={{ padding: "6px", borderRadius: "4px", border: "1px solid #86efac", maxWidth: "180px", fontSize: "0.75rem", backgroundColor: "#f0fdf4" }}
+                                >
+                                  {isStreetlight ? (
+                                    <>
+                                      <option value="MESCOM Field Crew #09-E">MESCOM Field Crew #09-E</option>
+                                      <option value="MESCOM Grid Supervisor #05-F">MESCOM Grid Supervisor #05-F</option>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <option value="PWD Engineering Crew #01-A">PWD Engineering Crew #01-A</option>
+                                      <option value="PWD Highway Repair Team #03-B">PWD Highway Repair Team #03-B</option>
+                                      <option value="PWD Drainage Unit #02-C">PWD Drainage Unit #02-C</option>
+                                    </>
+                                  )}
+                                </select>
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: "0.75rem", lineHeight: "1.4" }}>
+                                {r.site_visit_crew && <div><span style={{ color: "#64748b", fontSize: "0.65rem" }}>SITE VISIT:</span><br/><b>{r.site_visit_crew}</b></div>}
+                                {r.assigned_engineer && <div style={{ marginTop: 4 }}><span style={{ color: "#16a34a", fontSize: "0.65rem" }}>WORK CREW:</span><br/><b>{r.assigned_engineer}</b></div>}
+                                {!r.site_visit_crew && !r.assigned_engineer && <span style={{ color: "#9ca3af" }}>Not Assigned</span>}
+                              </div>
+                            )}
                           </td>
                           <td style={{ fontSize: "0.75rem" }}>
                             {r.approved_budget ? (
@@ -1093,9 +1129,9 @@ export default function AdminReports({ reports = [], updateReportStatus, setPage
                             {r.status === "Pending" || r.status === "Submitted" || !r.status ? (
                               <button
                                 onClick={() => {
-                                  const eng = selectedEng[r.id] || r.assigned_engineer || (isStreetlight ? "MESCOM Field Crew #09-E" : "PWD Engineering Crew #01-A");
+                                  const eng = selectedEng[r.id] || r.site_visit_crew || (isStreetlight ? "MESCOM Field Crew #09-E" : "PWD Engineering Crew #01-A");
                                   if (updateReportStatus) {
-                                    updateReportStatus(r.id, "Site Visit Assigned", `Admin assigned ${eng} for initial site visit inspection`, eng);
+                                    updateReportStatus(r.id, "Site Visit Assigned", `Admin assigned ${eng} for initial site visit inspection`, "", "", null, { site_visit_crew: eng });
                                   }
                                 }}
                                 style={{ background: "#2563eb", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "0.72rem", fontWeight: 700, cursor: "pointer" }}

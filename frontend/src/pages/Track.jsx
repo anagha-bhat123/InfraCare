@@ -313,7 +313,7 @@ export default function Track({ reports, setPage, selectedReportId, setSelectedR
                           <div>
                             <span style={{ fontSize: "0.7rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>TARGET TIMELINE:</span>
                             <div style={{ fontSize: "0.9rem", fontWeight: 800, color: "#1e293b" }}>
-                              {report.urgency === "Critical" ? "3 Days (Critical)" : report.urgency === "Urgent" ? "5 Days (Urgent)" : "7 Days (Normal)"}
+                              {report.timeline_days ? `${report.timeline_days} Days` : (report.urgency === "Critical" ? "3 Days (Critical)" : report.urgency === "Urgent" ? "5 Days (Urgent)" : "7 Days (Normal)")}
                             </div>
                           </div>
                         </div>

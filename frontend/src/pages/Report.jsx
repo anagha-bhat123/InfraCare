@@ -21,6 +21,7 @@ export default function Report({ addReport, setPage }) {
   const [coords, setCoords] = useState([13.3409, 74.7421]);
   const [photo, setPhoto] = useState(null);
   const [category, setCategory] = useState("");
+  const [ward, setWard] = useState("");
   const [desc, setDesc] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [locationVerified, setLocationVerified] = useState(false);
@@ -57,6 +58,7 @@ export default function Report({ addReport, setPage }) {
 
   const clearForm = () => {
     setCategory("");
+    setWard("");
     setDesc("");
     setPhoto(null);
     setUrgency("Normal");
@@ -91,6 +93,7 @@ export default function Report({ addReport, setPage }) {
     const newReport = {
       title: category || "Road Surface Damage",
       category,
+      ward_zone: ward,
       urgency,
       description: desc,
       latitude: coords[0],
@@ -150,6 +153,18 @@ export default function Report({ addReport, setPage }) {
                   📍 Assigned Department: {category.toLowerCase().includes("light") || category.toLowerCase().includes("electric") ? "MESCOM (Electricity Supply Board)" : "PWD (Public Works Department)"}
                 </div>
               )}
+            </label>
+            <label>
+              Ward / Zone <span style={{ color: "#c0152a" }}>*</span>
+              <select required value={ward} onChange={(e) => setWard(e.target.value)}>
+                <option value="">Select your Ward/Zone</option>
+                <option value="Ward 01 - North">Ward 01 - North</option>
+                <option value="Ward 02 - East Side">Ward 02 - East Side</option>
+                <option value="Ward 03 - South">Ward 03 - South</option>
+                <option value="Ward 04 - Central Business">Ward 04 - Central Business</option>
+                <option value="Ward 05 - North District">Ward 05 - North District</option>
+                <option value="West Ward">West Ward</option>
+              </select>
             </label>
             <label>
               Urgency Level <span style={{ color: "#c0152a" }}>*</span>

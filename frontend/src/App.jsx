@@ -402,7 +402,8 @@ export default function App() {
             ...r,
             ...extraData,
             status,
-            assigned_engineer: assignedEngineer || r.assigned_engineer,
+            assigned_engineer: extraData.assigned_engineer !== undefined ? extraData.assigned_engineer : (assignedEngineer || r.assigned_engineer),
+            site_visit_crew: extraData.site_visit_crew || r.site_visit_crew,
             engineer_notes: engineerNotes || r.engineer_notes,
             estimated_budget: estimatedBudget !== null && estimatedBudget !== undefined ? Number(estimatedBudget) : r.estimated_budget,
             approved_budget: extraData.approved_budget || extraData.approvedBudget || r.approved_budget || (status === "Budget Approved" ? (Number(estimatedBudget) || r.estimated_budget) : r.approved_budget),
@@ -410,7 +411,7 @@ export default function App() {
             repaired_photo_url: extraData.repaired_photo_url || extraData.repairedPhotoUrl || r.repaired_photo_url,
             final_bill_amount: extraData.final_bill_amount || extraData.finalBillAmount || r.final_bill_amount,
             delay_discount_applied: extraData.delay_discount_applied !== undefined ? extraData.delay_discount_applied : r.delay_discount_applied,
-            crew: assignedEngineer || r.crew,
+            crew: extraData.assigned_engineer !== undefined ? extraData.assigned_engineer : (assignedEngineer || extraData.site_visit_crew || r.crew),
             history: updatedHistory
           };
         }
@@ -472,6 +473,8 @@ export default function App() {
         status,
         note,
         ...(assignedEngineer ? { assigned_engineer: assignedEngineer } : {}),
+        ...(extraData.assigned_engineer ? { assigned_engineer: extraData.assigned_engineer } : {}),
+        ...(extraData.site_visit_crew ? { site_visit_crew: extraData.site_visit_crew } : {}),
         ...(engineerNotes ? { engineer_notes: engineerNotes } : {}),
         ...(estimatedBudget !== null && estimatedBudget !== undefined ? { estimated_budget: estimatedBudget.toString() } : {})
       });

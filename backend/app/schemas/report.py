@@ -8,6 +8,7 @@ class DamageReport(BaseModel):
     category: Optional[str] = None
     urgency: str = "Normal"
     priority: str = "Medium"
+    ward_zone: Optional[str] = None
     description: Optional[str] = None
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)

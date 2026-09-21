@@ -438,7 +438,8 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
         decisionNotes || `${targetStatus} by ${approverName}`,
         assignedEng,
         "",
-        approvedBudget
+        approvedBudget,
+        { timeline_days: timelineDays, approved_budget: approvedBudget }
       );
     }
 

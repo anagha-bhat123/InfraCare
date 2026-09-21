@@ -309,7 +309,23 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
                 </div>
               </div>
 
-              {/* Stage 5: Work Completion & Repaired Photo Upload */}
+              {/* Stage 5 / Action Panel */}
+              {activeItem?.raw_report?.status === "Site Visit Assigned" || activeItem?.raw_report?.status === "Budget Submitted" || activeItem?.raw_report?.status === "Pending Budget Approval" ? (
+                <div style={{ backgroundColor: "#fef3c7", border: "1px solid #fde68a", borderRadius: 8, padding: "24px", textAlign: "center", marginBottom: 24 }}>
+                  <h4 style={{ color: "#92400e", margin: "0 0 12px 0", fontSize: "1.1rem" }}>{activeItem?.raw_report?.status === "Site Visit Assigned" ? "Site Visit Pending" : "Budget Approval Pending"}</h4>
+                  <p style={{ color: "#b45309", fontSize: "0.9rem", marginBottom: "20px" }}>
+                    {activeItem?.raw_report?.status === "Site Visit Assigned" 
+                      ? "You have been assigned to visit the site and generate a budget estimate. Please submit the budget proposal for approval before starting work." 
+                      : "Your budget proposal is currently pending approval by the Approval Authority. You can start work once it is approved."}
+                  </p>
+                  <button
+                    onClick={() => setPage("approval-authority")}
+                    style={{ backgroundColor: "#d97706", color: "#fff", border: "none", padding: "10px 24px", borderRadius: 6, fontSize: "0.95rem", fontWeight: 700, cursor: "pointer" }}
+                  >
+                    Go to Budget Proposals Tab →
+                  </button>
+                </div>
+              ) : (
               <div style={{ border: "1px solid #e5e7eb", borderRadius: 6, padding: "24px", backgroundColor: "#f9fafb", marginBottom: 40, boxShadow: "0 2px 6px rgba(0,0,0,0.03)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                   <h4 style={{ fontSize: "1rem", fontWeight: 800, margin: 0, color: "#111", display: "flex", alignItems: "center", gap: 8 }}>
@@ -552,6 +568,7 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
                   </button>
                 </div>
               </div>
+              )}
             </div>
           )}
         </div>
