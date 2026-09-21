@@ -229,44 +229,15 @@ export const generateFinalBillPDF = (billData) => {
 
 
 
-  // 1. Direct File Download of Tax Invoice Document
+  // Open the HTML in a new tab for previewing and printing
   try {
     const blob = new Blob([printHtml], { type: "text/html;charset=utf-8" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `GST_Tax_Invoice_${String(work_order_id).replace(/[^a-zA-Z0-9_-]/g, "_")}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  } catch (e) {
-    console.error("Failed to trigger bill download:", e);
-  }
-
-  // 2. Trigger Print Dialog via hidden iframe (bypasses browser pop-up blockers completely)
-  try {
-    let iframe = document.getElementById("pdf-print-iframe");
-    if (!iframe) {
-      iframe = document.createElement("iframe");
-      iframe.id = "pdf-print-iframe";
-      iframe.style.position = "fixed";
-      iframe.style.right = "-9999px";
-      iframe.style.bottom = "-9999px";
-      iframe.style.width = "0";
-      iframe.style.height = "0";
-      iframe.style.border = "0";
-      document.body.appendChild(iframe);
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
+    if (!win) {
+      alert("Please allow pop-ups to preview the PDF bill.");
     }
-
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(printHtml);
-    doc.close();
-
-    setTimeout(() => {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-    }, 350);
   } catch (e) {
-    console.error("Failed to trigger print dialog:", e);
+    console.error("Failed to open bill preview:", e);
   }
 };
