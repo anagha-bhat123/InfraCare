@@ -10,20 +10,87 @@ export default function AdminMaintenance({ setPage, reports = [] }) {
   // Timeline state
   const [timelineMode, setTimelineMode] = useState("DAY"); // "DAY" | "WEEK" | "MONTH"
 
-  // Fleet units state
+  // Fleet units state (Mock data for live tracking)
   const [fleetUnits, setFleetUnits] = useState([
     { id: "UNIT-402", type: "Excavator", location: "Udupi Central Hub", status: "ON-SITE", statusBg: "#dcfce7", statusText: "#15803d", active: true },
     { id: "UNIT-881", type: "Mobile Lab", location: "Manipal Sector 4", status: "DISPATCHED", statusBg: "#dbeafe", statusText: "#1d4ed8", active: true },
     { id: "UNIT-109", type: "Emergency Repair Squad", location: "Surathkal Highway", status: "DISPATCHED", statusBg: "#dbeafe", statusText: "#1d4ed8", active: true },
-    { id: "UNIT-220", type: "Heavy Crane", location: "Mangalore Port Workshop", status: "MAINTENANCE", statusBg: "#f3f4f6", statusText: "#4b5563", active: false }
+    { id: "UNIT-220", type: "Heavy Crane", location: "Udupi Coastal Base", status: "MAINTENANCE", statusBg: "#f3f4f6", statusText: "#4b5563", active: false }
   ]);
 
-  // Pending Tasks state
-  const [pendingTasks, setPendingTasks] = useState([
-    { id: "TASK-001", priority: "URGENT", title: "Damaged Guardrail - NH-66 Surathkal Junction", desc: "Reported by citizen GPS tag. Visual confirmation pending.", assignedTeam: null, area: "Surathkal" },
-    { id: "TASK-002", priority: "ROUTINE", title: "Pothole Patching - Kalsanka Junction Rd", desc: "Scheduled for bi-weekly road crew cycle.", assignedTeam: "Team Alpha", area: "Udupi" },
-    { id: "TASK-003", priority: "CRITICAL", title: "Drainage Overflow - Hampankatta Main Rd", desc: "Monsoon storm drain blockage reported by municipal inspector.", assignedTeam: null, area: "Mangalore" }
-  ]);
+  // Local assignments state to simulate assignment UI feedback
+  const [localAssignments, setLocalAssignments] = useState({});
+
+  // Dynamic Pending Tasks calculation
+  const dynamicPendingTasks = React.useMemo(() => {
+    return reports
+      .filter(r => {
+        const s = (r.status || "").toLowerCase();
+        // Show reports that are not resolved and don't have an assigned crew (either in DB or locally)
+        const isResolved = s === "resolved" || s === "completed" || s === "verified";
+        const hasAssignment = r.assigned_engineer || localAssignments[r.id];
+        return !isResolved && !hasAssignment;
+      })
+      .map(r => ({
+        id: r.tracking_id || r.id,
+        priority: (r.urgency || "ROUTINE").toUpperCase(),
+        title: r.title,
+        desc: r.description || "Reported by citizen. Visual confirmation pending.",
+        assignedTeam: null,
+        area: r.ward_zone || r.ward || "Udupi District",
+        originalReport: r
+      }))
+      .slice(0, 10); // Limit to top 10 for UI
+  }, [reports, localAssignments]);
+
+  // Dynamic Active Remediation Works calculation
+  const dynamicActiveRemediation = React.useMemo(() => {
+    return reports
+      .filter(r => {
+        const s = (r.status || "").toLowerCase();
+        const hasAssignment = r.assigned_engineer || localAssignments[r.id];
+        const isResolved = s === "resolved" || s === "completed" || s === "verified";
+        return !isResolved && hasAssignment;
+      })
+      .map(r => {
+        // Calculate a dummy progress based on date for UI demonstration purposes
+        const created = new Date(r.created_at || r.date || Date.now());
+        const daysActive = Math.max(0.5, (new Date() - created) / (1000 * 60 * 60 * 24));
+        const progressPct = Math.min(95, Math.floor(daysActive * 12));
+        
+        let barColor = "#111";
+        let barBg = "#e5e7eb";
+        let colorText = "#111";
+        let stage1 = "CREW ASSIGNED";
+        let stage2 = "WORK IN PROGRESS";
+        
+        if (progressPct < 20) {
+          barColor = "#dc2626"; // red for just started / low progress
+          barBg = "#fee2e2";
+          colorText = "#dc2626";
+          stage1 = "MOBILIZING";
+          stage2 = "MATERIALS PENDING";
+        } else if (progressPct > 70) {
+          barColor = "#16a34a"; // green for nearing completion
+          barBg = "#dcfce7";
+          colorText = "#16a34a";
+          stage1 = "REPAIR COMPLETE";
+          stage2 = "FINAL SEAL PENDING";
+        }
+        
+        return {
+          id: r.tracking_id || r.id,
+          title: r.title,
+          area: r.ward_zone || r.ward || "Udupi",
+          progress: progressPct,
+          barColor,
+          barBg,
+          colorText,
+          stage1,
+          stage2
+        };
+      });
+  }, [reports, localAssignments]);
 
   // Modal states
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -78,7 +145,8 @@ export default function AdminMaintenance({ setPage, reports = [] }) {
       area: newTaskArea
     };
 
-    setPendingTasks(prev => [newT, ...prev]);
+    // Normally this would POST to backend
+    // setPendingTasks(prev => [newT, ...prev]);
     setNewTaskTitle("");
     setNewTaskDesc("");
     setIsTaskModalOpen(false);
@@ -99,7 +167,7 @@ export default function AdminMaintenance({ setPage, reports = [] }) {
     e.preventDefault();
     if (!assigningTask) return;
 
-    setPendingTasks(prev => prev.map(t => t.id === assigningTask.id ? { ...t, assignedTeam: selectedCrew } : t));
+    setLocalAssignments(prev => ({ ...prev, [assigningTask.id]: selectedCrew }));
     setAssigningTask(null);
 
     Swal.fire({
@@ -123,7 +191,7 @@ export default function AdminMaintenance({ setPage, reports = [] }) {
           <div className="admin-page-header" style={{ marginBottom: 24 }}>
             <div className="admin-header-text">
               <h2 className="serif-title large">Maintenance Operations Command</h2>
-              <p>Real-time fleet tracking, crew dispatch, and work order lifecycle management across Udupi & Mangalore.</p>
+              <p>Real-time fleet tracking, crew dispatch, and work order lifecycle management across Udupi district.</p>
             </div>
             <div className="admin-header-actions">
               <button className="admin-btn-black" onClick={() => setIsTaskModalOpen(true)}>
@@ -248,44 +316,32 @@ export default function AdminMaintenance({ setPage, reports = [] }) {
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", padding: "16px 24px", borderBottom: "1px solid #f0f0f0", alignItems: "center" }}>
-                    <div style={{ flex: 1 }}>
-                      <h4 style={{ fontWeight: 800, fontSize: "0.85rem", margin: "0 0 2px", color: "#111" }}>Main Sewer Relining</h4>
-                      <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>#WO-2026-091 • Udupi Central</span>
-                    </div>
-                    <div style={{ flex: 2, paddingLeft: 20, position: "relative", height: 32 }}>
-                      <div style={{ position: "absolute", left: "0%", width: "42%", height: "100%", backgroundColor: "#111", color: "#fff", fontSize: "0.7rem", fontWeight: 800, display: "flex", alignItems: "center", paddingLeft: 10, borderRadius: 4 }}>
-                        PHASE 1: CLEANING & PIPING
+                  {dynamicActiveRemediation.slice(0, 3).map((work, idx) => (
+                    <div key={work.id} style={{ display: "flex", padding: "16px 24px", borderBottom: idx < 2 ? "1px solid #f0f0f0" : "none", alignItems: "center" }}>
+                      <div style={{ flex: 1 }}>
+                        <h4 style={{ fontWeight: 800, fontSize: "0.85rem", margin: "0 0 2px", color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "250px" }} title={work.title}>
+                          {work.title}
+                        </h4>
+                        <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>#{work.id.slice(-6)} • {work.area}</span>
+                      </div>
+                      <div style={{ flex: 2, paddingLeft: 20, position: "relative", height: 32 }}>
+                        {work.progress >= 95 ? (
+                          <div style={{ position: "absolute", left: "0%", width: "100%", height: "100%", backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", fontSize: "0.7rem", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4 }}>
+                            COMPLETED: POST-REPAIR INSPECTION VERIFIED
+                          </div>
+                        ) : (
+                          <div style={{ position: "absolute", left: "0%", width: `${Math.max(10, work.progress)}%`, height: "100%", backgroundColor: "#111", color: "#fff", fontSize: "0.7rem", fontWeight: 800, display: "flex", alignItems: "center", paddingLeft: 10, borderRadius: 4, overflow: "hidden", whiteSpace: "nowrap" }}>
+                            {work.stage1}
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
-
-                  <div style={{ display: "flex", padding: "16px 24px", borderBottom: "1px solid #f0f0f0", alignItems: "center" }}>
-                    <div style={{ flex: 1 }}>
-                      <h4 style={{ fontWeight: 800, fontSize: "0.85rem", margin: "0 0 2px", color: "#111" }}>Grid 5 Transformer Upgrade</h4>
-                      <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>#WO-2026-102 • Manipal Hub</span>
+                  ))}
+                  {dynamicActiveRemediation.length === 0 && (
+                    <div style={{ padding: "30px", textAlign: "center", color: "#6b7280", fontSize: "0.85rem" }}>
+                      No active projects in the timeline.
                     </div>
-                    <div style={{ flex: 2, paddingLeft: 20, position: "relative", height: 32 }}>
-                      <div style={{ position: "absolute", left: "35%", width: "35%", height: "100%", backgroundColor: "#e5e7eb", color: "#111", fontSize: "0.7rem", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4 }}>
-                        PHASE 2: TESTING
-                      </div>
-                      <div style={{ position: "absolute", left: "72%", width: "25%", height: "100%", backgroundColor: "#111", color: "#fff", fontSize: "0.7rem", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4 }}>
-                        REPLACEMENT
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", padding: "16px 24px", alignItems: "center" }}>
-                    <div style={{ flex: 1 }}>
-                      <h4 style={{ fontWeight: 800, fontSize: "0.85rem", margin: "0 0 2px", color: "#111" }}>NH-66 Pavement Stabilization</h4>
-                      <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>#WO-2026-088 • Surathkal Highway</span>
-                    </div>
-                    <div style={{ flex: 2, paddingLeft: 20, position: "relative", height: 32 }}>
-                      <div style={{ position: "absolute", left: "0%", width: "100%", height: "100%", backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", fontSize: "0.7rem", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4 }}>
-                        COMPLETED: POST-REPAIR INSPECTION VERIFIED
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
@@ -305,56 +361,31 @@ export default function AdminMaintenance({ setPage, reports = [] }) {
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
-                  <div style={{ padding: 16, border: "1px solid #f0f0f0", borderRadius: 6, background: "#fafafa" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 8 }}>
-                      <div>
-                        <h4 style={{ fontWeight: 800, fontSize: "0.85rem", margin: "0 0 2px", color: "#111" }}>Sewer Line Replacement</h4>
-                        <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>Hampankatta • Sector B</span>
+                  {dynamicActiveRemediation.length === 0 && (
+                    <div style={{ padding: "20px", color: "#6b7280", fontSize: "0.85rem", gridColumn: "span 3", textAlign: "center" }}>
+                      No active remediation projects at this time.
+                    </div>
+                  )}
+                  {dynamicActiveRemediation.map((work) => (
+                    <div key={work.id} style={{ padding: 16, border: "1px solid #f0f0f0", borderRadius: 6, background: "#fafafa" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 8 }}>
+                        <div>
+                          <h4 style={{ fontWeight: 800, fontSize: "0.85rem", margin: "0 0 2px", color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "160px" }} title={work.title}>
+                            {work.title}
+                          </h4>
+                          <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>{work.area} • #{work.id.slice(-6)}</span>
+                        </div>
+                        <span style={{ fontFamily: "Georgia, serif", fontWeight: 800, fontSize: "1.2rem", color: work.colorText }}>{work.progress}%</span>
                       </div>
-                      <span style={{ fontFamily: "Georgia, serif", fontWeight: 800, fontSize: "1.2rem" }}>82%</span>
-                    </div>
-                    <div style={{ height: 6, backgroundColor: "#e5e7eb", borderRadius: 3, marginBottom: 8, overflow: "hidden" }}>
-                      <div style={{ width: "82%", height: "100%", backgroundColor: "#111" }} />
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.65rem", fontWeight: 800, color: "#6b7280" }}>
-                      <span>EXCAVATION DONE</span>
-                      <span>FINAL SEAL PENDING</span>
-                    </div>
-                  </div>
-
-                  <div style={{ padding: 16, border: "1px solid #f0f0f0", borderRadius: 6, background: "#fafafa" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 8 }}>
-                      <div>
-                        <h4 style={{ fontWeight: 800, fontSize: "0.85rem", margin: "0 0 2px", color: "#111" }}>Malpe Flyover Joint Repair</h4>
-                        <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>Malpe Port Corridor</span>
+                      <div style={{ height: 6, backgroundColor: work.barBg, borderRadius: 3, marginBottom: 8, overflow: "hidden" }}>
+                        <div style={{ width: `${work.progress}%`, height: "100%", backgroundColor: work.barColor, transition: "width 0.5s ease" }} />
                       </div>
-                      <span style={{ fontFamily: "Georgia, serif", fontWeight: 800, fontSize: "1.2rem" }}>45%</span>
-                    </div>
-                    <div style={{ height: 6, backgroundColor: "#e5e7eb", borderRadius: 3, marginBottom: 8, overflow: "hidden" }}>
-                      <div style={{ width: "45%", height: "100%", backgroundColor: "#111" }} />
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.65rem", fontWeight: 800, color: "#6b7280" }}>
-                      <span>MATERIALS DELIVERED</span>
-                      <span>CURING PHASE</span>
-                    </div>
-                  </div>
-
-                  <div style={{ padding: 16, border: "1px solid #f0f0f0", borderRadius: 6, background: "#fafafa" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 8 }}>
-                      <div>
-                        <h4 style={{ fontWeight: 800, fontSize: "0.85rem", margin: "0 0 2px", color: "#111" }}>Street Light Grid Upgrade</h4>
-                        <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>Kadri Park Road</span>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.65rem", fontWeight: 800, color: work.colorText }}>
+                        <span>{work.stage1}</span>
+                        <span>{work.stage2}</span>
                       </div>
-                      <span style={{ fontFamily: "Georgia, serif", fontWeight: 800, fontSize: "1.2rem", color: "#dc2626" }}>12%</span>
                     </div>
-                    <div style={{ height: 6, backgroundColor: "#fee2e2", borderRadius: 3, marginBottom: 8, overflow: "hidden" }}>
-                      <div style={{ width: "12%", height: "100%", backgroundColor: "#dc2626" }} />
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.65rem", fontWeight: 800, color: "#dc2626" }}>
-                      <span>DELAYED: SUPPLY CHAIN</span>
-                      <span>LOW PRIORITY</span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
 
@@ -369,7 +400,7 @@ export default function AdminMaintenance({ setPage, reports = [] }) {
                 </div>
                 <div style={{ position: "absolute", top: 12, left: 12, background: "rgba(0,0,0,0.8)", padding: "6px 12px", borderRadius: 4, backdropFilter: "blur(4px)" }}>
                   <span style={{ fontSize: "0.65rem", color: "#9ca3af", fontWeight: 800, display: "block" }}>GEOSPATIAL COMMAND</span>
-                  <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#fff" }}>Udupi & Mangalore Active Squads</span>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#fff" }}>Udupi District Active Squads</span>
                 </div>
               </div>
 
@@ -378,12 +409,17 @@ export default function AdminMaintenance({ setPage, reports = [] }) {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                   <h4 style={{ fontSize: "0.8rem", fontWeight: 800, color: "#374151", margin: 0, letterSpacing: 0.5 }}>PENDING WORK ORDERS</h4>
                   <span style={{ backgroundColor: "#111", color: "#fff", fontSize: "0.75rem", fontWeight: 800, padding: "2px 8px", borderRadius: 12 }}>
-                    {pendingTasks.length}
+                    {dynamicPendingTasks.length}
                   </span>
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  {pendingTasks.map((task) => (
+                  {dynamicPendingTasks.length === 0 && (
+                    <div style={{ textAlign: "center", padding: "20px", color: "#6b7280", fontSize: "0.8rem" }}>
+                      No pending work orders require assignment.
+                    </div>
+                  )}
+                  {dynamicPendingTasks.map((task) => (
                     <div key={task.id} style={{ border: "1px solid #e5e5e5", padding: 16, borderRadius: 6, backgroundColor: "#fafafa" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                         <span style={{ 
@@ -463,9 +499,9 @@ export default function AdminMaintenance({ setPage, reports = [] }) {
                   >
                     <option value="Udupi Central">Udupi Central</option>
                     <option value="Manipal Hub">Manipal Hub</option>
-                    <option value="Surathkal">Surathkal Highway</option>
-                    <option value="Hampankatta">Hampankatta</option>
                     <option value="Malpe Port">Malpe Port</option>
+                    <option value="Kaup Region">Kaup Region</option>
+                    <option value="Brahmavar Zone">Brahmavar Zone</option>
                   </select>
                 </label>
                 <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "#374151" }}>
@@ -527,8 +563,8 @@ export default function AdminMaintenance({ setPage, reports = [] }) {
                 >
                   <option value="Team Alpha (Udupi Central)">Team Alpha (Udupi Central)</option>
                   <option value="Team Beta (Manipal Hub)">Team Beta (Manipal Hub)</option>
-                  <option value="Team Gamma (Surathkal Highway)">Team Gamma (Surathkal Highway)</option>
-                  <option value="Team Delta (Mangalore Cell)">Team Delta (Mangalore Cell)</option>
+                  <option value="Team Gamma (Malpe Port)">Team Gamma (Malpe Port)</option>
+                  <option value="Team Delta (Kaup Region)">Team Delta (Kaup Region)</option>
                 </select>
               </label>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 12 }}>
