@@ -141,7 +141,14 @@ export default function Report({ addReport, setPage }) {
           <div className="form-row">
             <label>
               Complaint Category <span style={{ color: "#c0152a" }}>*</span>
-              <select required value={category} onChange={(e) => setCategory(e.target.value)}>
+              {!photo && <small style={{ color: "#c0152a", display: "block", marginTop: "4px", fontWeight: "bold" }}>Please upload an image first to select a category.</small>}
+              <select 
+                required 
+                value={category} 
+                onChange={(e) => setCategory(e.target.value)}
+                disabled={!photo}
+                style={{ opacity: !photo ? 0.6 : 1, cursor: !photo ? "not-allowed" : "pointer" }}
+              >
                 <option value="">Select category...</option>
                 <optgroup label="Road & Infrastructure (PWD)">
                   <option value="Road Pothole">Potholes</option>
