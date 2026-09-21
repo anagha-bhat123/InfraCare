@@ -6,13 +6,23 @@ import {
 } from "lucide-react";
 import MapPanel from "../components/MapPanel";
 import Swal from "sweetalert2";
+import { ALL_UDUPI_WARDS } from "../utils/wards";
 
 export default function AdminDashboard({ reports = [], setPage }) {
+  const [wardFilter, setWardFilter] = useState("ALL");
   const [trendTimeframe, setTrendTimeframe] = useState("Quarterly"); // "Monthly" | "Quarterly" | "Yearly"
 
-  const total = reports.length || 4821;
-  const verified = reports.filter(r => r.status === 'Resolved' || r.status === 'Verified' || r.ai_verified).length || 3104;
-  const pending = reports.filter(r => r.status === 'Pending' || r.priority === 'High' || r.urgency === 'Critical').length || 1717;
+  const displayReports = React.useMemo(() => {
+    let filtered = reports;
+    if (wardFilter !== "ALL") {
+      filtered = filtered.filter(r => (r.ward || "").trim() === wardFilter.trim());
+    }
+    return filtered;
+  }, [reports, wardFilter]);
+
+  const total = displayReports.length;
+  const verified = displayReports.filter(r => r.status === 'Resolved' || r.status === 'Verified' || r.ai_verified).length;
+  const pending = displayReports.filter(r => r.status === 'Pending' || r.priority === 'High' || r.urgency === 'Critical').length;
 
   // Dynamic trend chart SVG paths based on timeframe
   const trendPaths = {
@@ -76,9 +86,19 @@ export default function AdminDashboard({ reports = [], setPage }) {
           <div className="admin-page-header">
             <div className="admin-header-text">
               <h2>Central Command Center</h2>
-              <p>Real-time infrastructure oversight for Udupi & Mangalore Municipal Regions. Live citizen<br/>reporting & emergency field unit integration.</p>
+              <p>Real-time infrastructure oversight for Udupi District. Live citizen<br/>reporting & emergency field unit integration.</p>
             </div>
-            <div className="admin-header-actions">
+            <div className="admin-header-actions" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <select 
+                value={wardFilter} 
+                onChange={(e) => setWardFilter(e.target.value)}
+                style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "0.85rem", fontWeight: 600, backgroundColor: "#fff", cursor: "pointer", height: "100%" }}
+              >
+                <option value="ALL">All Udupi Ward Groups</option>
+                {ALL_UDUPI_WARDS.map(w => (
+                  <option key={w} value={w}>{w}</option>
+                ))}
+              </select>
               <button className="admin-btn-outline" onClick={() => setPage("admin-reports")}>
                 Incident<br/>Reports
               </button>
@@ -187,7 +207,7 @@ export default function AdminDashboard({ reports = [], setPage }) {
                   <div className="team-progress"><div className="fill black" style={{width: '88%'}}></div></div>
                 </div>
                 <div className="team-item">
-                  <div className="team-item-header"><span>Pothole Response B (Mangalore)</span> <strong>62%</strong></div>
+                  <div className="team-item-header"><span>Pothole Response B (Kundapura)</span> <strong>62%</strong></div>
                   <div className="team-progress"><div className="fill black" style={{width: '62%'}}></div></div>
                 </div>
                 <div className="team-item">
@@ -195,7 +215,7 @@ export default function AdminDashboard({ reports = [], setPage }) {
                   <div className="team-progress"><div className="fill black" style={{width: '94%'}}></div></div>
                 </div>
                 <div className="team-item">
-                  <div className="team-item-header"><span>Sanitation & Clear (Surathkal)</span> <strong>45%</strong></div>
+                  <div className="team-item-header"><span>Sanitation & Clear (Karkala)</span> <strong>45%</strong></div>
                   <div className="team-progress"><div className="fill red" style={{width: '45%'}}></div></div>
                 </div>
               </div>
@@ -236,11 +256,11 @@ export default function AdminDashboard({ reports = [], setPage }) {
 
             <div className="map-bottom-tags">
               <div className="map-tag critical"><span className="dot red"></span> CRITICAL PRIORITY</div>
-              <div className="map-tag">ZOOM: UDUPI / MANGALORE</div>
+              <div className="map-tag">ZOOM: UDUPI DISTRICT</div>
             </div>
 
             <div className="admin-map-container">
-              <MapPanel coords={[13.3409, 74.7421]} zoom={12} reports={reports} />
+              <MapPanel coords={[13.3409, 74.7421]} zoom={12} reports={displayReports} />
             </div>
           </div>
 

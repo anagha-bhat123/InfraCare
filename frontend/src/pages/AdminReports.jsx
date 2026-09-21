@@ -17,10 +17,12 @@ const CategoryIcon = ({ category }) => {
   const className = "text-gray";
   switch (category) {
     case "Road Damage": return <PenTool size={size} className={className} />;
-    case "Water Leak": return <Droplet size={size} className={className} />;
+    case "Water Leak":
+    case "Water Supply": return <Droplet size={size} className={className} />;
     case "Fallen Tree": return <AlertTriangle size={size} className={className} />;
     case "Street Light": return <Lightbulb size={size} className={className} />;
     case "Missing Sign": return <Grid size={size} className={className} />;
+    case "Waste Management": return <Trash2 size={size} className={className} />;
     default: return <Car size={size} className={className} />;
   }
 };

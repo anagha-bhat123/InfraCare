@@ -460,18 +460,12 @@ def complete_repair_with_photo(
             pass
 
     approved_budget = (existing.get("approved_budget") if existing else None) or 50000.0
-    delay_applied = final_is_delayed
-
-    if delay_applied:
-        final_bill = round(approved_budget * 0.9, 2) # 10% discount
-    else:
-        final_bill = approved_budget
+    final_bill = approved_budget
 
     update_payload = {
         "status": "Resolved",
         "repaired_photo_url": final_photo_url,
         "engineer_notes": final_notes,
-        "delay_discount_applied": delay_applied,
         "final_bill_amount": final_bill,
         "updated_at": datetime.utcnow().isoformat()
     }
@@ -488,7 +482,7 @@ def complete_repair_with_photo(
         report_id=real_db_id,
         notif_type="REPORT_RESOLVED",
         title="Repair Completed & Verified",
-        message=f"Repair for complaint #{report_id[:8].upper()} completed! Repaired image uploaded. Final bill: Rs. {final_bill} ({'10% SLA Delay Discount Applied' if delay_applied else 'On-time'}).",
+        message=f"Repair for complaint #{report_id[:8].upper()} completed! Repaired image uploaded. Final bill: Rs. {final_bill}.",
         role="citizen"
     )
 
@@ -496,7 +490,6 @@ def complete_repair_with_photo(
         "report_id": report_id,
         "status": "Resolved",
         "repaired_photo_url": final_photo_url,
-        "delay_discount_applied": delay_applied,
         "final_bill_amount": final_bill,
         "report": update_payload
     }

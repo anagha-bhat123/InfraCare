@@ -126,7 +126,6 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
   const [engineerNote, setEngineerNote] = useState("");
   const [repairedPhotoUrl, setRepairedPhotoUrl] = useState("");
   const [repairedFileName, setRepairedFileName] = useState("");
-  const [isWorkDelayed, setIsWorkDelayed] = useState(false);
   const fileInputRef = useRef(null);
 
   const handleImageFileUpload = (file) => {
@@ -396,26 +395,6 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
                     </div>
                   </div>
 
-                  <div>
-                    <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: "#374151", marginBottom: 6 }}>
-                      SLA Work Timeline Status:
-                    </label>
-                    <div style={{ padding: "12px", backgroundColor: isWorkDelayed ? "#fef2f2" : "#f0fdf4", border: isWorkDelayed ? "1px solid #fecdd3" : "1px solid #bbf7d0", borderRadius: 6 }}>
-                      <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.82rem", fontWeight: 700, color: isWorkDelayed ? "#b91c1c" : "#166534" }}>
-                        <input
-                          type="checkbox"
-                          checked={isWorkDelayed}
-                          onChange={(e) => setIsWorkDelayed(e.target.checked)}
-                        />
-                        Work Delayed Beyond Target Timeline (10% Discount Penalty Applied)
-                      </label>
-                      <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 4 }}>
-                        {isWorkDelayed 
-                          ? "⚠️ Final Invoice Bill: Approved Budget - 10% SLA Discount"
-                          : "✓ Work Completed On-Time: 100% Full Approved Budget"}
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
                 {repairedPhotoUrl && (
@@ -476,7 +455,7 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
                       const lab = Math.round(approvedBudget * 0.25);
                       const eq = Math.round(approvedBudget * 0.12);
                       const cont = Math.round(approvedBudget * 0.08);
-                      const finalBillAmount = isWorkDelayed ? Math.round(approvedBudget * 0.9) : approvedBudget;
+                      const finalBillAmount = approvedBudget;
 
                       // Create Final Bill Object
                       const finalBillObj = {
@@ -493,7 +472,6 @@ export default function Tasks({ reports = [], updateReportStatus, setPage, selec
                         labor_cost: lab,
                         equipment_cost: eq,
                         contingency_cost: cont,
-                        delay_discount_applied: isWorkDelayed,
                         final_bill_amount: finalBillAmount,
                         notes: note,
                         status: "Final Bill Submitted by Engineer",

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Optional, List, Any
 from datetime import datetime, timedelta, timezone
 import uuid
@@ -15,6 +15,7 @@ def _safe_float(val: Any) -> float:
 
 from app.database import supabase
 from app.schemas.budget import RepairBudgetCreate, RepairBudgetUpdateStatus
+from app.dependencies import RoleChecker
 
 router = APIRouter(prefix="/budget-approvals", tags=["budget-approvals"])
 
@@ -284,7 +285,7 @@ def get_budget_request_detail(request_id: str):
     raise HTTPException(status_code=404, detail="Budget approval request not found")
 
 @router.put("/{request_id}/status")
-def update_budget_request_status(request_id: str, payload: RepairBudgetUpdateStatus):
+def update_budget_request_status(request_id: str, payload: RepairBudgetUpdateStatus, user: dict = Depends(RoleChecker(["approver"]))):
     now_dt = datetime.now(timezone.utc)
     now_iso = now_dt.isoformat()
     

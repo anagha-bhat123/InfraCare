@@ -16,7 +16,6 @@ export const generateFinalBillPDF = (billData) => {
     labor_cost = 12500,
     equipment_cost = 6000,
     contingency_cost = 4000,
-    delay_discount_applied = false,
     final_bill_amount = 50000,
     notes = "Work completed satisfactorily on site with photographic verification.",
     created_at = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }),
@@ -25,8 +24,7 @@ export const generateFinalBillPDF = (billData) => {
 
   const invoiceNo = `TAX-INV-MUNI-${work_order_id.replace("WO-", "")}`;
   const totalOriginal = (material_cost || 0) + (labor_cost || 0) + (equipment_cost || 0) + (contingency_cost || 0) || approved_budget;
-  const discountAmount = delay_discount_applied ? Math.round(totalOriginal * 0.10) : 0;
-  const subtotalBeforeTax = totalOriginal - discountAmount;
+  const subtotalBeforeTax = totalOriginal;
 
   // 18% Statutory GST Calculation (9% CGST + 9% SGST)
   const cgstAmount = Math.round(subtotalBeforeTax * 0.09);
@@ -135,12 +133,6 @@ export const generateFinalBillPDF = (billData) => {
       </div>
     </div>
 
-    ${delay_discount_applied ? `
-      <div class="penalty-banner">
-        ⚠️ <strong>SLA Completion Penalty Applied:</strong> Repair work exceeded targeted completion window. A 10% discount penalty (${fmt(discountAmount)}) was deducted prior to GST calculation.
-      </div>
-    ` : ''}
-
     <h3>Itemized Works & Tax Distribution</h3>
     <table>
       <thead>
@@ -189,12 +181,6 @@ export const generateFinalBillPDF = (billData) => {
         <td>Gross Subtotal (Excl. Tax):</td>
         <td style="text-align: right; font-weight: bold;">${fmt(totalOriginal)}</td>
       </tr>
-      ${delay_discount_applied ? `
-      <tr style="color: #dc2626;">
-        <td>Less: 10% SLA Delay Penalty:</td>
-        <td style="text-align: right; font-weight: bold;">-${fmt(discountAmount)}</td>
-      </tr>
-      ` : ''}
       <tr style="background: #f8fafc;">
         <td><strong>Net Taxable Base Value:</strong></td>
         <td style="text-align: right; font-weight: bold; color: #0284c7;">${fmt(subtotalBeforeTax)}</td>

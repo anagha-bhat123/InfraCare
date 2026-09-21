@@ -321,8 +321,7 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
         const trackStr = rep.tracking_id || `WO-2026-${idStr.substring(0, 4).toUpperCase()}`;
         if (!list.some(b => b.report_id === idStr || b.work_order_id === trackStr)) {
           const budget = rep.approved_budget || rep.estimated_budget || 64000;
-          const isDelayed = Boolean(rep.delay_discount_applied);
-          const finalAmt = rep.final_bill_amount || (isDelayed ? Math.round(budget * 0.9) : budget);
+          const finalAmt = rep.final_bill_amount || budget;
           list.push({
             id: `bill-${idStr.substring(0, 6)}`,
             report_id: idStr,
@@ -337,7 +336,6 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
             labor_cost: Math.round(budget * 0.25),
             equipment_cost: Math.round(budget * 0.12),
             contingency_cost: Math.round(budget * 0.08),
-            delay_discount_applied: isDelayed,
             final_bill_amount: finalAmt,
             notes: rep.engineer_notes || "Repair execution completed on site.",
             status: rep.status === "Resolved" ? "Sanctioned & Settled" : rep.status || "Final Bill Sent to Approval Authority",
@@ -509,7 +507,10 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
 
       await fetch(`${apiUrl}/budget-approvals/${requestId}/status`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "X-User-Role": user?.role || "approver"
+        },
         body: JSON.stringify({
           status: targetStatus,
           approved_by: approverName,
@@ -991,14 +992,13 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
             <div style={{ backgroundColor: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: 14, marginBottom: 20 }}>
               <div style={{ display: "flex", alignItems: "center", justifyBetween: "space-between", gap: 10, marginBottom: 6 }}>
                 <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "#1e40af", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <Clock size={16} /> WORK COMPLETION TIMELINE & SLA DISCOUNT
+                  <Clock size={16} /> WORK COMPLETION TIMELINE
                 </span>
               </div>
               <div style={{ fontSize: "0.82rem", color: "#1e3a8a", lineHeight: 1.5 }}>
                 • <b>Urgency:</b> {selectedRequest.urgency || "Normal"} &rarr; Target Timeline: <b>
                   {selectedRequest.urgency === "Critical" ? "3 Days" : selectedRequest.urgency === "Urgent" || selectedRequest.urgency === "High Priority" ? "5 Days" : "1 Week (7 Days)"}
-                </b><br />
-                • <b>SLA Delay Rule:</b> If repair work exceeds the assigned timeline, a <b>10% Discount Penalty</b> is automatically applied to the final invoice bill.
+                </b>
               </div>
             </div>
 
@@ -1079,7 +1079,6 @@ export default function ApprovalAuthority({ user, reports = [], updateReportStat
                     labor_cost: selectedRequest.labor_cost || Math.round((selectedRequest.total_estimated_cost || 50000) * 0.25),
                     equipment_cost: selectedRequest.equipment_cost || Math.round((selectedRequest.total_estimated_cost || 50000) * 0.12),
                     contingency_cost: selectedRequest.contingency_cost || Math.round((selectedRequest.total_estimated_cost || 50000) * 0.08),
-                    delay_discount_applied: Boolean(selectedRequest.delay_discount_applied),
                     final_bill_amount: selectedRequest.final_bill_amount || selectedRequest.total_estimated_cost || 50000,
                     notes: selectedRequest.decision_notes || selectedRequest.justification || "Sanctioned municipal repair bill execution."
                   });
