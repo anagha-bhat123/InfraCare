@@ -9,8 +9,7 @@ import {
   Shield,
   CheckCircle2,
   MapPin,
-  RefreshCw,
-  Trash2
+  RefreshCw
 } from "lucide-react";
 import MapPanel from "../components/MapPanel";
 import { supabase } from "../services/supabase";
@@ -27,8 +26,7 @@ export default function Report({ addReport, setPage }) {
   const [desc, setDesc] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [locationVerified, setLocationVerified] = useState(false);
-  const cameraInputRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const fileRef = useRef(null);
 
   const locate = () => {
     navigator.geolocation?.getCurrentPosition(
@@ -46,14 +44,6 @@ export default function Report({ addReport, setPage }) {
 
   const onFile = (file) => {
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Image Required',
-        text: 'Please select a valid image file (JPEG, PNG, WEBP).'
-      });
-      return;
-    }
     const reader = new FileReader();
     reader.onload = () =>
       setPhoto({
@@ -76,8 +66,6 @@ export default function Report({ addReport, setPage }) {
     setLocationVerified(false);
     setCoords([13.3409, 74.7421]);
     setSubmitted(false);
-    if (cameraInputRef.current) cameraInputRef.current.value = "";
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const submit = async (e) => {
@@ -130,196 +118,25 @@ export default function Report({ addReport, setPage }) {
       <p className="lead">Use this official portal to submit detailed information about infrastructure defects. Your report will be analyzed and prioritized by municipal engineering teams.</p>
       <form className="report-grid" onSubmit={submit}>
         <section className="panel">
-          <h2> Visual Evidence <Camera size={20} /></h2>
-
-          {/* Hidden Inputs: 1 for Camera (capture="environment") and 1 for Gallery/File Upload */}
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              if (e.target.files && e.target.files[0]) {
-                onFile(e.target.files[0]);
-              }
-              e.target.value = "";
-            }}
-          />
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              if (e.target.files && e.target.files[0]) {
-                onFile(e.target.files[0]);
-              }
-              e.target.value = "";
-            }}
-          />
-
+          <h2> Visual Evidence<Camera /></h2>
           <div
-            className="dropzone evidence-dropzone"
+            className="dropzone"
+            onClick={() => fileRef.current.click()}
             onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                onFile(e.dataTransfer.files[0]);
-              }
-            }}
+            onDrop={(e) => { e.preventDefault(); onFile(e.dataTransfer.files[0]); }}
           >
             {photo ? (
-              <div style={{ position: "relative", width: "100%", height: "100%", minHeight: "240px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <img src={photo.url} alt="Captured damage" style={{ width: "100%", maxHeight: "320px", objectFit: "cover" }} />
-                <span className="geo-stamp">GPS {photo.lat}, {photo.lng} · {photo.capturedAt}</span>
-              </div>
+              <img src={photo.url} alt="Captured damage" />
             ) : (
-              <div className="dropzone-content" style={{ padding: "26px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", width: "100%" }}>
-                <div style={{ display: "flex", gap: "12px", color: "#64748b", marginBottom: "2px" }}>
-                  <div style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", padding: "10px", borderRadius: "50%" }}>
-                    <Camera size={26} color="#0f172a" />
-                  </div>
-                  <div style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", padding: "10px", borderRadius: "50%" }}>
-                    <Upload size={26} color="#0f172a" />
-                  </div>
-                </div>
-
-                <b style={{ fontSize: "1.05rem", color: "#0f172a" }}>Attach Photographic Proof</b>
-                <span style={{ fontSize: "0.85rem", color: "#64748b", maxWidth: "380px" }}>
-                  Take a live photo on site or choose an existing photo/file from your device.
-                </span>
-
-                {/* Prominent Action Buttons for Mobile & Desktop */}
-                <div className="evidence-btn-group" style={{ display: "flex", gap: "12px", marginTop: "10px", flexWrap: "wrap", justifyContent: "center", width: "100%", maxWidth: "420px" }}>
-                  <button
-                    type="button"
-                    className="evidence-btn camera-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      cameraInputRef.current?.click();
-                    }}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                      background: "#0f172a",
-                      color: "#ffffff",
-                      border: "none",
-                      padding: "12px 20px",
-                      borderRadius: "8px",
-                      fontWeight: "600",
-                      fontSize: "0.92rem",
-                      cursor: "pointer",
-                      boxShadow: "0 2px 4px rgba(0,0,0,0.12)",
-                      flex: "1 1 180px",
-                      minHeight: "44px"
-                    }}
-                  >
-                    <Camera size={19} />
-                    Take Live Photo
-                  </button>
-
-                  <button
-                    type="button"
-                    className="evidence-btn upload-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      fileInputRef.current?.click();
-                    }}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                      background: "#ffffff",
-                      color: "#0f172a",
-                      border: "1.5px solid #0f172a",
-                      padding: "12px 20px",
-                      borderRadius: "8px",
-                      fontWeight: "600",
-                      fontSize: "0.92rem",
-                      cursor: "pointer",
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-                      flex: "1 1 180px",
-                      minHeight: "44px"
-                    }}
-                  >
-                    <Upload size={19} />
-                    Upload Files / Gallery
-                  </button>
-                </div>
-
-                <small style={{ color: "#94a3b8", fontSize: "0.75rem", marginTop: "4px" }}>
-                  Desktop users can also drag & drop photos here · JPEG/PNG up to 10MB
-                </small>
-              </div>
+              <>
+                <Upload />
+                <b>Drag and drop site photos or <u>browse files</u></b>
+                <span>High-resolution JPEG/PNG up to 10MB per file.</span>
+              </>
             )}
+            {photo && <span className="geo-stamp">GPS {photo.lat}, {photo.lng} · {photo.capturedAt}</span>}
           </div>
-
-          {/* Action bar if photo is present */}
-          {photo && (
-            <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap", marginBottom: "22px", marginTop: "-10px" }}>
-              <button
-                type="button"
-                onClick={() => cameraInputRef.current?.click()}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  background: "#f1f5f9",
-                  border: "1px solid #cbd5e1",
-                  color: "#0f172a",
-                  padding: "8px 16px",
-                  borderRadius: "6px",
-                  fontSize: "0.84rem",
-                  fontWeight: 600,
-                  cursor: "pointer"
-                }}
-              >
-                <Camera size={16} /> Retake Photo
-              </button>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  background: "#f1f5f9",
-                  border: "1px solid #cbd5e1",
-                  color: "#0f172a",
-                  padding: "8px 16px",
-                  borderRadius: "6px",
-                  fontSize: "0.84rem",
-                  fontWeight: 600,
-                  cursor: "pointer"
-                }}
-              >
-                <Upload size={16} /> Change File / Gallery
-              </button>
-              <button
-                type="button"
-                onClick={() => setPhoto(null)}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  background: "#fff1f2",
-                  border: "1px solid #fecdd3",
-                  color: "#e11d48",
-                  padding: "8px 16px",
-                  borderRadius: "6px",
-                  fontSize: "0.84rem",
-                  fontWeight: 600,
-                  cursor: "pointer"
-                }}
-              >
-                <Trash2 size={16} /> Remove Photo
-              </button>
-            </div>
-          )}
+          <input ref={fileRef} hidden type="file" accept="image/*" capture="environment" onChange={(e) => onFile(e.target.files[0])} />
 
           <div className="form-row">
             <label>
